@@ -310,27 +310,27 @@ export class RelayConnector {
 
 	fetchWebBookmark = (params: UrlParams) => {
 		const { currentAddressPointer, currentProfilePointer, hashtag } = params;
-		const filter: LazyFilter = {
+		const filterB: LazyFilter = {
 			kinds: [39701],
 			until: now(),
 			limit: 100
 		};
 		const relaySet: Set<string> = new Set<string>();
 		if (currentAddressPointer !== undefined) {
-			filter.kinds = [currentAddressPointer.kind];
-			filter.authors = [currentAddressPointer.pubkey];
-			filter['#d'] = [currentAddressPointer.identifier];
+			filterB.kinds = [currentAddressPointer.kind];
+			filterB.authors = [currentAddressPointer.pubkey];
+			filterB['#d'] = [currentAddressPointer.identifier];
 			for (const relay of currentAddressPointer.relays ?? []) {
 				relaySet.add(normalizeURL(relay));
 			}
 		} else if (currentProfilePointer !== undefined) {
-			filter.authors = [currentProfilePointer.pubkey];
+			filterB.authors = [currentProfilePointer.pubkey];
 			for (const relay of currentProfilePointer.relays ?? []) {
 				relaySet.add(normalizeURL(relay));
 			}
 		}
 		if (hashtag !== undefined) {
-			filter['#t'] = [hashtag];
+			filterB['#t'] = [hashtag];
 		}
 		if (this.#relayRecord !== undefined) {
 			for (const [relay, _] of Object.entries(this.#relayRecord).filter(([_, obj]) => obj.read)) {
@@ -342,8 +342,14 @@ export class RelayConnector {
 			}
 		}
 		const options: { relays: string[] } = { relays: Array.from(relaySet) };
-		this.#rxReqB39701.emit(filter, options);
-		this.#rxReqF.emit(filter);
+		this.#rxReqB39701.emit(filterB, options);
+		const filterF: LazyFilter = {
+			...filterB
+		};
+		delete filterF.until;
+		delete filterF.limit;
+		filterF.since = now() + 1;
+		this.#rxReqF.emit(filterF);
 	};
 
 	getSeenOn = (id: string, excludeWs: boolean): string[] => {
