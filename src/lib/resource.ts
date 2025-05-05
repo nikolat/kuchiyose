@@ -30,6 +30,7 @@ export type UrlParams = {
 	currentProfilePointer?: nip19.ProfilePointer;
 	currentAddressPointer?: nip19.AddressPointer;
 	hashtag?: string;
+	path?: string;
 };
 
 type ReqB = RxReq<'backward'> &
@@ -309,7 +310,7 @@ export class RelayConnector {
 	};
 
 	fetchWebBookmark = (params: UrlParams) => {
-		const { currentAddressPointer, currentProfilePointer, hashtag } = params;
+		const { currentAddressPointer, currentProfilePointer, hashtag, path } = params;
 		const filterB: LazyFilter = {
 			kinds: [39701],
 			until: now(),
@@ -331,6 +332,9 @@ export class RelayConnector {
 		}
 		if (hashtag !== undefined) {
 			filterB['#t'] = [hashtag];
+		}
+		if (path !== undefined) {
+			filterB['#d'] = [path];
 		}
 		if (this.#relayRecord !== undefined) {
 			for (const [relay, _] of Object.entries(this.#relayRecord).filter(([_, obj]) => obj.read)) {

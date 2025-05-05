@@ -178,7 +178,12 @@
 	</details>
 	<dl>
 		{#each webBookmarkMap as { url, webbookmarks } (url)}
-			<dt><a href={url} target="_blank" rel="noopener noreferrer">{url}</a></dt>
+			{@const path = url.replace(/^https?:\/\//, '')}
+			{@const n = webbookmarks.length}
+			<dt>
+				<a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
+			</dt>
 			<dd>
 				<dl>
 					{#each webbookmarks as webbookmark (webbookmark.pubkey)}
@@ -269,6 +274,11 @@
 	input#edit-category:invalid,
 	input.invalid {
 		outline: 2px solid red;
+	}
+	.bookmark-count {
+		display: inline-block;
+		color: pink;
+		text-shadow: 0 0 2px white;
 	}
 	.avatar {
 		width: 16px;
