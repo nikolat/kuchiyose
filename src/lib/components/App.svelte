@@ -45,7 +45,7 @@
 		const content: string = editContent;
 		const tags: string[][] = [
 			['d', editDTag],
-			['published_at', String(now())],
+			['published_at', getPublishedAt(editDTag) ?? String(now())],
 			...editTags.map((t) => ['t', t])
 		];
 		editDTag = '';
@@ -53,6 +53,13 @@
 		editTags = [];
 		editContent = '';
 		await rc?.sendWebBookmark(content, tags);
+	};
+
+	const getPublishedAt = (d: string): string | undefined => {
+		const event = webBookmarkMap
+			.find(({ url }) => url === `https://${d}`)
+			?.webbookmarks.find((ev) => ev.pubkey === loginPubkey);
+		return event?.tags.find((tag) => tag.length >= 2 && tag[0] === 'published_at')?.at(1);
 	};
 
 	const nlAuth = (e: Event) => {
