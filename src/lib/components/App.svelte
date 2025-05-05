@@ -150,6 +150,7 @@
 					onclick={() => {
 						editTags.push(editTag.toLowerCase());
 						editTag = '';
+						editTagInput?.focus();
 					}}><span>add</span></button
 				>
 			</dd>
