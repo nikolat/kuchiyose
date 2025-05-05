@@ -177,7 +177,7 @@
 			</dd>
 		</dl>
 	</details>
-	<dl>
+	<dl class="url">
 		{#each webBookmarkMap as { url, webbookmarks } (url)}
 			{@const path = url.replace(/^https?:\/\//, '')}
 			{@const n = webbookmarks.length}
@@ -186,7 +186,7 @@
 				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
 			</dt>
 			<dd>
-				<dl>
+				<dl class="entry">
 					{#each webbookmarks as webbookmark (webbookmark.pubkey)}
 						{@const identifier =
 							webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}
@@ -280,6 +280,12 @@
 		display: inline-block;
 		color: pink;
 		text-shadow: 0 0 2px white;
+	}
+	.entry > dd {
+		white-space: pre-line;
+	}
+	.details {
+		overflow-x: auto;
 	}
 	.avatar {
 		width: 16px;
