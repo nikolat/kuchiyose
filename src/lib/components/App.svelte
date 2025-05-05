@@ -182,6 +182,11 @@
 			{@const path = url.replace(/^https?:\/\//, '')}
 			{@const n = webbookmarks.length}
 			<dt>
+				<img
+					src={`http://www.google.com/s2/favicons?domain=${encodeURIComponent(url)}`}
+					alt="favicon"
+					class="favicon"
+				/>
 				<a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
 				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
 			</dt>
@@ -287,6 +292,7 @@
 	.details {
 		overflow-x: auto;
 	}
+	.favicon,
 	.avatar {
 		width: 16px;
 		height: 16px;
