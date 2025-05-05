@@ -103,7 +103,7 @@
 <main>
 	<details class="edit">
 		<summary>create new web bookmark</summary>
-		<dl>
+		<dl class="edit">
 			<dt class="d-tag">
 				<label for="edit-url">URL(d-tag)</label>
 			</dt>
@@ -266,6 +266,10 @@
 <style>
 	summary {
 		width: 100%;
+	}
+	dl.edit input,
+	dl.edit textarea {
+		min-width: 15em;
 	}
 	.d-tag {
 		line-height: 2.5em;
