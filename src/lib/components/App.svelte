@@ -319,15 +319,6 @@
 							<a href="/{naddr}">
 								<time>{new Date(1000 * webbookmark.created_at).toLocaleString()}</time>
 							</a>
-							<AddStar
-								event={webbookmark}
-								{rc}
-								{loginPubkey}
-								{profileMap}
-								eventsReactionToTheTarget={getEventsReactionToTheEvent(webbookmark, eventsReaction)}
-								{eventsEmojiSet}
-								mutedWords={[]}
-							/>
 							{#if loginPubkey === webbookmark.pubkey}
 								<span class="bookmark-delete">
 									<button
@@ -352,6 +343,15 @@
 									</button>
 								</span>
 							{/if}
+							<AddStar
+								event={webbookmark}
+								{rc}
+								{loginPubkey}
+								{profileMap}
+								eventsReactionToTheTarget={getEventsReactionToTheEvent(webbookmark, eventsReaction)}
+								{eventsEmojiSet}
+								mutedWords={[]}
+							/>
 							<br />
 							<a href="/{nip19.npubEncode(webbookmark.pubkey)}">
 								<img
