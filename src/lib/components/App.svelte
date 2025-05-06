@@ -197,6 +197,13 @@
 					placeholder="example.com/"
 					disabled={loginPubkey === undefined}
 					bind:value={editDTag}
+					onpaste={(e: ClipboardEvent & { currentTarget: EventTarget & HTMLInputElement }) => {
+						const pastedText = e.clipboardData?.getData('text/plain');
+						if (pastedText?.startsWith('https://')) {
+							e.preventDefault();
+							editDTag = pastedText.replace(/^https:\/\//, '');
+						}
+					}}
 				/>
 			</dd>
 			<dt class="t-tag">
