@@ -233,6 +233,7 @@
 				/>
 				<a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
 				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
+				<br />
 				<AddStar
 					{url}
 					{rc}
