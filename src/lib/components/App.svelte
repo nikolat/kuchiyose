@@ -20,6 +20,7 @@
 		up: UrlParams;
 	} = $props();
 
+	let isDevMode: boolean = $state(false);
 	let loginPubkey: string | undefined = $state();
 	let rc: RelayConnector | undefined = $state();
 	let eventsWebBookmark: NostrEvent[] = $state([]);
@@ -181,7 +182,13 @@
 	<title>{title}</title>
 </svelte:head>
 
-<header><h1><a href="/">{title}</a></h1></header>
+<header>
+	<h1><a href="/">{title}</a></h1>
+	<span class="setting">
+		<input type="checkbox" id="dev-mode" name="mode" bind:checked={isDevMode} />
+		<label for="dev-mode">Dev Mode</label>
+	</span>
+</header>
 <main>
 	<details class="edit">
 		<summary>create new web bookmark</summary>
@@ -377,24 +384,26 @@
 						</dt>
 						<dd>
 							{webbookmark.content}
-							<details class="details">
-								<summary>view JSON</summary>
-								<dl class="details">
-									<dt>Event JSON</dt>
-									<dd>
-										<pre class="json-view"><code>{JSON.stringify(webbookmark, undefined, 2)}</code
-											></pre>
-									</dd>
-									<dt>Relays seen on</dt>
-									<dd>
-										<ul>
-											{#each rc?.getSeenOn(webbookmark.id, false) ?? [] as relay (relay)}
-												<li>{relay}</li>
-											{/each}
-										</ul>
-									</dd>
-								</dl>
-							</details>
+							{#if isDevMode}
+								<details class="details">
+									<summary>view JSON</summary>
+									<dl class="details">
+										<dt>Event JSON</dt>
+										<dd>
+											<pre class="json-view"><code>{JSON.stringify(webbookmark, undefined, 2)}</code
+												></pre>
+										</dd>
+										<dt>Relays seen on</dt>
+										<dd>
+											<ul>
+												{#each rc?.getSeenOn(webbookmark.id, false) ?? [] as relay (relay)}
+													<li>{relay}</li>
+												{/each}
+											</ul>
+										</dd>
+									</dl>
+								</details>
+							{/if}
 						</dd>
 					{/each}
 				</dl>
@@ -405,6 +414,13 @@
 <footer><a href={linkGitHub} target="_blank" rel="noopener noreferrer">GitHub</a></footer>
 
 <style>
+	header {
+		display: flex;
+		justify-content: space-between;
+	}
+	.setting {
+		align-content: center;
+	}
 	summary {
 		width: 100%;
 	}
