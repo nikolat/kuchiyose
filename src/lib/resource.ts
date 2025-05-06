@@ -21,10 +21,21 @@ import { verifier } from '@rx-nostr/crypto';
 import { EventStore } from 'applesauce-core';
 import type { ProfileContent } from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
+import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
 import type { RelayRecord } from 'nostr-tools/relay';
 import { normalizeURL } from 'nostr-tools/utils';
 import { nip19 } from 'nostr-tools';
-import { defaultRelays, profileRelays } from '$lib/config';
+import {
+	defaultReactionToAdd,
+	defaultRelays,
+	isEnabledOutboxModel,
+	profileRelays
+} from '$lib/config';
+import {
+	getAddressPointerFromAId,
+	getRelaysToUseFromKind10002Event,
+	isValidEmoji
+} from '$lib/utils';
 
 export type UrlParams = {
 	currentProfilePointer?: nip19.ProfilePointer;
@@ -47,8 +58,11 @@ export class RelayConnector {
 	#eventStore: EventStore;
 	#relayRecord: RelayRecord | undefined;
 	#rxReqB0: ReqB;
+	#rxReqB7: ReqB;
+	#rxReqB17: ReqB;
 	#rxReqB10002: ReqB;
-	#rxReqB39701: ReqB;
+	#rxReqBRp: ReqB;
+	#rxReqBAd: ReqB;
 	#rxReqF: ReqF;
 
 	#tie: OperatorFunction<
@@ -60,6 +74,7 @@ export class RelayConnector {
 	>;
 	#seenOn: Map<string, Set<string>>;
 	#secBufferTime = 1000;
+	#limitReaction = 100;
 
 	#eventsDeletion: NostrEvent[];
 
@@ -71,8 +86,11 @@ export class RelayConnector {
 		}
 		this.#eventStore = new EventStore();
 		this.#rxReqB0 = createRxBackwardReq();
+		this.#rxReqB7 = createRxBackwardReq();
+		this.#rxReqB17 = createRxBackwardReq();
 		this.#rxReqB10002 = createRxBackwardReq();
-		this.#rxReqB39701 = createRxBackwardReq();
+		this.#rxReqBRp = createRxBackwardReq();
+		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
 		[this.#tie, this.#seenOn] = createTie();
 		this.#rxNostr.setDefaultRelays(defaultRelays);
@@ -92,6 +110,14 @@ export class RelayConnector {
 			bufferTime(this.#secBufferTime),
 			batch(this.#mergeFilter0)
 		);
+		const batchedReq7 = this.#rxReqB7.pipe(
+			bufferTime(this.#secBufferTime),
+			batch(this.#mergeFilter7)
+		);
+		const batchedReq17 = this.#rxReqB17.pipe(
+			bufferTime(this.#secBufferTime),
+			batch(this.#mergeFilter17)
+		);
 		this.#rxNostr
 			.use(batchedReq0, { relays: [...defaultRelays, ...profileRelays] })
 			.pipe(
@@ -102,6 +128,14 @@ export class RelayConnector {
 				next: this.#next,
 				complete: this.#complete
 			});
+		this.#rxNostr.use(batchedReq7).pipe(this.#tie).subscribe({
+			next: this.#next,
+			complete: this.#complete
+		});
+		this.#rxNostr.use(batchedReq17).pipe(this.#tie).subscribe({
+			next: this.#next,
+			complete: this.#complete
+		});
 		this.#rxNostr
 			.use(this.#rxReqB10002, { relays: [...defaultRelays, ...profileRelays] })
 			.pipe(
@@ -113,12 +147,22 @@ export class RelayConnector {
 				complete: this.#complete
 			});
 		this.#rxNostr
-			.use(this.#rxReqB39701)
+			.use(this.#rxReqBRp)
+			.pipe(
+				this.#tie,
+				latestEach(({ event }) => `${event.kind}:${event.pubkey}`)
+			)
+			.subscribe({
+				next: this.#next,
+				complete: this.#complete
+			});
+		this.#rxNostr
+			.use(this.#rxReqBAd)
 			.pipe(
 				this.#tie,
 				latestEach(
 					({ event }) =>
-						`${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`
+						`${event.kind}:${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`
 				)
 			)
 			.subscribe({
@@ -138,6 +182,54 @@ export class RelayConnector {
 		return [
 			{ kinds: f?.kinds, authors: authors, limit: f?.limit, until: f?.until, since: f?.since }
 		];
+	};
+
+	#mergeFilter7: MergeFilter = (a: LazyFilter[], b: LazyFilter[]) => {
+		const margedFilters = [...a, ...b];
+		const etags = Array.from(new Set<string>(margedFilters.map((f) => f['#e'] ?? []).flat()));
+		const atags = Array.from(new Set<string>(margedFilters.map((f) => f['#a'] ?? []).flat()));
+		const f = margedFilters.at(0);
+		const res: LazyFilter[] = [];
+		if (etags.length > 0) {
+			res.push({ kinds: [7], '#e': etags, limit: f?.limit, until: f?.until });
+		}
+		if (atags.length > 0) {
+			res.push({ kinds: [7], '#a': atags, limit: f?.limit, until: f?.until });
+		}
+		return res;
+	};
+
+	#mergeFilter17: MergeFilter = (a: LazyFilter[], b: LazyFilter[]) => {
+		const margedFilters = [...a, ...b];
+		const rtags = Array.from(new Set<string>(margedFilters.map((f) => f['#r'] ?? []).flat()));
+		const f = margedFilters.at(0);
+		return [{ kinds: [17], '#r': rtags, limit: f?.limit, until: f?.until }];
+	};
+
+	#mergeFilterForAddressableEvents = (
+		a: LazyFilter[],
+		b: LazyFilter[],
+		kind: number
+	): LazyFilter[] => {
+		const margedFilters = [...a, ...b];
+		const newFilters: LazyFilter[] = [];
+		const filterMap: Map<string, Set<string>> = new Map<string, Set<string>>();
+		for (const filter of margedFilters) {
+			const author: string = filter.authors?.at(0) ?? '';
+			const dTags: string[] = filter['#d'] ?? [];
+			if (filterMap.has(author)) {
+				for (const dTag of dTags) {
+					filterMap.set(author, filterMap.get(author)!.add(dTag));
+				}
+			} else {
+				filterMap.set(author, new Set<string>(dTags));
+			}
+		}
+		for (const [author, dTagSet] of filterMap) {
+			const filter = { kinds: [kind], authors: [author], '#d': Array.from(dTagSet) };
+			newFilters.push(filter);
+		}
+		return newFilters;
 	};
 
 	#next = (packet: EventPacket): void => {
@@ -208,7 +300,10 @@ export class RelayConnector {
 	subscribeEventStore = (
 		webBookmarkMap: { url: string; webbookmarks: NostrEvent[] }[],
 		profileMap: { pubkey: string; profile: ProfileContent }[],
-		callbackRelayRecord: () => void
+		callbackRelayRecord: () => void,
+		callbackEmojiSet: (event: NostrEvent) => void,
+		callbackReaction: (event: NostrEvent) => void,
+		callbackWebReaction: (event: NostrEvent) => void
 	) => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
@@ -227,10 +322,32 @@ export class RelayConnector {
 					profileMap.push({ pubkey: event.pubkey, profile: profObj });
 					break;
 				}
+				case 7: {
+					callbackReaction(event);
+					if (profileMap.find((v) => v.pubkey === event.pubkey) === undefined) {
+						this.#fetchProfile(event.pubkey);
+					}
+					break;
+				}
+				case 17: {
+					callbackWebReaction(event);
+					if (profileMap.find((v) => v.pubkey === event.pubkey) === undefined) {
+						this.#fetchProfile(event.pubkey);
+					}
+					break;
+				}
 				case 10002: {
 					this.#relayRecord = this.#getRelaysToUseFromKind10002Event(event);
 					this.#rxNostr.setDefaultRelays(this.#relayRecord);
 					callbackRelayRecord();
+					break;
+				}
+				case 10030: {
+					this.#fetchEventsByATags(event);
+					break;
+				}
+				case 30030: {
+					callbackEmojiSet(event);
 					break;
 				}
 				case 39701: {
@@ -254,6 +371,8 @@ export class RelayConnector {
 					if (profileMap.find((v) => v.pubkey === event.pubkey) === undefined) {
 						this.#fetchProfile(event.pubkey);
 					}
+					this.#fetchReaction(event);
+					this.#fetchWebReaction(`https://${d}`);
 					break;
 				}
 				default:
@@ -287,6 +406,18 @@ export class RelayConnector {
 		return newRelays;
 	};
 
+	#getRelays = (relayType: 'read' | 'write'): string[] => {
+		const relaySet = new Set<string>();
+		if (this.#relayRecord !== undefined) {
+			for (const [relay, _] of Object.entries(this.#relayRecord).filter(([_, obj]) =>
+				relayType === 'read' ? obj.read : obj.write
+			)) {
+				relaySet.add(relay);
+			}
+		}
+		return Array.from(relaySet);
+	};
+
 	#fetchProfile = (pubkey: string) => {
 		const filter: LazyFilter = {
 			kinds: [0],
@@ -294,6 +425,30 @@ export class RelayConnector {
 			until: now()
 		};
 		this.#rxReqB0.emit(filter);
+	};
+
+	#fetchReaction = (event: NostrEvent) => {
+		let filter: LazyFilter;
+		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
+			const ap: nip19.AddressPointer = {
+				identifier: event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '',
+				pubkey: event.pubkey,
+				kind: event.kind
+			};
+			filter = {
+				kinds: [7],
+				'#a': [`${ap.kind}:${ap.pubkey}:${ap.identifier}`],
+				limit: this.#limitReaction,
+				until: now()
+			};
+		} else {
+			filter = { kinds: [7], '#e': [event.id], limit: this.#limitReaction, until: now() };
+		}
+		this.#rxReqB7.emit(filter);
+	};
+
+	#fetchWebReaction = (url: string) => {
+		this.#rxReqB17.emit({ kinds: [17], '#r': [url], limit: this.#limitReaction, until: now() });
 	};
 
 	fetchUserInfo = (pubkey: string) => {
@@ -307,6 +462,11 @@ export class RelayConnector {
 			authors: [pubkey],
 			until: now()
 		});
+		this.#rxReqBRp.emit({
+			kinds: [10030],
+			authors: [pubkey],
+			until: now()
+		});
 	};
 
 	fetchWebBookmark = (params: UrlParams) => {
@@ -316,7 +476,12 @@ export class RelayConnector {
 			until: now(),
 			limit: 100
 		};
-		const relaySet: Set<string> = new Set<string>();
+		const relaySet: Set<string> = new Set<string>(this.#getRelays('read'));
+		if (relaySet.size === 0) {
+			for (const relay of defaultRelays) {
+				relaySet.add(relay);
+			}
+		}
 		if (currentAddressPointer !== undefined) {
 			filterB.kinds = [currentAddressPointer.kind];
 			filterB.authors = [currentAddressPointer.pubkey];
@@ -336,17 +501,8 @@ export class RelayConnector {
 		if (path !== undefined) {
 			filterB['#d'] = [path];
 		}
-		if (this.#relayRecord !== undefined) {
-			for (const [relay, _] of Object.entries(this.#relayRecord).filter(([_, obj]) => obj.read)) {
-				relaySet.add(relay);
-			}
-		} else {
-			for (const relay of defaultRelays) {
-				relaySet.add(relay);
-			}
-		}
 		const options: { relays: string[] } = { relays: Array.from(relaySet) };
-		this.#rxReqB39701.emit(filterB, options);
+		this.#rxReqBAd.emit(filterB, options);
 		const filterF: LazyFilter = {
 			...filterB
 		};
@@ -354,6 +510,67 @@ export class RelayConnector {
 		delete filterF.limit;
 		filterF.since = now() + 1;
 		this.#rxReqF.emit(filterF);
+	};
+
+	#fetchEventsByATags = (event: NostrEvent) => {
+		const aIds = event.tags.filter((tag) => tag.length >= 2 && tag[0] === 'a').map((tag) => tag[1]);
+		const filters = [];
+		if (aIds.length > 0) {
+			for (const aId of aIds) {
+				const ap: nip19.AddressPointer | null = getAddressPointerFromAId(aId);
+				if (
+					ap !== null &&
+					!this.#eventStore.hasReplaceable(
+						ap.kind,
+						ap.pubkey,
+						isAddressableKind(ap.kind) ? ap.identifier : undefined
+					)
+				) {
+					const filter: LazyFilter = {
+						kinds: [ap.kind],
+						authors: [ap.pubkey],
+						until: now()
+					};
+					if (isAddressableKind(ap.kind)) {
+						filter['#d'] = [ap.identifier];
+					}
+					filters.push(filter);
+				}
+			}
+			let margedFilters: LazyFilter[] = [];
+			for (const filter of filters) {
+				margedFilters = this.#mergeFilterForAddressableEvents(
+					margedFilters,
+					[filter],
+					filter.kinds?.at(0) ?? -1
+				);
+			}
+			const sliceByNumber = (array: LazyFilter[], number: number) => {
+				const length = Math.ceil(array.length / number);
+				return new Array(length)
+					.fill(undefined)
+					.map((_, i) => array.slice(i * number, (i + 1) * number));
+			};
+			const relayHints: string[] = Array.from(
+				new Set<string>(
+					event.tags
+						.filter(
+							(tag) =>
+								tag.length >= 3 &&
+								tag[0] === 'a' &&
+								URL.canParse(tag[2]) &&
+								tag[2].startsWith('wss://')
+						)
+						.map((tag) => normalizeURL(tag[2]))
+				)
+			);
+			const relays: string[] = Array.from(
+				new Set<string>([...this.#getRelays('read'), ...relayHints])
+			);
+			for (const filters of sliceByNumber(margedFilters, 10)) {
+				this.#rxReqBRp.emit(filters, { relays });
+			}
+		}
 	};
 
 	getSeenOn = (id: string, excludeWs: boolean): string[] => {
@@ -380,11 +597,96 @@ export class RelayConnector {
 			created_at: now()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		const relaySet: Set<string> = new Set<string>();
-		for (const [relay, _] of Object.entries(this.#relayRecord).filter(([_, obj]) => obj.write)) {
-			relaySet.add(relay);
+		const options: Partial<RxNostrSendOptions> = { on: { relays: this.#getRelays('write') } };
+		this.#sendEvent(eventToSend, options);
+	};
+
+	sendReaction = async (
+		targetEvent?: NostrEvent,
+		targetUrl?: string,
+		content: string = defaultReactionToAdd,
+		emojiurl?: string
+	): Promise<void> => {
+		if (window.nostr === undefined) {
+			return;
 		}
-		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
+		const tags: string[][] = [];
+		let kind: number;
+		if (targetEvent !== undefined) {
+			kind = 7;
+			const recommendedRelay: string = this.getSeenOn(targetEvent.id, true).at(0) ?? '';
+			if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
+				const d = targetEvent.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+				tags.push(['a', `${targetEvent.kind}:${targetEvent.pubkey}:${d}`, recommendedRelay]);
+			}
+			tags.push(
+				['e', targetEvent.id, recommendedRelay, '', targetEvent.pubkey],
+				['p', targetEvent.pubkey],
+				['k', String(targetEvent.kind)]
+			);
+		} else if (targetUrl !== undefined) {
+			kind = 17;
+			tags.push(['r', targetUrl]);
+		} else {
+			throw new Error('targetEvent or targetUrl is required');
+		}
+		if (emojiurl !== undefined && URL.canParse(emojiurl)) {
+			tags.push(['emoji', content.replaceAll(':', ''), emojiurl]);
+		}
+		const eventTemplate: EventTemplate = {
+			kind,
+			tags,
+			content,
+			created_at: now()
+		};
+		const eventToSend = await window.nostr.signEvent(eventTemplate);
+		if (!isValidEmoji(eventToSend)) {
+			console.warn('emoji is invalid');
+			return;
+		}
+		const relaysToAdd: Set<string> = new Set<string>(this.#getRelays('write'));
+		if (isEnabledOutboxModel && targetEvent !== undefined) {
+			const relayRecord: RelayRecord = getRelaysToUseFromKind10002Event(
+				this.#eventStore.getReplaceable(10002, targetEvent.pubkey)
+			);
+			for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
+				relaysToAdd.add(relayUrl);
+			}
+		}
+		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaysToAdd) } };
+		this.#sendEvent(eventToSend, options);
+	};
+
+	sendDeletion = async (targetEvent: NostrEvent): Promise<void> => {
+		if (window.nostr === undefined) {
+			return;
+		}
+		const tags = [
+			['e', targetEvent.id],
+			['k', String(targetEvent.kind)]
+		];
+		const eventTemplate: EventTemplate = {
+			kind: 5,
+			tags,
+			content: '',
+			created_at: now()
+		};
+		const eventToSend = await window.nostr.signEvent(eventTemplate);
+		const relaysToAdd: Set<string> = new Set<string>(this.#getRelays('write'));
+		if (isEnabledOutboxModel) {
+			const mentionedPubkeys: string[] = targetEvent.tags
+				.filter((tag) => tag.length >= 2 && tag[0] === 'p')
+				.map((tag) => tag[1]);
+			for (const pubkey of mentionedPubkeys) {
+				const relayRecord: RelayRecord = getRelaysToUseFromKind10002Event(
+					this.#eventStore.getReplaceable(10002, pubkey)
+				);
+				for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
+					relaysToAdd.add(relayUrl);
+				}
+			}
+		}
+		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaysToAdd) } };
 		this.#sendEvent(eventToSend, options);
 	};
 

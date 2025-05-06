@@ -3,10 +3,16 @@
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { getRoboHashURL, linkGitHub } from '$lib/config';
 	import { RelayConnector, type UrlParams } from '$lib/resource';
+	import AddStar from '$lib/components/AddStar.svelte';
 	import { now } from 'rx-nostr';
 	import type { ProfileContent } from 'applesauce-core/helpers';
 	import { nip19 } from 'nostr-tools';
 	import type { NostrEvent } from 'nostr-tools/pure';
+	import {
+		getEventsAddressableLatest,
+		getEventsReactionToTheEvent,
+		getEventsReactionToTheUrl
+	} from '$lib/utils';
 
 	const {
 		up
@@ -16,8 +22,25 @@
 
 	let loginPubkey: string | undefined = $state();
 	let rc: RelayConnector | undefined = $state();
-	let webBookmarkMap: { url: string; webbookmarks: NostrEvent[] }[] = $state([]);
-	let profileMap: { pubkey: string; profile: ProfileContent }[] = $state([]);
+	let webBookmarkArray: { url: string; webbookmarks: NostrEvent[] }[] = $state([]);
+	let webBookmarkMap: Map<string, NostrEvent[]> = $derived.by(() => {
+		const map = new Map<string, NostrEvent[]>();
+		for (const { url, webbookmarks } of webBookmarkArray) {
+			map.set(url, webbookmarks);
+		}
+		return map;
+	});
+	let profileArray: { pubkey: string; profile: ProfileContent }[] = $state([]);
+	let profileMap: Map<string, ProfileContent> = $derived.by(() => {
+		const map = new Map<string, ProfileContent>();
+		for (const { pubkey, profile } of profileArray) {
+			map.set(pubkey, profile);
+		}
+		return map;
+	});
+	let eventsReaction: NostrEvent[] = $state([]);
+	let eventsWebReaction: NostrEvent[] = $state([]);
+	let eventsEmojiSet: NostrEvent[] = $state([]);
 	let idTimeoutLoading: number;
 	let editDTag: string = $state('');
 	let editTag: string = $state('');
@@ -29,11 +52,34 @@
 		rc?.fetchWebBookmark(up);
 	};
 
+	const callbackEmojiSet = (event: NostrEvent) => {
+		eventsEmojiSet.push(event);
+		eventsEmojiSet = getEventsAddressableLatest(eventsEmojiSet);
+	};
+
+	const callbackReaction = (event: NostrEvent) => {
+		eventsReaction.push(event);
+	};
+
+	const callbackWebReaction = (event: NostrEvent) => {
+		eventsWebReaction.push(event);
+	};
+
 	const initFetch = () => {
-		webBookmarkMap = [];
+		webBookmarkArray = [];
+		eventsReaction = [];
+		eventsWebReaction = [];
+		eventsEmojiSet = [];
 		rc?.dispose();
 		rc = new RelayConnector(loginPubkey !== undefined);
-		rc.subscribeEventStore(webBookmarkMap, profileMap, callbackRelayRecord);
+		rc.subscribeEventStore(
+			webBookmarkArray,
+			profileArray,
+			callbackRelayRecord,
+			callbackEmojiSet,
+			callbackReaction,
+			callbackWebReaction
+		);
 		if (loginPubkey !== undefined) {
 			rc.fetchUserInfo(loginPubkey);
 		} else {
@@ -56,9 +102,7 @@
 	};
 
 	const getPublishedAt = (d: string): string | undefined => {
-		const event = webBookmarkMap
-			.find(({ url }) => url === `https://${d}`)
-			?.webbookmarks.find((ev) => ev.pubkey === loginPubkey);
+		const event = webBookmarkMap.get(`https://${d}`)?.find((ev) => ev.pubkey === loginPubkey);
 		return event?.tags.find((tag) => tag.length >= 2 && tag[0] === 'published_at')?.at(1);
 	};
 
@@ -88,7 +132,7 @@
 				initFetch();
 			}
 		}, 1000);
-		webBookmarkMap = [];
+		webBookmarkArray = [];
 	});
 
 	const title = 'Nostr Web Bookmark Trend';
@@ -178,7 +222,7 @@
 		</dl>
 	</details>
 	<dl class="url">
-		{#each webBookmarkMap as { url, webbookmarks } (url)}
+		{#each webBookmarkArray as { url, webbookmarks } (url)}
 			{@const path = url.replace(/^https?:\/\//, '')}
 			{@const n = webbookmarks.length}
 			<dt>
@@ -189,6 +233,15 @@
 				/>
 				<a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
 				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
+				<AddStar
+					{url}
+					{rc}
+					{loginPubkey}
+					{profileMap}
+					eventsReactionToTheTarget={getEventsReactionToTheUrl(url, eventsWebReaction)}
+					{eventsEmojiSet}
+					mutedWords={[]}
+				/>
 			</dt>
 			<dd>
 				<dl class="entry">
@@ -200,7 +253,7 @@
 								.filter((tag) => tag.length >= 2 && tag[0] === 't')
 								.map((tag) => tag[1].toLowerCase())
 						)}
-						{@const prof = profileMap.find((p) => p.pubkey === webbookmark.pubkey)?.profile}
+						{@const prof = profileMap.get(webbookmark.pubkey)}
 						{@const naddr = nip19.naddrEncode({
 							kind: webbookmark.kind,
 							pubkey: webbookmark.pubkey,
@@ -223,6 +276,16 @@
 							<a href="/{naddr}">
 								<time>{new Date(1000 * webbookmark.created_at).toLocaleString()}</time>
 							</a>
+							<AddStar
+								event={webbookmark}
+								{rc}
+								{loginPubkey}
+								{profileMap}
+								eventsReactionToTheTarget={getEventsReactionToTheEvent(webbookmark, eventsReaction)}
+								{eventsEmojiSet}
+								mutedWords={[]}
+							/>
+							<br />
 							<a href="/{nip19.npubEncode(webbookmark.pubkey)}">
 								<img
 									src={prof?.picture ?? getRoboHashURL(webbookmark.pubkey)}
@@ -289,6 +352,9 @@
 		display: inline-block;
 		color: pink;
 		text-shadow: 0 0 2px white;
+	}
+	.entry > dt {
+		position: relative;
 	}
 	.entry > dd {
 		white-space: pre-line;
