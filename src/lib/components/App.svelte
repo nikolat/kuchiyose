@@ -22,22 +22,36 @@
 
 	let loginPubkey: string | undefined = $state();
 	let rc: RelayConnector | undefined = $state();
-	let webBookmarkArray: { url: string; webbookmarks: NostrEvent[] }[] = $state([]);
+	let eventsWebBookmark: NostrEvent[] = $state([]);
 	let webBookmarkMap: Map<string, NostrEvent[]> = $derived.by(() => {
+		if (rc === undefined) {
+			return new Map<string, NostrEvent[]>();
+		}
 		const map = new Map<string, NostrEvent[]>();
-		for (const { url, webbookmarks } of webBookmarkArray) {
-			map.set(url, webbookmarks);
+		for (const ev of eventsWebBookmark) {
+			const d = ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+			if (!rc.isValidWebBookmark(d, ev)) {
+				continue;
+			}
+			const url = `https://${d}`;
+			const events = map.get(url);
+			if (events === undefined) {
+				map.set(url, [ev]);
+			} else {
+				map.set(url, events.concat(ev));
+			}
 		}
-		return map;
+		return new Map<string, NostrEvent[]>(
+			Array.from(map.entries()).toSorted((a, b) => {
+				const f = (e: [string, NostrEvent[]]) => Math.max(...e[1].map((ev) => ev.created_at));
+				return f(b) - f(a);
+			})
+		);
 	});
-	let profileArray: { pubkey: string; profile: ProfileContent }[] = $state([]);
-	let profileMap: Map<string, ProfileContent> = $derived.by(() => {
-		const map = new Map<string, ProfileContent>();
-		for (const { pubkey, profile } of profileArray) {
-			map.set(pubkey, profile);
-		}
-		return map;
-	});
+	let eventsProfile: NostrEvent[] = $state([]);
+	let profileMap: Map<string, ProfileContent> = $derived(
+		new Map<string, ProfileContent>(eventsProfile.map((ev) => [ev.pubkey, JSON.parse(ev.content)]))
+	);
 	let eventsReaction: NostrEvent[] = $state([]);
 	let eventsWebReaction: NostrEvent[] = $state([]);
 	let eventsEmojiSet: NostrEvent[] = $state([]);
@@ -48,80 +62,62 @@
 	let editTagInput: HTMLInputElement | undefined = $state();
 	let editContent: string = $state('');
 
-	const callbackRelayRecord = () => {
-		rc?.fetchWebBookmark(up, loginPubkey);
-	};
-
-	const callbackEmojiSet = (event: NostrEvent) => {
-		eventsEmojiSet.push(event);
-		eventsEmojiSet = getEventsAddressableLatest(eventsEmojiSet);
-	};
-
-	const callbackReaction = (event: NostrEvent) => {
-		eventsReaction.push(event);
-	};
-
-	const callbackWebReaction = (event: NostrEvent) => {
-		eventsWebReaction.push(event);
-	};
-
-	const callbackDeletion = (event: NostrEvent) => {
+	const callback = (kind: number, event?: NostrEvent) => {
 		if (rc === undefined) {
 			return;
 		}
-		const kindSet = new Set<number>(
-			event.tags.filter((tag) => tag.length >= 2 && tag[0] === 'k').map((tag) => parseInt(tag[1]))
-		);
-		for (const k of kindSet) {
-			switch (k) {
-				case 7: {
-					eventsReaction = rc.getEventsByFilter({
-						kinds: [k]
-					});
-					break;
-				}
-				case 17: {
-					eventsWebReaction = rc.getEventsByFilter({
-						kinds: [k]
-					});
-					break;
-				}
-				case 39701: {
-					const d = event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
-					const w = webBookmarkArray.find((v) => v.url === `https://${d}`);
-					if (w !== undefined) {
-						const eIds = event.tags
-							.filter((tag) => tag.length >= 2 && tag[0] === 'e')
-							.map((tag) => tag[1]);
-						w.webbookmarks = w.webbookmarks.filter((ev) => !eIds.includes(ev.id));
-						if (w.webbookmarks.length === 0) {
-							webBookmarkArray = webBookmarkArray.filter((w) => w.url !== `https://${d}`);
-						}
-					}
-					break;
-				}
-				default:
-					break;
+		switch (kind) {
+			case 0: {
+				eventsProfile = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [kind] }));
+				break;
 			}
+			case 5: {
+				if (event !== undefined) {
+					const kSet: Set<number> = new Set<number>(
+						event.tags
+							.filter((tag) => tag.length >= 2 && tag[0] === 'k' && /^\d+$/.test(tag[1]))
+							.map((tag) => parseInt(tag[1]))
+					);
+					for (const k of kSet) {
+						callback(k);
+					}
+				}
+				break;
+			}
+			case 7: {
+				eventsReaction = rc.getEventsByFilter({ kinds: [kind] });
+				break;
+			}
+			case 17: {
+				eventsWebReaction = rc.getEventsByFilter({ kinds: [kind] });
+				break;
+			}
+			case 10002: {
+				rc.fetchWebBookmark(up, loginPubkey);
+				break;
+			}
+			case 30030: {
+				eventsEmojiSet = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [kind] }));
+				break;
+			}
+			case 39701: {
+				eventsWebBookmark = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [kind] }));
+				break;
+			}
+			default:
+				break;
 		}
 	};
 
 	const initFetch = () => {
-		webBookmarkArray = [];
+		eventsWebBookmark = [];
+		eventsProfile = [];
 		eventsReaction = [];
 		eventsWebReaction = [];
 		eventsEmojiSet = [];
 		rc?.dispose();
 		rc = new RelayConnector(loginPubkey !== undefined);
-		rc.subscribeEventStore(
-			webBookmarkArray,
-			profileArray,
-			callbackRelayRecord,
-			callbackEmojiSet,
-			callbackReaction,
-			callbackWebReaction,
-			callbackDeletion
-		);
+		rc.subscribeEventStore(callback);
 		if (loginPubkey !== undefined) {
 			rc.fetchUserInfo(loginPubkey);
 		} else {
@@ -174,7 +170,7 @@
 				initFetch();
 			}
 		}, 1000);
-		webBookmarkArray = [];
+		eventsWebBookmark = [];
 	});
 
 	const title = 'Nostr Web Bookmark Trend';
@@ -264,7 +260,7 @@
 		</dl>
 	</details>
 	<dl class="url">
-		{#each webBookmarkArray as { url, webbookmarks } (url)}
+		{#each webBookmarkMap as [url, webbookmarks] (url)}
 			{@const path = url.replace(/^https?:\/\//, '')}
 			{@const n = webbookmarks.length}
 			<dt>

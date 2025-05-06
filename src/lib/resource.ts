@@ -19,7 +19,6 @@ import {
 } from 'rx-nostr';
 import { verifier } from '@rx-nostr/crypto';
 import { EventStore } from 'applesauce-core';
-import type { ProfileContent } from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
 import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
 import type { RelayRecord } from 'nostr-tools/relay';
@@ -243,7 +242,6 @@ export class RelayConnector {
 			console.info('kind', event.kind, 'deleted');
 			return;
 		}
-		this.#eventStore.add(event);
 		console.info('kind', event.kind);
 		if (event.kind === 5) {
 			const ids: string[] = event.tags
@@ -255,6 +253,7 @@ export class RelayConnector {
 				}
 			}
 		}
+		this.#eventStore.add(event);
 	};
 
 	#complete = () => {};
@@ -298,47 +297,30 @@ export class RelayConnector {
 		return true;
 	};
 
-	subscribeEventStore = (
-		webBookmarkArray: { url: string; webbookmarks: NostrEvent[] }[],
-		profileArray: { pubkey: string; profile: ProfileContent }[],
-		callbackRelayRecord: () => void,
-		callbackEmojiSet: (event: NostrEvent) => void,
-		callbackReaction: (event: NostrEvent) => void,
-		callbackWebReaction: (event: NostrEvent) => void,
-		callbackDeletion: (event: NostrEvent) => void
-	) => {
+	subscribeEventStore = (callback: (kind: number, event?: NostrEvent) => void) => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
 				case 0: {
-					let profObj: ProfileContent;
 					try {
-						profObj = JSON.parse(event.content);
+						JSON.parse(event.content);
 					} catch (error) {
 						console.warn({ error, event });
 						return;
 					}
-					const prof = profileArray.find((v) => v.pubkey === event.pubkey)?.profile;
-					if (prof !== undefined) {
-						profileArray = profileArray.filter((v) => v.pubkey !== event.pubkey);
-					}
-					profileArray.push({ pubkey: event.pubkey, profile: profObj });
 					break;
 				}
 				case 5: {
-					callbackDeletion(event);
 					this.#eventsDeletion = sortEvents(Array.from(this.#eventStore.getAll([{ kinds: [5] }])));
 					break;
 				}
 				case 7: {
-					callbackReaction(event);
-					if (profileArray.find((v) => v.pubkey === event.pubkey) === undefined) {
+					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 						this.#fetchProfile(event.pubkey);
 					}
 					break;
 				}
 				case 17: {
-					callbackWebReaction(event);
-					if (profileArray.find((v) => v.pubkey === event.pubkey) === undefined) {
+					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 						this.#fetchProfile(event.pubkey);
 					}
 					break;
@@ -346,15 +328,10 @@ export class RelayConnector {
 				case 10002: {
 					this.#relayRecord = this.#getRelaysToUseFromKind10002Event(event);
 					this.#rxNostr.setDefaultRelays(this.#relayRecord);
-					callbackRelayRecord();
 					break;
 				}
 				case 10030: {
 					this.#fetchEventsByATags(event);
-					break;
-				}
-				case 30030: {
-					callbackEmojiSet(event);
 					break;
 				}
 				case 39701: {
@@ -362,20 +339,7 @@ export class RelayConnector {
 					if (!this.isValidWebBookmark(d, event)) {
 						return;
 					}
-					const url = new URL(`https://${d}`);
-					const w = webBookmarkArray.find((v) => v.url === url.href);
-					if (w !== undefined) {
-						w.webbookmarks.push(event);
-					} else {
-						webBookmarkArray.push({ url: url.href, webbookmarks: [event] });
-					}
-					webBookmarkArray.sort((a, b) => {
-						return (
-							(sortEvents(b.webbookmarks).at(0)?.created_at ?? 0) -
-							(sortEvents(a.webbookmarks).at(0)?.created_at ?? 0)
-						);
-					});
-					if (profileArray.find((v) => v.pubkey === event.pubkey) === undefined) {
+					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 						this.#fetchProfile(event.pubkey);
 					}
 					this.#fetchReaction(event);
@@ -385,6 +349,7 @@ export class RelayConnector {
 				default:
 					break;
 			}
+			callback(event.kind, event);
 		});
 	};
 
