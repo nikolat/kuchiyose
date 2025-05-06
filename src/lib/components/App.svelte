@@ -216,8 +216,16 @@
 						title="delete the category"
 						onclick={() => {
 							editTags = editTags.filter((t) => t !== tTag);
-						}}>[x]</button
+						}}
+						aria-label="delete the category"
 					>
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path
+								fill-rule="evenodd"
+								d="M12,23 C5.92486775,23 1,18.0751322 1,12 C1,5.92486775 5.92486775,1 12,1 C18.0751322,1 23,5.92486775 23,12 C23,18.0751322 18.0751322,23 12,23 Z M12,21 C16.9705627,21 21,16.9705627 21,12 C21,7.02943725 16.9705627,3 12,3 C7.02943725,3 3,7.02943725 3,12 C3,16.9705627 7.02943725,21 12,21 Z M12,13.4142136 L8.70710678,16.7071068 L7.29289322,15.2928932 L10.5857864,12 L7.29289322,8.70710678 L8.70710678,7.29289322 L12,10.5857864 L15.2928932,7.29289322 L16.7071068,8.70710678 L13.4142136,12 L16.7071068,15.2928932 L15.2928932,16.7071068 L12,13.4142136 Z"
+							/>
+						</svg>
+					</button>
 				{/each}
 			</dt>
 			<dd class="t-tag">
@@ -277,8 +285,8 @@
 					class="favicon"
 				/>
 				<a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
-				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
 				<br />
+				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
 				<AddStar
 					{url}
 					{rc}
@@ -334,13 +342,13 @@
 									>
 										<svg
 											xmlns="http://www.w3.org/2000/svg"
-											width="16"
-											height="16"
-											viewBox="0 0 16 16"
+											width="24"
+											height="24"
+											viewBox="0 0 24 24"
 										>
 											<path
 												fill-rule="evenodd"
-												d="M8,16 C3.581722,16 0,12.418278 0,8 C0,3.581722 3.581722,0 8,0 C12.418278,0 16,3.581722 16,8 C16,12.418278 12.418278,16 8,16 Z M8,14 C11.3137085,14 14,11.3137085 14,8 C14,4.6862915 11.3137085,2 8,2 C4.6862915,2 2,4.6862915 2,8 C2,11.3137085 4.6862915,14 8,14 Z M8,9.41421356 L5.70710678,11.7071068 L4.29289322,10.2928932 L6.58578644,8 L4.29289322,5.70710678 L5.70710678,4.29289322 L8,6.58578644 L10.2928932,4.29289322 L11.7071068,5.70710678 L9.41421356,8 L11.7071068,10.2928932 L10.2928932,11.7071068 L8,9.41421356 Z"
+												d="M7,4 L7,3 C7,1.8954305 7.8954305,1 9,1 L15,1 C16.1045695,1 17,1.8954305 17,3 L17,4 L20,4 C21.1045695,4 22,4.8954305 22,6 L22,8 C22,9.1045695 21.1045695,10 20,10 L19.9198662,10 L19,21 C19,22.1045695 18.1045695,23 17,23 L7,23 C5.8954305,23 5,22.1045695 5.00345424,21.0830455 L4.07986712,10 L4,10 C2.8954305,10 2,9.1045695 2,8 L2,6 C2,4.8954305 2.8954305,4 4,4 L7,4 Z M7,6 L4,6 L4,8 L20,8 L20,6 L17,6 L7,6 Z M6.08648886,10 L7,21 L17,21 L17.0034542,20.9169545 L17.9132005,10 L6.08648886,10 Z M15,4 L15,3 L9,3 L9,4 L15,4 Z"
 											/>
 										</svg>
 									</button>
@@ -410,7 +418,6 @@
 	.d-tag > input {
 		display: inline-block;
 	}
-	.category-delete,
 	.fork {
 		padding: 0 3px;
 	}
@@ -437,9 +444,11 @@
 		width: 16px;
 		height: 16px;
 	}
+	.category-tag,
 	.hashtag {
 		margin-left: 0.5em;
 	}
+	button.category-delete,
 	button.bookmark-delete {
 		border: none;
 		outline: none;
@@ -447,12 +456,19 @@
 		height: 16px;
 		cursor: pointer;
 		margin: 0;
+		background-color: rgba(127, 127, 127, 0);
+		border-radius: 10%;
 	}
+	button.category-delete {
+		vertical-align: sub;
+	}
+	button.category-delete > svg,
 	button.bookmark-delete > svg {
 		width: 16px;
 		height: 16px;
 		fill: var(--text-bright);
 	}
+	button.category-delete:active > svg,
 	button.bookmark-delete:active > svg {
 		fill: yellow;
 	}
