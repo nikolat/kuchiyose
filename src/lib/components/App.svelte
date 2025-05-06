@@ -86,6 +86,20 @@
 					});
 					break;
 				}
+				case 39701: {
+					const d = event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+					const w = webBookmarkArray.find((v) => v.url === `https://${d}`);
+					if (w !== undefined) {
+						const eIds = event.tags
+							.filter((tag) => tag.length >= 2 && tag[0] === 'e')
+							.map((tag) => tag[1]);
+						w.webbookmarks = w.webbookmarks.filter((ev) => !eIds.includes(ev.id));
+						if (w.webbookmarks.length === 0) {
+							webBookmarkArray = webBookmarkArray.filter((w) => w.url !== `https://${d}`);
+						}
+					}
+					break;
+				}
 				default:
 					break;
 			}
@@ -314,6 +328,30 @@
 								{eventsEmojiSet}
 								mutedWords={[]}
 							/>
+							{#if loginPubkey === webbookmark.pubkey}
+								<span class="bookmark-delete">
+									<button
+										class="bookmark-delete"
+										title="delete the bookmark"
+										onclick={async () => {
+											await rc?.sendDeletion(webbookmark);
+										}}
+										aria-label="delete the bookmark"
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="16"
+											height="16"
+											viewBox="0 0 16 16"
+										>
+											<path
+												fill-rule="evenodd"
+												d="M8,16 C3.581722,16 0,12.418278 0,8 C0,3.581722 3.581722,0 8,0 C12.418278,0 16,3.581722 16,8 C16,12.418278 12.418278,16 8,16 Z M8,14 C11.3137085,14 14,11.3137085 14,8 C14,4.6862915 11.3137085,2 8,2 C4.6862915,2 2,4.6862915 2,8 C2,11.3137085 4.6862915,14 8,14 Z M8,9.41421356 L5.70710678,11.7071068 L4.29289322,10.2928932 L6.58578644,8 L4.29289322,5.70710678 L5.70710678,4.29289322 L8,6.58578644 L10.2928932,4.29289322 L11.7071068,5.70710678 L9.41421356,8 L11.7071068,10.2928932 L10.2928932,11.7071068 L8,9.41421356 Z"
+											/>
+										</svg>
+									</button>
+								</span>
+							{/if}
 							<br />
 							<a href="/{nip19.npubEncode(webbookmark.pubkey)}">
 								<img
@@ -398,6 +436,22 @@
 	}
 	.hashtag {
 		margin-left: 0.5em;
+	}
+	button.bookmark-delete {
+		border: none;
+		outline: none;
+		padding: 0;
+		height: 16px;
+		cursor: pointer;
+		margin: 0;
+	}
+	button.bookmark-delete > svg {
+		width: 16px;
+		height: 16px;
+		fill: var(--text-bright);
+	}
+	button.bookmark-delete:active > svg {
+		fill: yellow;
 	}
 	footer {
 		text-align: center;
