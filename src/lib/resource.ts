@@ -23,6 +23,7 @@ import type { ProfileContent } from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
 import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
 import type { RelayRecord } from 'nostr-tools/relay';
+import type { Filter } from 'nostr-tools/filter';
 import { normalizeURL } from 'nostr-tools/utils';
 import { nip19 } from 'nostr-tools';
 import {
@@ -298,12 +299,13 @@ export class RelayConnector {
 	};
 
 	subscribeEventStore = (
-		webBookmarkMap: { url: string; webbookmarks: NostrEvent[] }[],
-		profileMap: { pubkey: string; profile: ProfileContent }[],
+		webBookmarkArray: { url: string; webbookmarks: NostrEvent[] }[],
+		profileArray: { pubkey: string; profile: ProfileContent }[],
 		callbackRelayRecord: () => void,
 		callbackEmojiSet: (event: NostrEvent) => void,
 		callbackReaction: (event: NostrEvent) => void,
-		callbackWebReaction: (event: NostrEvent) => void
+		callbackWebReaction: (event: NostrEvent) => void,
+		callbackDeletion: (event: NostrEvent) => void
 	) => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
@@ -315,23 +317,28 @@ export class RelayConnector {
 						console.warn({ error, event });
 						return;
 					}
-					const prof = profileMap.find((v) => v.pubkey === event.pubkey)?.profile;
+					const prof = profileArray.find((v) => v.pubkey === event.pubkey)?.profile;
 					if (prof !== undefined) {
-						profileMap = profileMap.filter((v) => v.pubkey !== event.pubkey);
+						profileArray = profileArray.filter((v) => v.pubkey !== event.pubkey);
 					}
-					profileMap.push({ pubkey: event.pubkey, profile: profObj });
+					profileArray.push({ pubkey: event.pubkey, profile: profObj });
+					break;
+				}
+				case 5: {
+					callbackDeletion(event);
+					this.#eventsDeletion = sortEvents(Array.from(this.#eventStore.getAll([{ kinds: [5] }])));
 					break;
 				}
 				case 7: {
 					callbackReaction(event);
-					if (profileMap.find((v) => v.pubkey === event.pubkey) === undefined) {
+					if (profileArray.find((v) => v.pubkey === event.pubkey) === undefined) {
 						this.#fetchProfile(event.pubkey);
 					}
 					break;
 				}
 				case 17: {
 					callbackWebReaction(event);
-					if (profileMap.find((v) => v.pubkey === event.pubkey) === undefined) {
+					if (profileArray.find((v) => v.pubkey === event.pubkey) === undefined) {
 						this.#fetchProfile(event.pubkey);
 					}
 					break;
@@ -356,19 +363,19 @@ export class RelayConnector {
 						return;
 					}
 					const url = new URL(`https://${d}`);
-					const w = webBookmarkMap.find((v) => v.url === url.href);
+					const w = webBookmarkArray.find((v) => v.url === url.href);
 					if (w !== undefined) {
 						w.webbookmarks.push(event);
 					} else {
-						webBookmarkMap.push({ url: url.href, webbookmarks: [event] });
+						webBookmarkArray.push({ url: url.href, webbookmarks: [event] });
 					}
-					webBookmarkMap.sort((a, b) => {
+					webBookmarkArray.sort((a, b) => {
 						return (
 							(sortEvents(b.webbookmarks).at(0)?.created_at ?? 0) -
 							(sortEvents(a.webbookmarks).at(0)?.created_at ?? 0)
 						);
 					});
-					if (profileMap.find((v) => v.pubkey === event.pubkey) === undefined) {
+					if (profileArray.find((v) => v.pubkey === event.pubkey) === undefined) {
 						this.#fetchProfile(event.pubkey);
 					}
 					this.#fetchReaction(event);
@@ -469,7 +476,7 @@ export class RelayConnector {
 		});
 	};
 
-	fetchWebBookmark = (params: UrlParams) => {
+	fetchWebBookmark = (params: UrlParams, loginPubkey?: string) => {
 		const { currentAddressPointer, currentProfilePointer, hashtag, path } = params;
 		const filterB: LazyFilter = {
 			kinds: [39701],
@@ -509,7 +516,15 @@ export class RelayConnector {
 		delete filterF.until;
 		delete filterF.limit;
 		filterF.since = now() + 1;
-		this.#rxReqF.emit(filterF);
+		const filtersF: LazyFilter[] = [filterF];
+		if (loginPubkey !== undefined) {
+			filtersF.push({
+				kinds: [0, 5, 7, 17, 10002, 10030, 39701],
+				authors: [loginPubkey],
+				since: now() + 1
+			});
+		}
+		this.#rxReqF.emit(filtersF);
 	};
 
 	#fetchEventsByATags = (event: NostrEvent) => {
@@ -571,6 +586,10 @@ export class RelayConnector {
 				this.#rxReqBRp.emit(filters, { relays });
 			}
 		}
+	};
+
+	getEventsByFilter = (filter: Filter): NostrEvent[] => {
+		return Array.from(this.#eventStore.getAll(filter));
 	};
 
 	getSeenOn = (id: string, excludeWs: boolean): string[] => {

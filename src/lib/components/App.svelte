@@ -49,7 +49,7 @@
 	let editContent: string = $state('');
 
 	const callbackRelayRecord = () => {
-		rc?.fetchWebBookmark(up);
+		rc?.fetchWebBookmark(up, loginPubkey);
 	};
 
 	const callbackEmojiSet = (event: NostrEvent) => {
@@ -65,6 +65,33 @@
 		eventsWebReaction.push(event);
 	};
 
+	const callbackDeletion = (event: NostrEvent) => {
+		if (rc === undefined) {
+			return;
+		}
+		const kindSet = new Set<number>(
+			event.tags.filter((tag) => tag.length >= 2 && tag[0] === 'k').map((tag) => parseInt(tag[1]))
+		);
+		for (const k of kindSet) {
+			switch (k) {
+				case 7: {
+					eventsReaction = rc.getEventsByFilter({
+						kinds: [k]
+					});
+					break;
+				}
+				case 17: {
+					eventsWebReaction = rc.getEventsByFilter({
+						kinds: [k]
+					});
+					break;
+				}
+				default:
+					break;
+			}
+		}
+	};
+
 	const initFetch = () => {
 		webBookmarkArray = [];
 		eventsReaction = [];
@@ -78,7 +105,8 @@
 			callbackRelayRecord,
 			callbackEmojiSet,
 			callbackReaction,
-			callbackWebReaction
+			callbackWebReaction,
+			callbackDeletion
 		);
 		if (loginPubkey !== undefined) {
 			rc.fetchUserInfo(loginPubkey);
