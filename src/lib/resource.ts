@@ -62,7 +62,6 @@ export class RelayConnector {
 	#rxReqB0: ReqB;
 	#rxReqB7: ReqB;
 	#rxReqB17: ReqB;
-	#rxReqB10002: ReqB;
 	#rxReqBRp: ReqB;
 	#rxReqBAd: ReqB;
 	#rxReqF: ReqF;
@@ -92,7 +91,6 @@ export class RelayConnector {
 		this.#rxReqB0 = createRxBackwardReq();
 		this.#rxReqB7 = createRxBackwardReq();
 		this.#rxReqB17 = createRxBackwardReq();
-		this.#rxReqB10002 = createRxBackwardReq();
 		this.#rxReqBRp = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
@@ -143,16 +141,6 @@ export class RelayConnector {
 			next: this.#next,
 			complete: this.#complete
 		});
-		this.#rxNostr
-			.use(this.#rxReqB10002, { relays: [...defaultRelays, ...profileRelays] })
-			.pipe(
-				this.#tie,
-				latestEach(({ event }) => `${event.kind}:${event.pubkey}`)
-			)
-			.subscribe({
-				next: this.#next,
-				complete: this.#complete
-			});
 		this.#rxNostr
 			.use(this.#rxReqBRp)
 			.pipe(
@@ -405,16 +393,17 @@ export class RelayConnector {
 	};
 
 	fetchUserInfo = (pubkey: string) => {
-		this.#rxReqB0.emit({
-			kinds: [0],
-			authors: [pubkey],
-			until: now()
-		});
-		this.#rxReqB10002.emit({
-			kinds: [10002],
-			authors: [pubkey],
-			until: now()
-		});
+		this.#rxReqBRp.emit(
+			{
+				kinds: [0, 10002],
+				authors: [pubkey],
+				until: now()
+			},
+			{ relays: [...defaultRelays, ...profileRelays] }
+		);
+	};
+
+	fetchEmojiSet = (pubkey: string) => {
 		this.#rxReqBRp.emit({
 			kinds: [10030],
 			authors: [pubkey],

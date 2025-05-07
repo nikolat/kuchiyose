@@ -71,7 +71,10 @@
 				break;
 			}
 			case 10002: {
-				rc.fetchWebBookmark(up, loginPubkey);
+				if (loginPubkey !== undefined && event?.pubkey === loginPubkey) {
+					rc.fetchEmojiSet(loginPubkey);
+					rc.fetchWebBookmark(up, loginPubkey);
+				}
 				break;
 			}
 			case 30030: {
