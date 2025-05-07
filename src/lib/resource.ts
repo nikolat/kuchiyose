@@ -1,10 +1,11 @@
-import { bufferTime, type OperatorFunction } from 'rxjs';
+import { bufferTime, type MonoTypeOperatorFunction, type OperatorFunction } from 'rxjs';
 import {
 	batch,
 	createRxBackwardReq,
 	createRxForwardReq,
 	createRxNostr,
 	createTie,
+	createUniq,
 	latestEach,
 	now,
 	type EventPacket,
@@ -73,6 +74,8 @@ export class RelayConnector {
 		}
 	>;
 	#seenOn: Map<string, Set<string>>;
+	#uniq: MonoTypeOperatorFunction<EventPacket>;
+	#eventIds: Set<string>;
 	#secBufferTime = 1000;
 	#limitReaction = 100;
 
@@ -93,12 +96,15 @@ export class RelayConnector {
 		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
 		[this.#tie, this.#seenOn] = createTie();
+		[this.#uniq, this.#eventIds] = createUniq((packet: EventPacket): string => packet.event.id);
 		this.#rxNostr.setDefaultRelays(defaultRelays);
 		this.#defineSubscription();
 		this.#eventsDeletion = [];
 	}
 
 	dispose = () => {
+		this.#seenOn.clear();
+		this.#eventIds.clear();
 		this.#rxNostr.dispose();
 		for (const ev of this.#eventStore.getAll({ since: 0 })) {
 			this.#eventStore.database.removeEvent(ev);
@@ -128,11 +134,11 @@ export class RelayConnector {
 				next: this.#next,
 				complete: this.#complete
 			});
-		this.#rxNostr.use(batchedReq7).pipe(this.#tie).subscribe({
+		this.#rxNostr.use(batchedReq7).pipe(this.#tie, this.#uniq).subscribe({
 			next: this.#next,
 			complete: this.#complete
 		});
-		this.#rxNostr.use(batchedReq17).pipe(this.#tie).subscribe({
+		this.#rxNostr.use(batchedReq17).pipe(this.#tie, this.#uniq).subscribe({
 			next: this.#next,
 			complete: this.#complete
 		});
