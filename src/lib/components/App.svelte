@@ -173,6 +173,15 @@
 	<span class="setting">
 		<input type="checkbox" id="dev-mode" name="mode" bind:checked={isDevMode} />
 		<label for="dev-mode">Dev Mode</label>
+		{#if loginPubkey !== undefined}
+			<a href="/{nip19.npubEncode(loginPubkey)}">
+				<img
+					src={profileMap.get(loginPubkey)?.picture ?? getRoboHashURL(loginPubkey)}
+					alt="your avatar"
+					class="login-user"
+				/>
+			</a>
+		{/if}
 	</span>
 </header>
 <main>
@@ -410,6 +419,15 @@
 	.setting {
 		align-content: center;
 	}
+	.setting > input,
+	.setting > label {
+		vertical-align: top;
+	}
+	.login-user {
+		width: 48px;
+		height: 48px;
+		border-radius: 10%;
+	}
 	summary {
 		width: 100%;
 	}
@@ -448,6 +466,7 @@
 	.avatar {
 		width: 16px;
 		height: 16px;
+		border-radius: 10%;
 	}
 	.category-tag,
 	.hashtag {
