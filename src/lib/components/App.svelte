@@ -8,7 +8,12 @@
 	import type { ProfileContent } from 'applesauce-core/helpers';
 	import { nip19 } from 'nostr-tools';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import { getEventsAddressableLatest, getEventsReactionToTheTarget } from '$lib/utils';
+	import {
+		getEventsAddressableLatest,
+		getEventsReactionToTheTarget,
+		getWebBookmarkMap,
+		isValidWebBookmark
+	} from '$lib/utils';
 
 	const {
 		up
@@ -20,31 +25,7 @@
 	let loginPubkey: string | undefined = $state();
 	let rc: RelayConnector | undefined = $state();
 	let eventsWebBookmark: NostrEvent[] = $state([]);
-	let webBookmarkMap: Map<string, NostrEvent[]> = $derived.by(() => {
-		if (rc === undefined) {
-			return new Map<string, NostrEvent[]>();
-		}
-		const map = new Map<string, NostrEvent[]>();
-		for (const ev of eventsWebBookmark) {
-			const d = ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
-			if (!rc.isValidWebBookmark(d, ev)) {
-				continue;
-			}
-			const url = `https://${d}`;
-			const events = map.get(url);
-			if (events === undefined) {
-				map.set(url, [ev]);
-			} else {
-				map.set(url, events.concat(ev));
-			}
-		}
-		return new Map<string, NostrEvent[]>(
-			Array.from(map.entries()).toSorted((a, b) => {
-				const f = (e: [string, NostrEvent[]]) => Math.max(...e[1].map((ev) => ev.created_at));
-				return f(b) - f(a);
-			})
-		);
-	});
+	let webBookmarkMap: Map<string, NostrEvent[]> = $derived(getWebBookmarkMap(eventsWebBookmark));
 	let eventsProfile: NostrEvent[] = $state([]);
 	let profileMap: Map<string, ProfileContent> = $derived(
 		new Map<string, ProfileContent>(eventsProfile.map((ev) => [ev.pubkey, JSON.parse(ev.content)]))
@@ -135,7 +116,6 @@
 		editContent = '';
 		await rc?.sendWebBookmark(content, tags);
 	};
-
 	const getPublishedAt = (d: string): string | undefined => {
 		const event = webBookmarkMap.get(`https://${d}`)?.find((ev) => ev.pubkey === loginPubkey);
 		return event?.tags.find((tag) => tag.length >= 2 && tag[0] === 'published_at')?.at(1);
@@ -202,7 +182,7 @@
 			<dd class="d-tag">
 				https://<input
 					id="edit-url"
-					class={editDTag.length === 0 || rc?.isValidWebBookmark(editDTag) ? 'valid' : 'invalid'}
+					class={editDTag.length === 0 || isValidWebBookmark(editDTag) ? 'valid' : 'invalid'}
 					type="text"
 					placeholder="example.com/"
 					disabled={loginPubkey === undefined}
@@ -276,7 +256,7 @@
 			<dd class="submit">
 				<button
 					type="button"
-					disabled={loginPubkey === undefined || !rc?.isValidWebBookmark(editDTag)}
+					disabled={loginPubkey === undefined || !isValidWebBookmark(editDTag)}
 					onclick={() => {
 						callSendWebBookmark();
 					}}>Submit</button

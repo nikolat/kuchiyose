@@ -35,7 +35,8 @@ import {
 import {
 	getAddressPointerFromAId,
 	getRelaysToUseFromKind10002Event,
-	isValidEmoji
+	isValidEmoji,
+	isValidWebBookmark
 } from '$lib/utils';
 
 export type UrlParams = {
@@ -277,32 +278,6 @@ export class RelayConnector {
 		return deletedEventIdSet;
 	};
 
-	isValidWebBookmark = (d: string, event?: NostrEvent): boolean => {
-		if (!URL.canParse(`https://${d}`)) {
-			if (event !== undefined) {
-				console.warn(`d-tag: "${d}" is cannot parse as URL`, event);
-			}
-			return false;
-		}
-		const url = new URL(`https://${d}`);
-		if (url.search !== '' || url.hash !== '' || d.endsWith('?') || d.endsWith('#')) {
-			if (event !== undefined) {
-				console.warn(`d-tag: "${d}" has query parameters`, event);
-			}
-			return false;
-		}
-		if (url.href.replace(/^https?:\/\//, '') !== d) {
-			if (event !== undefined) {
-				console.warn(
-					`d-tag: "${d}" should be "${url.href.replaceAll(/https?:?\/\//g, '')}"`,
-					event
-				);
-			}
-			return false;
-		}
-		return true;
-	};
-
 	subscribeEventStore = (callback: (kind: number, event?: NostrEvent) => void) => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
@@ -342,7 +317,7 @@ export class RelayConnector {
 				}
 				case 39701: {
 					const d = event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
-					if (!this.isValidWebBookmark(d, event)) {
+					if (!isValidWebBookmark(d, event)) {
 						return;
 					}
 					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {

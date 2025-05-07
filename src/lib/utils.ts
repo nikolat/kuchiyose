@@ -37,6 +37,52 @@ export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] =
 	return Array.from(eventMap.values());
 };
 
+export const isValidWebBookmark = (d: string, event?: NostrEvent): boolean => {
+	if (!URL.canParse(`https://${d}`)) {
+		if (event !== undefined) {
+			console.warn(`d-tag: "${d}" is cannot parse as URL`, event);
+		}
+		return false;
+	}
+	const url = new URL(`https://${d}`);
+	if (url.search !== '' || url.hash !== '' || d.endsWith('?') || d.endsWith('#')) {
+		if (event !== undefined) {
+			console.warn(`d-tag: "${d}" has query parameters`, event);
+		}
+		return false;
+	}
+	if (url.href.replace(/^https?:\/\//, '') !== d) {
+		if (event !== undefined) {
+			console.warn(`d-tag: "${d}" should be "${url.href.replaceAll(/https?:?\/\//g, '')}"`, event);
+		}
+		return false;
+	}
+	return true;
+};
+
+export const getWebBookmarkMap = (eventsWebBookmark: NostrEvent[]) => {
+	const map = new Map<string, NostrEvent[]>();
+	for (const ev of eventsWebBookmark) {
+		const d = ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+		if (!isValidWebBookmark(d, ev)) {
+			continue;
+		}
+		const url = `https://${d}`;
+		const events = map.get(url);
+		if (events === undefined) {
+			map.set(url, [ev]);
+		} else {
+			map.set(url, events.concat(ev));
+		}
+	}
+	return new Map<string, NostrEvent[]>(
+		Array.from(map.entries()).toSorted((a, b) => {
+			const f = (e: [string, NostrEvent[]]) => Math.max(...e[1].map((ev) => ev.created_at));
+			return f(b) - f(a);
+		})
+	);
+};
+
 export const getEventsReactionToTheTarget = (
 	target: NostrEvent | string,
 	eventsReaction: NostrEvent[],
