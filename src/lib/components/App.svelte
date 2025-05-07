@@ -8,11 +8,7 @@
 	import type { ProfileContent } from 'applesauce-core/helpers';
 	import { nip19 } from 'nostr-tools';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import {
-		getEventsAddressableLatest,
-		getEventsReactionToTheEvent,
-		getEventsReactionToTheUrl
-	} from '$lib/utils';
+	import { getEventsAddressableLatest, getEventsReactionToTheTarget } from '$lib/utils';
 
 	const {
 		up
@@ -144,6 +140,13 @@
 		const event = webBookmarkMap.get(`https://${d}`)?.find((ev) => ev.pubkey === loginPubkey);
 		return event?.tags.find((tag) => tag.length >= 2 && tag[0] === 'published_at')?.at(1);
 	};
+
+	const getSendReaction = (target: NostrEvent | string) => {
+		return async (content?: string, emojiurl?: string) => {
+			await rc?.sendReaction(target, content, emojiurl);
+		};
+	};
+	const sendDeletion = async (targetEvent: NostrEvent) => await rc?.sendDeletion(targetEvent);
 
 	const nlAuth = (e: Event) => {
 		clearTimeout(idTimeoutLoading);
@@ -295,11 +298,11 @@
 				<br />
 				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
 				<AddStar
-					{url}
-					{rc}
+					sendReaction={getSendReaction(url)}
+					{sendDeletion}
 					{loginPubkey}
 					{profileMap}
-					eventsReactionToTheTarget={getEventsReactionToTheUrl(url, eventsWebReaction)}
+					eventsReactionToTheTarget={getEventsReactionToTheTarget(url, eventsWebReaction)}
 					{eventsEmojiSet}
 					mutedWords={[]}
 				/>
@@ -343,7 +346,7 @@
 										class="bookmark-delete"
 										title="delete the bookmark"
 										onclick={async () => {
-											await rc?.sendDeletion(webbookmark);
+											await sendDeletion(webbookmark);
 										}}
 										aria-label="delete the bookmark"
 									>
@@ -362,11 +365,14 @@
 								</span>
 							{/if}
 							<AddStar
-								event={webbookmark}
-								{rc}
+								sendReaction={getSendReaction(webbookmark)}
+								{sendDeletion}
 								{loginPubkey}
 								{profileMap}
-								eventsReactionToTheTarget={getEventsReactionToTheEvent(webbookmark, eventsReaction)}
+								eventsReactionToTheTarget={getEventsReactionToTheTarget(
+									webbookmark,
+									eventsReaction
+								)}
 								{eventsEmojiSet}
 								mutedWords={[]}
 							/>

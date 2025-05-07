@@ -37,7 +37,19 @@ export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] =
 	return Array.from(eventMap.values());
 };
 
-export const getEventsReactionToTheEvent = (
+export const getEventsReactionToTheTarget = (
+	target: NostrEvent | string,
+	eventsReaction: NostrEvent[],
+	mutedPubkeys: string[] = []
+): NostrEvent[] => {
+	if (typeof target !== 'string') {
+		return getEventsReactionToTheEvent(target, eventsReaction, mutedPubkeys);
+	} else {
+		return getEventsReactionToTheUrl(target, eventsReaction, mutedPubkeys);
+	}
+};
+
+const getEventsReactionToTheEvent = (
 	event: NostrEvent,
 	eventsReaction: NostrEvent[],
 	mutedPubkeys: string[] = []
@@ -58,7 +70,7 @@ export const getEventsReactionToTheEvent = (
 	});
 };
 
-export const getEventsReactionToTheUrl = (
+const getEventsReactionToTheUrl = (
 	url: string,
 	eventsReaction: NostrEvent[],
 	mutedPubkeys: string[] = []

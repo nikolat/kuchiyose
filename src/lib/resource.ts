@@ -592,17 +592,19 @@ export class RelayConnector {
 	};
 
 	sendReaction = async (
-		targetEvent?: NostrEvent,
-		targetUrl?: string,
+		target: NostrEvent | string,
 		content: string = defaultReactionToAdd,
 		emojiurl?: string
 	): Promise<void> => {
 		if (window.nostr === undefined) {
 			return;
 		}
-		const tags: string[][] = [];
+		let targetEvent: NostrEvent | undefined;
+		let targetUrl: string | undefined;
 		let kind: number;
-		if (targetEvent !== undefined) {
+		const tags: string[][] = [];
+		if (typeof target !== 'string') {
+			targetEvent = target;
 			kind = 7;
 			const recommendedRelay: string = this.getSeenOn(targetEvent.id, true).at(0) ?? '';
 			if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
@@ -614,11 +616,10 @@ export class RelayConnector {
 				['p', targetEvent.pubkey],
 				['k', String(targetEvent.kind)]
 			);
-		} else if (targetUrl !== undefined) {
+		} else {
+			targetUrl = target;
 			kind = 17;
 			tags.push(['r', targetUrl]);
-		} else {
-			throw new Error('targetEvent or targetUrl is required');
 		}
 		if (emojiurl !== undefined && URL.canParse(emojiurl)) {
 			tags.push(['emoji', content.replaceAll(':', ''), emojiurl]);

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { defaultReactionToShow, getRoboHashURL } from '$lib/config';
-	import type { RelayConnector } from '$lib/resource';
 	import { isCustomEmoji, isValidEmoji } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import * as nip19 from 'nostr-tools/nip19';
@@ -8,12 +7,12 @@
 
 	let {
 		reactionEvent,
-		rc,
+		sendDeletion,
 		profile,
 		isAuthor
 	}: {
 		reactionEvent: NostrEvent;
-		rc: RelayConnector | undefined;
+		sendDeletion: (targetEvent: NostrEvent) => Promise<void>;
 		profile: ProfileContent | undefined;
 		isAuthor: boolean;
 	} = $props();
@@ -57,7 +56,7 @@
 				class="reactionstar-delete"
 				title="delete the reaction"
 				onclick={async () => {
-					await rc?.sendDeletion(reactionEvent);
+					await sendDeletion(reactionEvent);
 				}}
 				aria-label="delete the reaction"
 			>

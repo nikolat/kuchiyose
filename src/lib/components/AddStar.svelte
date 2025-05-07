@@ -1,24 +1,21 @@
 <script lang="ts">
 	import { expansionThreshold } from '$lib/config';
-	import type { RelayConnector } from '$lib/resource';
 	import { getEmoji, getEmojiMap, isValidEmoji } from '$lib/utils';
 	import Reaction from '$lib/components/Reaction.svelte';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import type { ProfileContent } from 'applesauce-core/helpers';
 
 	let {
-		event,
-		url,
-		rc,
+		sendReaction,
+		sendDeletion,
 		loginPubkey,
 		profileMap,
 		eventsReactionToTheTarget,
 		eventsEmojiSet,
 		mutedWords
 	}: {
-		event?: NostrEvent;
-		url?: string;
-		rc: RelayConnector | undefined;
+		sendReaction: (content?: string, emojiurl?: string) => Promise<void>;
+		sendDeletion: (targetEvent: NostrEvent) => Promise<void>;
 		loginPubkey: string | undefined;
 		profileMap: Map<string, ProfileContent>;
 		eventsReactionToTheTarget: NostrEvent[];
@@ -39,8 +36,6 @@
 
 	let isAllowedExpand: boolean = $state(false);
 
-	const emojiMap: Map<string, string> = $derived(getEmojiMap(eventsEmojiSet));
-
 	let emojiPickerContainer: HTMLElement | undefined = $state();
 	const callSendEmoji = () => {
 		if (emojiPickerContainer === undefined) {
@@ -48,10 +43,10 @@
 		}
 		getEmoji(
 			emojiPickerContainer,
-			$state.snapshot(emojiMap),
+			getEmojiMap(eventsEmojiSet),
 			true,
 			({ emojiStr, emojiUrl }: { emojiStr: string; emojiUrl: string | undefined }) => {
-				rc?.sendReaction(event, url, emojiStr, emojiUrl);
+				sendReaction(emojiStr, emojiUrl);
 			}
 		);
 	};
@@ -63,7 +58,7 @@
 		title="add a star"
 		disabled={loginPubkey === undefined}
 		onclick={() => {
-			rc?.sendReaction(event, url);
+			sendReaction();
 		}}
 		aria-label="add a star"
 	>
@@ -91,14 +86,14 @@
 	{#if reactionValidEvents.length <= expansionThreshold || isAllowedExpand}
 		{#each reactionValidEvents as reactionEvent (reactionEvent.id)}<Reaction
 				{reactionEvent}
-				{rc}
+				{sendDeletion}
 				profile={profileMap.get(reactionEvent.pubkey)}
 				isAuthor={reactionEvent.pubkey === loginPubkey}
 			/>{/each}
 	{:else}
 		<Reaction
 			reactionEvent={reactionFirst}
-			{rc}
+			{sendDeletion}
 			profile={profileMap.get(reactionFirst.pubkey)}
 			isAuthor={reactionFirst.pubkey === loginPubkey}
 		/><button
@@ -108,7 +103,7 @@
 			}}>{reactionValidEvents.length}</button
 		><Reaction
 			reactionEvent={reactionLast}
-			{rc}
+			{sendDeletion}
 			profile={profileMap.get(reactionLast.pubkey)}
 			isAuthor={reactionLast.pubkey === loginPubkey}
 		/>
