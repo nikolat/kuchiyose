@@ -35,6 +35,7 @@
 	let eventsEmojiSet: NostrEvent[] = $state([]);
 	let idTimeoutLoading: number;
 	let editDTag: string = $state('');
+	let editTitleTag: string = $state('');
 	let editTag: string = $state('');
 	let editTags: string[] = $state([]);
 	let editTagInput: HTMLInputElement | undefined = $state();
@@ -106,18 +107,24 @@
 		}
 	};
 
-	const callSendWebBookmark = async () => {
+	const sendWebBookmark = async () => {
+		const kind: number = 39701;
 		const content: string = editContent;
+		const created_at: number = now();
 		const tags: string[][] = [
 			['d', editDTag],
-			['published_at', getPublishedAt(editDTag) ?? String(now())],
+			['published_at', getPublishedAt(editDTag) ?? String(created_at)],
 			...editTags.map((t) => ['t', t])
 		];
+		if (editTitleTag.length > 0) {
+			tags.push(['title', editTitleTag]);
+		}
 		editDTag = '';
+		editTitleTag = '';
 		editTag = '';
 		editTags = [];
 		editContent = '';
-		await rc?.sendWebBookmark(content, tags);
+		await rc?.signAndSendEvent({ kind, tags, content, created_at });
 	};
 	const getPublishedAt = (d: string): string | undefined => {
 		const event = webBookmarkMap.get(`https://${d}`)?.find((ev) => ev.pubkey === loginPubkey);
@@ -208,6 +215,18 @@
 					}}
 				/>
 			</dd>
+			<dt class="title-tag">
+				<label for="edit-title">Title(title-tag)</label>
+			</dt>
+			<dd class="title-tag">
+				<input
+					id="edit-title"
+					type="text"
+					placeholder="title(optional)"
+					disabled={loginPubkey === undefined}
+					bind:value={editTitleTag}
+				/>
+			</dd>
 			<dt class="t-tag">
 				<label for="edit-category">Category(t-tag)</label>
 				{#each editTags as tTag (tTag)}
@@ -234,7 +253,7 @@
 				<input
 					id="edit-category"
 					type="text"
-					placeholder="category"
+					placeholder="category(optional)"
 					disabled={loginPubkey === undefined}
 					pattern="[^\s#]+"
 					bind:value={editTag}
@@ -269,9 +288,7 @@
 				<button
 					type="button"
 					disabled={loginPubkey === undefined || !isValidWebBookmark(editDTag)}
-					onclick={() => {
-						callSendWebBookmark();
-					}}>Submit</button
+					onclick={sendWebBookmark}>Submit</button
 				>
 			</dd>
 		</dl>
@@ -304,6 +321,8 @@
 					{#each webbookmarks as webbookmark (webbookmark.pubkey)}
 						{@const identifier =
 							webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}
+						{@const title =
+							webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'title')?.at(1) ?? ''}
 						{@const hashtags = new Set<string>(
 							webbookmark.tags
 								.filter((tag) => tag.length >= 2 && tag[0] === 't')
@@ -323,6 +342,7 @@
 								class="fork"
 								onclick={() => {
 									editDTag = identifier;
+									editTitleTag = title;
 									editTag = '';
 									editTags = Array.from(hashtags);
 									editContent = '';

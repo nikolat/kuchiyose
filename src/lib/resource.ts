@@ -540,16 +540,10 @@ export class RelayConnector {
 		return Array.from(s).map((url) => normalizeURL(url));
 	};
 
-	sendWebBookmark = async (content: string, tags: string[][]): Promise<void> => {
+	signAndSendEvent = async (eventTemplate: EventTemplate): Promise<void> => {
 		if (window.nostr === undefined || this.#relayRecord === undefined) {
 			return;
 		}
-		const eventTemplate: EventTemplate = {
-			content,
-			kind: 39701,
-			tags,
-			created_at: now()
-		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		const options: Partial<RxNostrSendOptions> = { on: { relays: this.#getRelays('write') } };
 		this.#sendEvent(eventToSend, options);
