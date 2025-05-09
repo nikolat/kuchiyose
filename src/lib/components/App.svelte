@@ -282,7 +282,7 @@
 			{@const n = webbookmarks.length}
 			<dt>
 				<img
-					src={`http://www.google.com/s2/favicons?domain=${encodeURIComponent(url)}`}
+					src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(url)}`}
 					alt="favicon"
 					class="favicon"
 				/>
