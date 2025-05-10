@@ -11,6 +11,7 @@
 	import {
 		getEventsAddressableLatest,
 		getEventsReactionToTheTarget,
+		getTitleFromWebbookmarks,
 		getWebBookmarkMap,
 		isValidWebBookmark
 	} from '$lib/utils';
@@ -296,6 +297,7 @@
 	<dl class="url">
 		{#each webBookmarkMap as [url, webbookmarks] (url)}
 			{@const path = url.replace(/^https?:\/\//, '')}
+			{@const title = getTitleFromWebbookmarks(webbookmarks)}
 			{@const n = webbookmarks.length}
 			<dt>
 				<img
@@ -303,7 +305,9 @@
 					alt="favicon"
 					class="favicon"
 				/>
-				<a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+				<a href={url} target="_blank" rel="noopener noreferrer">{title ?? url}</a>
+				<br />
+				<span class="url">{url}</span>
 				<br />
 				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
 				<AddStar
@@ -472,6 +476,9 @@
 		display: inline-block;
 		color: pink;
 		text-shadow: 0 0 2px white;
+	}
+	span.url {
+		font-size: small;
 	}
 	.entry > dt {
 		position: relative;

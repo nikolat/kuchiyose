@@ -83,6 +83,30 @@ export const getWebBookmarkMap = (eventsWebBookmark: NostrEvent[]) => {
 	);
 };
 
+export const getTitleFromWebbookmarks = (eventsWebBookmark: NostrEvent[]): string | undefined => {
+	const map = new Map<string, NostrEvent[]>();
+	for (const ev of eventsWebBookmark) {
+		const title = ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'title')?.at(1);
+		if (title === undefined) {
+			continue;
+		}
+		const events = map.get(title);
+		if (events === undefined) {
+			map.set(title, [ev]);
+		} else {
+			map.set(title, events.concat(ev));
+		}
+	}
+	const [title, _events] = Array.from(map.entries())
+		.toSorted((a, b) => {
+			const f1 = (e: [string, NostrEvent[]]) => e[1].length;
+			const f2 = (e: [string, NostrEvent[]]) => Math.max(...e[1].map((ev) => ev.created_at));
+			return f1(b) === f1(a) ? f2(b) - f2(a) : f1(b) - f1(a);
+		})
+		.at(0) ?? [undefined, []];
+	return title;
+};
+
 export const getEventsReactionToTheTarget = (
 	target: NostrEvent | string,
 	eventsReaction: NostrEvent[],
