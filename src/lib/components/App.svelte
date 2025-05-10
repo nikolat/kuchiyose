@@ -35,6 +35,7 @@
 	let eventsWebReaction: NostrEvent[] = $state([]);
 	let eventsEmojiSet: NostrEvent[] = $state([]);
 	let idTimeoutLoading: number;
+	let isOpenEdit: boolean = $state(false);
 	let editDTag: string = $state('');
 	let editTitleTag: string = $state('');
 	let editTag: string = $state('');
@@ -193,7 +194,7 @@
 	</span>
 </header>
 <main>
-	<details class="edit">
+	<details class="edit" bind:open={isOpenEdit}>
 		<summary>create new web bookmark</summary>
 		<dl class="edit">
 			<dt class="d-tag">
@@ -349,8 +350,11 @@
 										editTitleTag = title;
 										editTag = '';
 										editTags = Array.from(hashtags);
-										editContent = '';
-										editTagInput?.focus();
+										editContent = webbookmark.content;
+										isOpenEdit = true;
+										setTimeout(() => {
+											editTagInput?.focus();
+										}, 10);
 									}}>Fork</button
 								>
 							{/if}
