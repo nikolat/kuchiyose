@@ -340,19 +340,20 @@
 							relays: rc?.getSeenOn(webbookmark.id, true)
 						})}
 						<dt>
-							<button
-								type="button"
-								disabled={loginPubkey === undefined}
-								class="fork"
-								onclick={() => {
-									editDTag = identifier;
-									editTitleTag = title;
-									editTag = '';
-									editTags = Array.from(hashtags);
-									editContent = '';
-									editTagInput?.focus();
-								}}>Fork</button
-							>
+							{#if loginPubkey !== undefined}
+								<button
+									type="button"
+									class="fork"
+									onclick={() => {
+										editDTag = identifier;
+										editTitleTag = title;
+										editTag = '';
+										editTags = Array.from(hashtags);
+										editContent = '';
+										editTagInput?.focus();
+									}}>Fork</button
+								>
+							{/if}
 							<a href="/{naddr}">
 								<time>{new Date(1000 * webbookmark.created_at).toLocaleString()}</time>
 							</a>
@@ -454,6 +455,17 @@
 	}
 	summary {
 		width: 100%;
+	}
+	.url > dt {
+		border-radius: 5px;
+		padding: 5px;
+		background-color: rgba(0, 0, 0, 0.2);
+	}
+	.entry > dt {
+		margin-top: 1em;
+	}
+	.entry > dd {
+		margin-bottom: 1em;
 	}
 	dl.edit input,
 	dl.edit textarea {
