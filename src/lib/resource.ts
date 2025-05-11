@@ -518,7 +518,7 @@ export class RelayConnector {
 				new Set<string>([...this.#getRelays('read'), ...relayHints])
 			);
 			for (const filters of sliceByNumber(margedFilters, 10)) {
-				this.#rxReqBRp.emit(filters, { relays });
+				this.#rxReqBAd.emit(filters, { relays });
 			}
 		}
 	};
