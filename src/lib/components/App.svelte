@@ -354,10 +354,11 @@
 								<a class="name" href="/{nip19.npubEncode(webbookmark.pubkey)}"
 									>@{prof?.name ?? ''}</a
 								>
-								<span class="content">{webbookmark.content}</span>
 								{#each hashtags as hashtag (hashtag)}
 									<a href="/t/{encodeURI(hashtag)}" class="hashtag">#{hashtag}</a>
 								{/each}
+								<br />
+								<span class="content">{webbookmark.content}</span>
 							</div>
 							<div class="menu">
 								{#if loginPubkey !== undefined}
