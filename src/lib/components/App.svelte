@@ -9,6 +9,7 @@
 	import { nip19 } from 'nostr-tools';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import {
+		getAllTagsMap,
 		getEventsAddressableLatest,
 		getEventsReactionToTheTarget,
 		getTitleFromWebbookmarks,
@@ -295,6 +296,11 @@
 			</dd>
 		</dl>
 	</details>
+	<section class="tag-cloud">
+		{#each getAllTagsMap(eventsWebBookmark) as [t, n] (t)}
+			<a href="/t/{encodeURI(t)}" class="hashtag">#{t}</a>:{n}
+		{/each}
+	</section>
 	<dl class="url">
 		{#each webBookmarkMap as [url, webbookmarks] (url)}
 			{@const path = url.replace(/^https?:\/\//, '')}
@@ -528,8 +534,8 @@
 	.fork {
 		padding: 0 3px;
 	}
-	.category-tag,
-	.hashtag {
+	.category-tag:not(:first-child),
+	.hashtag:not(:first-child) {
 		margin-left: 0.5em;
 	}
 	.created_at {

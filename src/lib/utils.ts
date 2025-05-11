@@ -107,6 +107,27 @@ export const getTitleFromWebbookmarks = (eventsWebBookmark: NostrEvent[]): strin
 	return title;
 };
 
+export const getAllTagsMap = (eventsWebBookmark: NostrEvent[]): Map<string, number> => {
+	const map = new Map<string, number>();
+	for (const ev of eventsWebBookmark) {
+		const tTags = ev.tags
+			.filter((tag) => tag.length >= 2 && tag[0] === 't')
+			.map((tag) => tag[1].toLowerCase());
+		for (const t of tTags) {
+			const n = map.get(t);
+			if (n === undefined) {
+				map.set(t, 1);
+			} else {
+				map.set(t, n + 1);
+			}
+		}
+	}
+	const a = Array.from(map.entries()).toSorted((a, b) => {
+		return b[1] - a[1];
+	});
+	return new Map<string, number>(a);
+};
+
 export const getEventsReactionToTheTarget = (
 	target: NostrEvent | string,
 	eventsReaction: NostrEvent[],
