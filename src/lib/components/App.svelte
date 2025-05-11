@@ -284,7 +284,6 @@
 				<input
 					id="edit-title"
 					type="text"
-					placeholder="title(optional)"
 					disabled={loginPubkey === undefined}
 					bind:value={editTitleTag}
 				/>
@@ -293,14 +292,14 @@
 				<label for="edit-category">Category(t-tag)</label>
 				{#each editTags as tTag (tTag)}
 					<span class="category-tag">#{tTag}</span><button
+						class="svg category-delete"
 						type="button"
-						disabled={loginPubkey === undefined}
-						class="category-delete"
 						title="delete the category"
+						aria-label="delete the category"
+						disabled={loginPubkey === undefined}
 						onclick={() => {
 							editTags = editTags.filter((t) => t !== tTag);
 						}}
-						aria-label="delete the category"
 					>
 						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 							<path
@@ -315,7 +314,6 @@
 				<input
 					id="edit-category"
 					type="text"
-					placeholder="category(optional)"
 					disabled={loginPubkey === undefined}
 					pattern="[^\s#]+"
 					bind:value={editTag}
@@ -323,6 +321,9 @@
 				/>
 				<button
 					type="button"
+					class="svg category-add"
+					title="add"
+					aria-label="add"
 					disabled={loginPubkey === undefined ||
 						editTag.length === 0 ||
 						editTagInput.validity.patternMismatch ||
@@ -331,18 +332,21 @@
 						editTags.push(editTag.toLowerCase());
 						editTag = '';
 						editTagInput?.focus();
-					}}><span>add</span></button
+					}}
 				>
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path
+							fill-rule="evenodd"
+							d="M12,23 C5.92486775,23 1,18.0751322 1,12 C1,5.92486775 5.92486775,1 12,1 C18.0751322,1 23,5.92486775 23,12 C23,18.0751322 18.0751322,23 12,23 Z M12,21 C16.9705627,21 21,16.9705627 21,12 C21,7.02943725 16.9705627,3 12,3 C7.02943725,3 3,7.02943725 3,12 C3,16.9705627 7.02943725,21 12,21 Z M13,11 L17,11 L17,13 L13,13 L13,17 L11,17 L11,13 L7,13 L7,11 L11,11 L11,7 L13,7 L13,11 Z"
+						/>
+					</svg>
+				</button>
 			</dd>
 			<dt class="content">
 				<label for="edit-comment">Comment(content)</label>
 			</dt>
 			<dd class="content">
-				<textarea
-					id="edit-comment"
-					placeholder="Write your comment here."
-					disabled={loginPubkey === undefined}
-					bind:value={editContent}
+				<textarea id="edit-comment" disabled={loginPubkey === undefined} bind:value={editContent}
 				></textarea>
 			</dd>
 			<dt class="submit">Submit</dt>
@@ -452,12 +456,13 @@
 								{#if loginPubkey === webbookmark.pubkey}
 									<span class="bookmark-delete">
 										<button
-											class="bookmark-delete"
+											type="button"
+											class="svg bookmark-delete"
 											title="delete the bookmark"
+											aria-label="delete the bookmark"
 											onclick={async () => {
 												await sendDeletion(webbookmark);
 											}}
-											aria-label="delete the bookmark"
 										>
 											<svg
 												xmlns="http://www.w3.org/2000/svg"
@@ -540,7 +545,8 @@
 	.d-tag {
 		line-height: 2.5em;
 	}
-	.d-tag > input {
+	.d-tag > input,
+	.t-tag > input {
 		display: inline-block;
 	}
 	input#edit-category:invalid,
@@ -604,13 +610,11 @@
 	.details {
 		overflow-x: auto;
 	}
-	button.category-delete,
-	button.bookmark-delete {
+	button.svg {
 		border: none;
 		outline: none;
 		padding: 0;
 		height: 16px;
-		cursor: pointer;
 		margin: 0;
 		background-color: rgba(127, 127, 127, 0);
 		border-radius: 10%;
@@ -618,14 +622,22 @@
 	button.category-delete {
 		vertical-align: sub;
 	}
-	button.category-delete > svg,
-	button.bookmark-delete > svg {
+	button.category-add {
+		margin-top: 7px;
+	}
+	button.svg > svg {
 		width: 16px;
 		height: 16px;
 		fill: var(--text-bright);
 	}
-	button.category-delete:active > svg,
-	button.bookmark-delete:active > svg {
+	button.category-add {
+		height: 24px;
+	}
+	button.category-add > svg {
+		width: 24px;
+		height: 24px;
+	}
+	button.svg:active > svg {
 		fill: yellow;
 	}
 	footer {
