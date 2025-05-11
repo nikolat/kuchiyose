@@ -524,8 +524,8 @@ export class RelayConnector {
 		}
 	};
 
-	getEventsByFilter = (filter: Filter): NostrEvent[] => {
-		return Array.from(this.#eventStore.getAll(filter));
+	getEventsByFilter = (filters: Filter | Filter[]): NostrEvent[] => {
+		return Array.from(this.#eventStore.getAll(filters));
 	};
 
 	getReplaceableEvent = (kind: number, pubkey: string, d?: string): NostrEvent | undefined => {

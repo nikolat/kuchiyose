@@ -81,8 +81,13 @@
 				}
 				break;
 			}
+			case 10030:
 			case 30030: {
-				eventsEmojiSet = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [kind] }));
+				if (loginPubkey !== undefined) {
+					eventsEmojiSet = getEventsAddressableLatest(
+						rc.getEventsByFilter([{ kinds: [10030], authors: [loginPubkey] }, { kinds: [30030] }])
+					);
+				}
 				break;
 			}
 			case 39701: {
