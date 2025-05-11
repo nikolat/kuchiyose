@@ -204,7 +204,32 @@
 		eventsWebBookmark = [];
 	});
 
-	const title = 'Nostr Web Bookmark Trend';
+	const titleRoot = 'Nostr Web Bookmark Trend';
+
+	const title = $derived.by(() => {
+		let title: string | undefined;
+		if (up.currentAddressPointer !== undefined) {
+			const ap = up.currentAddressPointer;
+			const event = rc?.getReplaceableEvent(ap.kind, ap.pubkey, ap.identifier);
+			title = event?.tags.find((tag) => tag.length >= 2 && tag[0] === 'title')?.at(1);
+		} else if (up.currentProfilePointer !== undefined) {
+			const profile: ProfileContent | undefined = profileMap.get(up.currentProfilePointer.pubkey);
+			if (profile !== undefined) {
+				title = `${profile.name}'s bookmarks`;
+			}
+		} else if (up.hashtag !== undefined) {
+			title = `#${up.hashtag}`;
+		} else if (up.path !== undefined) {
+			const webbookmarks = webBookmarkMap.get(`https://${up.path}`);
+			if (webbookmarks !== undefined) {
+				title = getTitleFromWebbookmarks(webbookmarks);
+			}
+		}
+		if (title === undefined) {
+			return titleRoot;
+		}
+		return `${title} | ${titleRoot}`;
+	});
 </script>
 
 <svelte:head>
@@ -213,7 +238,7 @@
 </svelte:head>
 
 <header>
-	<h1><a href="/">{title}</a></h1>
+	<h1><a href="/">{titleRoot}</a></h1>
 	<span class="setting">
 		<input type="checkbox" id="dev-mode" name="mode" bind:checked={isDevMode} />
 		<label for="dev-mode">Dev Mode</label>
