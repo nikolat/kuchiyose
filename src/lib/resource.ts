@@ -528,6 +528,10 @@ export class RelayConnector {
 		return Array.from(this.#eventStore.getAll(filter));
 	};
 
+	getReplaceableEvent = (kind: number, pubkey: string, d?: string): NostrEvent | undefined => {
+		return this.#eventStore.getReplaceable(kind, pubkey, d);
+	};
+
 	getSeenOn = (id: string, excludeWs: boolean): string[] => {
 		const s = this.#seenOn.get(id);
 		if (s === undefined) {

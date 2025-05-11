@@ -130,7 +130,10 @@
 		await rc?.signAndSendEvent({ kind, tags, content, created_at });
 	};
 	const getPublishedAt = (d: string): string | undefined => {
-		const event = webBookmarkMap.get(`https://${d}`)?.find((ev) => ev.pubkey === loginPubkey);
+		if (rc === undefined || loginPubkey === undefined) {
+			return undefined;
+		}
+		const event = rc.getReplaceableEvent(39701, loginPubkey, d);
 		return event?.tags.find((tag) => tag.length >= 2 && tag[0] === 'published_at')?.at(1);
 	};
 
@@ -163,9 +166,7 @@
 	afterNavigate(() => {
 		document.addEventListener('nlAuth', nlAuth);
 		idTimeoutLoading = setTimeout(() => {
-			if (up) {
-				initFetch();
-			}
+			initFetch();
 		}, 1000);
 		eventsWebBookmark = [];
 	});
