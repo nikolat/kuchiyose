@@ -11,8 +11,7 @@
 		loginPubkey,
 		profileMap,
 		eventsReactionToTheTarget,
-		eventsEmojiSet,
-		mutedWords
+		eventsEmojiSet
 	}: {
 		sendReaction: (content?: string, emojiurl?: string) => Promise<void>;
 		sendDeletion: (targetEvent: NostrEvent) => Promise<void>;
@@ -20,16 +19,10 @@
 		profileMap: Map<string, ProfileContent>;
 		eventsReactionToTheTarget: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
-		mutedWords: string[];
 	} = $props();
 
 	const reactionValidEvents: NostrEvent[] = $derived(
-		[
-			...eventsReactionToTheTarget.filter(
-				(ev) =>
-					isValidEmoji(ev) && !mutedWords.some((word) => ev.content.toLowerCase().includes(word))
-			)
-		].reverse()
+		[...eventsReactionToTheTarget.filter((ev) => isValidEmoji(ev))].reverse()
 	);
 	const reactionFirst: NostrEvent = $derived(reactionValidEvents.at(0)!);
 	const reactionLast: NostrEvent = $derived(reactionValidEvents.at(-1)!);

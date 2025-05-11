@@ -403,9 +403,9 @@ export class RelayConnector {
 		);
 	};
 
-	fetchEmojiSet = (pubkey: string) => {
+	fetchUserSettings = (pubkey: string) => {
 		this.#rxReqBRp.emit({
-			kinds: [10030],
+			kinds: [10000, 10030],
 			authors: [pubkey],
 			until: now()
 		});

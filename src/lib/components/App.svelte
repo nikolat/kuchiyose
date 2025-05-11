@@ -11,7 +11,9 @@
 	import {
 		getAllTagsMap,
 		getEventsAddressableLatest,
+		getEventsFilteredByMute,
 		getEventsReactionToTheTarget,
+		getMuteList,
 		getTitleFromWebbookmarks,
 		getWebBookmarkMap,
 		isValidWebBookmark
@@ -34,6 +36,21 @@
 	);
 	let eventsReaction: NostrEvent[] = $state([]);
 	let eventsWebReaction: NostrEvent[] = $state([]);
+	let eventMuteList: NostrEvent | undefined = $state();
+	let [mutedPubkeys, mutedIds, mutedWords, mutedHashTags]: [
+		string[],
+		string[],
+		string[],
+		string[]
+	] = $state([[], [], [], []]);
+	let getMuteListPromise: Promise<[string[], string[], string[], string[]]> = $derived(
+		getMuteList(eventMuteList, loginPubkey)
+	);
+	$effect(() => {
+		getMuteListPromise.then((v: [string[], string[], string[], string[]]) => {
+			[mutedPubkeys, mutedIds, mutedWords, mutedHashTags] = v;
+		});
+	});
 	let eventsEmojiSet: NostrEvent[] = $state([]);
 	let idTimeoutLoading: number;
 	let isOpenEdit: boolean = $state(false);
@@ -43,6 +60,10 @@
 	let editTags: string[] = $state([]);
 	let editTagInput: HTMLInputElement | undefined = $state();
 	let editContent: string = $state('');
+
+	const getEventsFiltered = (events: NostrEvent[]) => {
+		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashTags);
+	};
 
 	const callback = (kind: number, event?: NostrEvent) => {
 		if (rc === undefined) {
@@ -74,9 +95,15 @@
 				eventsWebReaction = rc.getEventsByFilter({ kinds: [kind] });
 				break;
 			}
+			case 10000: {
+				if (loginPubkey !== undefined && event?.pubkey === loginPubkey) {
+					eventMuteList = rc.getReplaceableEvent(kind, loginPubkey);
+				}
+				break;
+			}
 			case 10002: {
 				if (loginPubkey !== undefined && event?.pubkey === loginPubkey) {
-					rc.fetchEmojiSet(loginPubkey);
+					rc.fetchUserSettings(loginPubkey);
 					rc.fetchWebBookmark(up, loginPubkey);
 				}
 				break;
@@ -104,6 +131,7 @@
 		eventsProfile = [];
 		eventsReaction = [];
 		eventsWebReaction = [];
+		eventMuteList = undefined;
 		eventsEmojiSet = [];
 		rc?.dispose();
 		rc = new RelayConnector(loginPubkey !== undefined);
@@ -303,7 +331,7 @@
 		</dl>
 	</details>
 	<section class="tag-cloud">
-		{#each getAllTagsMap(eventsWebBookmark) as [t, n] (t)}
+		{#each getAllTagsMap(getEventsFiltered(eventsWebBookmark)) as [t, n] (t)}
 			<a href="/t/{encodeURI(t)}" class="hashtag">#{t}</a>:{n}
 		{/each}
 	</section>
@@ -328,13 +356,14 @@
 					{sendDeletion}
 					{loginPubkey}
 					{profileMap}
-					eventsReactionToTheTarget={getEventsReactionToTheTarget(url, eventsWebReaction)}
+					eventsReactionToTheTarget={getEventsFiltered(
+						getEventsReactionToTheTarget(url, eventsWebReaction)
+					)}
 					{eventsEmojiSet}
-					mutedWords={[]}
 				/>
 			</dt>
 			<dd>
-				{#each webbookmarks as webbookmark (webbookmark.pubkey)}
+				{#each getEventsFiltered(webbookmarks) as webbookmark (webbookmark.pubkey)}
 					{@const identifier =
 						webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}
 					{@const title =
@@ -424,12 +453,10 @@
 									{sendDeletion}
 									{loginPubkey}
 									{profileMap}
-									eventsReactionToTheTarget={getEventsReactionToTheTarget(
-										webbookmark,
-										eventsReaction
+									eventsReactionToTheTarget={getEventsFiltered(
+										getEventsReactionToTheTarget(webbookmark, eventsReaction)
 									)}
 									{eventsEmojiSet}
-									mutedWords={[]}
 								/>
 							</div>
 							{#if isDevMode}

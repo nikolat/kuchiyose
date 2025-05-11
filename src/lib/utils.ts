@@ -198,6 +198,108 @@ export const getRelaysToUseFromKind10002Event = (event?: NostrEvent): RelayRecor
 	return newRelays;
 };
 
+const splitNip51List = async (
+	event: NostrEvent,
+	loginPubkey: string
+): Promise<{
+	pPub: string[];
+	ePub: string[];
+	wPub: string[];
+	tPub: string[];
+	pSec: string[];
+	eSec: string[];
+	wSec: string[];
+	tSec: string[];
+	tagList: string[][];
+	contentList: string[][];
+}> => {
+	const getList = (tags: string[][], tagName: string): string[] =>
+		Array.from(
+			new Set<string>(
+				tags.filter((tag) => tag.length >= 2 && tag[0] === tagName).map((tag) => tag[1])
+			)
+		);
+	const [pPub, ePub, wPub, tPub] = ['p', 'e', 'word', 't'].map((tagName: string) =>
+		getList(event.tags, tagName)
+	);
+	let [pSec, eSec, wSec, tSec]: [string[], string[], string[], string[]] = [[], [], [], []];
+	const tagList: string[][] = event.tags;
+	let contentList: string[][] = [];
+	if (event.content.length > 0 && window.nostr?.nip04 !== undefined) {
+		try {
+			const content = await window.nostr.nip04.decrypt(loginPubkey, event.content);
+			contentList = JSON.parse(content);
+		} catch (error) {
+			console.warn(error);
+		}
+		[pSec, eSec, wSec, tSec] = ['p', 'e', 'word', 't'].map((tagName: string) =>
+			getList(contentList, tagName)
+		);
+	}
+	return { pPub, ePub, wPub, tPub, pSec, eSec, wSec, tSec, tagList, contentList };
+};
+
+export const getMuteList = async (
+	eventMuteList: NostrEvent | undefined,
+	loginPubkey: string | undefined
+): Promise<[string[], string[], string[], string[]]> => {
+	let [mutedPubkeys, mutedIds, mutedWords, mutedHashTags]: [
+		string[],
+		string[],
+		string[],
+		string[]
+	] = [[], [], [], []];
+	if (
+		eventMuteList === undefined ||
+		loginPubkey === undefined ||
+		eventMuteList.pubkey !== loginPubkey
+	) {
+		return [mutedPubkeys, mutedIds, mutedWords, mutedHashTags];
+	}
+	const { pPub, ePub, wPub, tPub, pSec, eSec, wSec, tSec } = await splitNip51List(
+		eventMuteList,
+		loginPubkey
+	);
+	mutedPubkeys = Array.from(new Set<string>([...pPub, ...pSec]));
+	mutedIds = Array.from(new Set<string>([...ePub, ...eSec]));
+	mutedWords = Array.from(new Set<string>([...wPub, ...wSec].map((w) => w.toLowerCase())));
+	mutedHashTags = Array.from(new Set<string>([...tPub, ...tSec].map((t) => t.toLowerCase())));
+	return [mutedPubkeys, mutedIds, mutedWords, mutedHashTags];
+};
+
+export const getEventsFilteredByMute = (
+	events: NostrEvent[],
+	mutedPubkeys: string[],
+	mutedIds: string[],
+	mutedWords: string[],
+	mutedHashTags: string[]
+) => {
+	const filteredEvents: NostrEvent[] = [];
+	for (const event of events) {
+		if (mutedPubkeys.includes(event.pubkey)) {
+			continue;
+		}
+		if (mutedIds.includes(event.id)) {
+			continue;
+		}
+		if (mutedWords.some((word) => event.content.includes(word))) {
+			continue;
+		}
+		if (
+			mutedHashTags.some((hashTag) =>
+				event.tags
+					.filter((tag) => tag.length >= 2 && tag[0] === 't')
+					.map((tag) => tag[1].toLowerCase())
+					.includes(hashTag)
+			)
+		) {
+			continue;
+		}
+		filteredEvents.push(event);
+	}
+	return filteredEvents;
+};
+
 const inputCount = (input: string): number => {
 	// simple check, not perfect
 	const segmeter = new Intl.Segmenter('ja-JP', { granularity: 'word' });
