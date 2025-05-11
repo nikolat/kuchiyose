@@ -143,8 +143,6 @@
 	}
 	.emoji-picker-container {
 		position: absolute;
-		top: 2em;
-		left: -3em;
-		z-index: 2;
+		z-index: 1;
 	}
 </style>

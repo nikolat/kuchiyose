@@ -493,6 +493,7 @@
 		border-radius: 5px;
 		padding: 5px;
 		background-color: rgba(0, 0, 0, 0.2);
+		position: relative;
 	}
 	.favicon {
 		width: 16px;
@@ -530,6 +531,7 @@
 	}
 	.menu {
 		margin-top: 2px;
+		position: relative;
 	}
 	.fork {
 		padding: 0 3px;
