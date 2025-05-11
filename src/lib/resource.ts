@@ -464,62 +464,63 @@ export class RelayConnector {
 
 	#fetchEventsByATags = (event: NostrEvent) => {
 		const aIds = event.tags.filter((tag) => tag.length >= 2 && tag[0] === 'a').map((tag) => tag[1]);
+		if (aIds.length === 0) {
+			return;
+		}
 		const filters = [];
-		if (aIds.length > 0) {
-			for (const aId of aIds) {
-				const ap: nip19.AddressPointer | null = getAddressPointerFromAId(aId);
-				if (
-					ap !== null &&
-					!this.#eventStore.hasReplaceable(
-						ap.kind,
-						ap.pubkey,
-						isAddressableKind(ap.kind) ? ap.identifier : undefined
-					)
-				) {
-					const filter: LazyFilter = {
-						kinds: [ap.kind],
-						authors: [ap.pubkey],
-						until: now()
-					};
-					if (isAddressableKind(ap.kind)) {
-						filter['#d'] = [ap.identifier];
-					}
-					filters.push(filter);
-				}
-			}
-			let margedFilters: LazyFilter[] = [];
-			for (const filter of filters) {
-				margedFilters = this.#mergeFilterForAddressableEvents(
-					margedFilters,
-					[filter],
-					filter.kinds?.at(0) ?? -1
-				);
-			}
-			const sliceByNumber = (array: LazyFilter[], number: number) => {
-				const length = Math.ceil(array.length / number);
-				return new Array(length)
-					.fill(undefined)
-					.map((_, i) => array.slice(i * number, (i + 1) * number));
-			};
-			const relayHints: string[] = Array.from(
-				new Set<string>(
-					event.tags
-						.filter(
-							(tag) =>
-								tag.length >= 3 &&
-								tag[0] === 'a' &&
-								URL.canParse(tag[2]) &&
-								tag[2].startsWith('wss://')
-						)
-						.map((tag) => normalizeURL(tag[2]))
+		for (const aId of aIds) {
+			const ap: nip19.AddressPointer | null = getAddressPointerFromAId(aId);
+			if (
+				ap !== null &&
+				!this.#eventStore.hasReplaceable(
+					ap.kind,
+					ap.pubkey,
+					isAddressableKind(ap.kind) ? ap.identifier : undefined
 				)
-			);
-			const relays: string[] = Array.from(
-				new Set<string>([...this.#getRelays('read'), ...relayHints])
-			);
-			for (const filters of sliceByNumber(margedFilters, 10)) {
-				this.#rxReqBAd.emit(filters, { relays });
+			) {
+				const filter: LazyFilter = {
+					kinds: [ap.kind],
+					authors: [ap.pubkey],
+					until: now()
+				};
+				if (isAddressableKind(ap.kind)) {
+					filter['#d'] = [ap.identifier];
+				}
+				filters.push(filter);
 			}
+		}
+		let margedFilters: LazyFilter[] = [];
+		for (const filter of filters) {
+			margedFilters = this.#mergeFilterForAddressableEvents(
+				margedFilters,
+				[filter],
+				filter.kinds?.at(0) ?? -1
+			);
+		}
+		const sliceByNumber = (array: LazyFilter[], number: number) => {
+			const length = Math.ceil(array.length / number);
+			return new Array(length)
+				.fill(undefined)
+				.map((_, i) => array.slice(i * number, (i + 1) * number));
+		};
+		const relayHints: string[] = Array.from(
+			new Set<string>(
+				event.tags
+					.filter(
+						(tag) =>
+							tag.length >= 3 &&
+							tag[0] === 'a' &&
+							URL.canParse(tag[2]) &&
+							tag[2].startsWith('wss://')
+					)
+					.map((tag) => normalizeURL(tag[2]))
+			)
+		);
+		const relays: string[] = Array.from(
+			new Set<string>([...this.#getRelays('read'), ...relayHints])
+		);
+		for (const filters of sliceByNumber(margedFilters, 10)) {
+			this.#rxReqBAd.emit(filters, { relays });
 		}
 	};
 
