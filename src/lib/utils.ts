@@ -87,7 +87,7 @@ export const getTitleFromWebbookmarks = (eventsWebBookmark: NostrEvent[]): strin
 	const map = new Map<string, NostrEvent[]>();
 	for (const ev of eventsWebBookmark) {
 		const title = ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'title')?.at(1);
-		if (title === undefined) {
+		if (title === undefined || title.length === 0) {
 			continue;
 		}
 		const events = map.get(title);
