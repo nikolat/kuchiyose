@@ -65,6 +65,7 @@ export class RelayConnector {
 	#rxReqBRp: ReqB;
 	#rxReqBAd: ReqB;
 	#rxReqF: ReqF;
+	#completeCustom: () => void;
 
 	#tie: OperatorFunction<
 		EventPacket,
@@ -81,7 +82,7 @@ export class RelayConnector {
 
 	#eventsDeletion: NostrEvent[];
 
-	constructor(useAuth: boolean) {
+	constructor(useAuth: boolean, completeCustom: () => void) {
 		if (useAuth) {
 			this.#rxNostr = createRxNostr({ verifier, authenticator: 'auto' });
 		} else {
@@ -94,6 +95,7 @@ export class RelayConnector {
 		this.#rxReqBRp = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
+		this.#completeCustom = completeCustom;
 		[this.#tie, this.#seenOn] = createTie();
 		[this.#uniq, this.#eventIds] = createUniq((packet: EventPacket): string => packet.event.id);
 		this.#rxNostr.setDefaultRelays(defaultRelays);
@@ -411,12 +413,13 @@ export class RelayConnector {
 		});
 	};
 
-	fetchWebBookmark = (params: UrlParams, loginPubkey?: string) => {
+	fetchWebBookmark = (params: UrlParams, loginPubkey?: string, unitl?: number) => {
+		const isScrolled: boolean = unitl !== undefined;
 		const { currentAddressPointer, currentProfilePointer, hashtag, path } = params;
 		const filterB: LazyFilter = {
 			kinds: [39701],
-			until: now(),
-			limit: 100
+			until: unitl ?? now(),
+			limit: unitl === undefined ? 10 : 11
 		};
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('read'));
 		if (relaySet.size === 0) {
@@ -444,7 +447,27 @@ export class RelayConnector {
 			filterB['#d'] = [path];
 		}
 		const options: { relays: string[] } = { relays: Array.from(relaySet) };
-		this.#rxReqBAd.emit(filterB, options);
+		if (isScrolled) {
+			const rxReqBAdCustom = createRxBackwardReq();
+			this.#rxNostr
+				.use(rxReqBAdCustom)
+				.pipe(
+					this.#tie,
+					latestEach(
+						({ event }) =>
+							`${event.kind}:${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`
+					)
+				)
+				.subscribe({
+					next: this.#next,
+					complete: this.#completeCustom
+				});
+			rxReqBAdCustom.emit(filterB, options);
+			rxReqBAdCustom.over();
+			return; //追加読み込みはここで終了
+		} else {
+			this.#rxReqBAd.emit(filterB, options);
+		}
 		const filterF: LazyFilter = {
 			...filterB
 		};

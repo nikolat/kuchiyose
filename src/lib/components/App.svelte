@@ -3,7 +3,7 @@
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { RelayConnector, type UrlParams } from '$lib/resource';
 	import { sitename } from '$lib/config';
-	import type { ProfileContent } from 'applesauce-core/helpers';
+	import { unixNow, type ProfileContent } from 'applesauce-core/helpers';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import {
 		getEventsAddressableLatest,
@@ -47,8 +47,9 @@
 	const getEventsFiltered = (events: NostrEvent[]) => {
 		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashTags);
 	};
+	let eventsWebBookmarkFiltered = $derived(getEventsFiltered(eventsWebBookmark));
 	let webBookmarkMap: Map<string, NostrEvent[]> = $derived(
-		getWebBookmarkMap(getEventsFiltered(eventsWebBookmark))
+		getWebBookmarkMap(eventsWebBookmarkFiltered)
 	);
 	let eventsEmojiSet: NostrEvent[] = $state([]);
 	let idTimeoutLoading: number;
@@ -114,6 +115,14 @@
 		}
 	};
 
+	const initSettings = () => {
+		eventsWebBookmark = [];
+		countToShow = 10;
+		isScrolledBottom = false;
+		isLoading = false;
+		lastUntil = undefined;
+	};
+
 	const initFetch = () => {
 		eventsWebBookmark = [];
 		eventsProfile = [];
@@ -122,7 +131,7 @@
 		eventMuteList = undefined;
 		eventsEmojiSet = [];
 		rc?.dispose();
-		rc = new RelayConnector(loginPubkey !== undefined);
+		rc = new RelayConnector(loginPubkey !== undefined, completeCustom);
 		rc.subscribeEventStore(callback);
 		if (loginPubkey !== undefined) {
 			rc.fetchUserInfo(loginPubkey);
@@ -139,7 +148,55 @@
 		} else {
 			loginPubkey = undefined;
 		}
+		initSettings();
 		initFetch();
+	};
+
+	let countToShow: number = $state(10);
+	const timelineSliced = $derived(eventsWebBookmark.slice(0, countToShow));
+	const isFullDisplayMode: boolean = $derived(
+		up.currentAddressPointer !== undefined || up.path !== undefined
+	);
+	const scrollThreshold: number = 300;
+	let isScrolledBottom: boolean = false;
+	let isLoading: boolean = false;
+	let lastUntil: number | undefined = undefined;
+	const completeCustom = (): void => {
+		console.log('[Loading Complete]');
+		const correctionCount = timelineSliced.filter((ev) => ev.created_at === lastUntil).length;
+		countToShow += 10 - correctionCount; //unitlと同時刻のイベントは被って取得されるので補正
+		isLoading = false;
+	};
+
+	const handlerScroll = (): void => {
+		if (rc === undefined || isFullDisplayMode) {
+			return;
+		}
+		const scrollHeight = Math.max(
+			document.body.scrollHeight,
+			document.documentElement.scrollHeight,
+			document.body.offsetHeight,
+			document.documentElement.offsetHeight,
+			document.body.clientHeight,
+			document.documentElement.clientHeight
+		);
+		const pageMostBottom = scrollHeight - window.innerHeight;
+		const scrollTop = window.scrollY || document.documentElement.scrollTop;
+		if (scrollTop > pageMostBottom - scrollThreshold) {
+			if (!isScrolledBottom && !isLoading) {
+				isScrolledBottom = true;
+				isLoading = true;
+				const lastUntilNext = timelineSliced.at(-1)?.created_at ?? unixNow();
+				if (lastUntil === lastUntilNext) {
+					return;
+				}
+				lastUntil = lastUntilNext;
+				console.log('[Loading Start]');
+				rc.fetchWebBookmark(up, loginPubkey, lastUntil);
+			}
+		} else if (isScrolledBottom && scrollTop < pageMostBottom + scrollThreshold) {
+			isScrolledBottom = false;
+		}
 	};
 
 	onMount(async () => {
@@ -148,14 +205,16 @@
 	});
 	beforeNavigate(() => {
 		document.removeEventListener('nlAuth', nlAuth);
+		document.removeEventListener('scroll', handlerScroll);
 		rc?.dispose();
 	});
 	afterNavigate(() => {
 		document.addEventListener('nlAuth', nlAuth);
+		document.addEventListener('scroll', handlerScroll);
 		idTimeoutLoading = setTimeout(() => {
 			initFetch();
 		}, 1000);
-		eventsWebBookmark = [];
+		initSettings();
 	});
 
 	const title = $derived.by(() => {
