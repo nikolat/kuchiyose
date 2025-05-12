@@ -1,6 +1,7 @@
 import { npubEncode } from 'nostr-tools/nip19';
 import type { WindowNostr } from 'nostr-tools/nip07';
 
+export const sitename = 'Nostr Web Bookmark Trend';
 export const defaultRelays = [
 	'wss://relay-jp.nostr.wirednet.jp/',
 	'wss://yabu.me/',
