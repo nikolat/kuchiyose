@@ -25,7 +25,7 @@ import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
 import type { RelayRecord } from 'nostr-tools/relay';
 import type { Filter } from 'nostr-tools/filter';
 import { normalizeURL } from 'nostr-tools/utils';
-import { nip19 } from 'nostr-tools';
+import * as nip19 from 'nostr-tools/nip19';
 import {
 	defaultReactionToAdd,
 	defaultRelays,

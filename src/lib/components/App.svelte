@@ -47,10 +47,6 @@
 	const getEventsFiltered = (events: NostrEvent[]) => {
 		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashTags);
 	};
-	let eventsWebBookmarkFiltered = $derived(getEventsFiltered(eventsWebBookmark));
-	let webBookmarkMap: Map<string, NostrEvent[]> = $derived(
-		getWebBookmarkMap(eventsWebBookmarkFiltered)
-	);
 	let eventsEmojiSet: NostrEvent[] = $state([]);
 	let idTimeoutLoading: number;
 
@@ -231,7 +227,7 @@
 		} else if (up.hashtag !== undefined) {
 			title = `#${up.hashtag}`;
 		} else if (up.path !== undefined) {
-			const webbookmarks = webBookmarkMap.get(`https://${up.path}`);
+			const webbookmarks = getWebBookmarkMap(eventsWebBookmark).get(`https://${up.path}`);
 			if (webbookmarks !== undefined) {
 				title = getTitleFromWebbookmarks(webbookmarks);
 			}
@@ -253,7 +249,6 @@
 	{loginPubkey}
 	{profileMap}
 	eventsWebBookmark={getEventsFiltered(eventsWebBookmark)}
-	{webBookmarkMap}
 	eventsReaction={getEventsFiltered(eventsReaction)}
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
 	{eventsEmojiSet}

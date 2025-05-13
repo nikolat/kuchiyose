@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { getRoboHashURL, linkGitHub, sitename } from '$lib/config';
 	import type { RelayConnector } from '$lib/resource';
-	import { nip19 } from 'nostr-tools';
+	import * as nip19 from 'nostr-tools/nip19';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import { unixNow, type ProfileContent } from 'applesauce-core/helpers';
 	import {
 		getAllTagsMap,
 		getEventsReactionToTheTarget,
 		getTitleFromWebbookmarks,
+		getWebBookmarkMap,
 		isValidWebBookmark
 	} from '$lib/utils';
 	import AddStar from '$lib/components/AddStar.svelte';
@@ -17,7 +18,6 @@
 		loginPubkey,
 		profileMap,
 		eventsWebBookmark,
-		webBookmarkMap,
 		eventsReaction,
 		eventsWebReaction,
 		eventsEmojiSet
@@ -26,11 +26,12 @@
 		loginPubkey: string | undefined;
 		profileMap: Map<string, ProfileContent>;
 		eventsWebBookmark: NostrEvent[];
-		webBookmarkMap: Map<string, NostrEvent[]>;
 		eventsReaction: NostrEvent[];
 		eventsWebReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
 	} = $props();
+
+	let webBookmarkMap: Map<string, NostrEvent[]> = $derived(getWebBookmarkMap(eventsWebBookmark));
 
 	let isDevMode: boolean = $state(false);
 	let isOpenEdit: boolean = $state(false);
