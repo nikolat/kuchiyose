@@ -413,6 +413,7 @@
 	}
 	span.url {
 		font-size: small;
+		color: var(--text-muted);
 	}
 	.bookmark-count {
 		display: inline-block;
