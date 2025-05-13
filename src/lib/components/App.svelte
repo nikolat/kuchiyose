@@ -245,6 +245,7 @@
 </svelte:head>
 
 <Page
+	{up}
 	{rc}
 	{loginPubkey}
 	{profileMap}

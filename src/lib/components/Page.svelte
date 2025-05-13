@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getRoboHashURL, linkGitHub, sitename } from '$lib/config';
-	import type { RelayConnector } from '$lib/resource';
+	import type { RelayConnector, UrlParams } from '$lib/resource';
 	import * as nip19 from 'nostr-tools/nip19';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import { unixNow, type ProfileContent } from 'applesauce-core/helpers';
@@ -11,9 +11,11 @@
 		getWebBookmarkMap,
 		isValidWebBookmark
 	} from '$lib/utils';
+	import Profile from '$lib/components/Profile.svelte';
 	import AddStar from '$lib/components/AddStar.svelte';
 
 	const {
+		up,
 		rc,
 		loginPubkey,
 		profileMap,
@@ -22,6 +24,7 @@
 		eventsWebReaction,
 		eventsEmojiSet
 	}: {
+		up: UrlParams;
 		rc: RelayConnector | undefined;
 		loginPubkey: string | undefined;
 		profileMap: Map<string, ProfileContent>;
@@ -95,6 +98,10 @@
 	</span>
 </header>
 <main>
+	{#if up.currentProfilePointer !== undefined}
+		{@const pubkey = up.currentProfilePointer.pubkey}
+		<Profile {pubkey} profile={profileMap.get(pubkey)} />
+	{/if}
 	<details class="edit" bind:open={isOpenEdit}>
 		<summary>create new web bookmark</summary>
 		<dl class="edit">
@@ -261,7 +268,7 @@
 						<div class="contents">
 							<div class="comment">
 								<a class="name" href="/{nip19.npubEncode(webbookmark.pubkey)}"
-									>@{prof?.name ?? ''}</a
+									>@{prof?.name ?? `${nip19.npubEncode(webbookmark.pubkey).slice(0, 15)}...`}</a
 								>
 								{#each hashtags as hashtag (hashtag)}
 									<a href="/t/{encodeURI(hashtag)}" class="hashtag">#{hashtag}</a>
