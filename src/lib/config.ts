@@ -7,7 +7,11 @@ export const defaultRelays = [
 	'wss://yabu.me/',
 	'wss://nrelay.c-stellar.net/'
 ];
-export const profileRelays = ['wss://directory.yabu.me/'];
+export const indexerRelays = [
+	'wss://directory.yabu.me/',
+	'wss://purplepag.es/',
+	'wss://indexer.coracle.social/'
+];
 export const isEnabledOutboxModel = true;
 export const expansionThreshold = 5;
 export const defaultReactionToShow = '⭐';

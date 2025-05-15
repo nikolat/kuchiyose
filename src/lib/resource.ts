@@ -30,7 +30,7 @@ import {
 	defaultReactionToAdd,
 	defaultRelays,
 	isEnabledOutboxModel,
-	profileRelays
+	indexerRelays
 } from '$lib/config';
 import {
 	getAddressPointerFromAId,
@@ -126,7 +126,7 @@ export class RelayConnector {
 			batch(this.#mergeFilter17)
 		);
 		this.#rxNostr
-			.use(batchedReq0, { relays: [...defaultRelays, ...profileRelays] })
+			.use(batchedReq0)
 			.pipe(
 				this.#tie,
 				latestEach(({ event }) => `${event.kind}:${event.pubkey}`)
@@ -397,11 +397,11 @@ export class RelayConnector {
 	fetchUserInfo = (pubkey: string) => {
 		this.#rxReqBRp.emit(
 			{
-				kinds: [0, 10002],
+				kinds: [10002],
 				authors: [pubkey],
 				until: now()
 			},
-			{ relays: [...defaultRelays, ...profileRelays] }
+			{ relays: indexerRelays }
 		);
 	};
 
