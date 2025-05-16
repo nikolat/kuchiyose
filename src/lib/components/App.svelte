@@ -253,5 +253,6 @@
 	eventsReaction={getEventsFiltered(eventsReaction)}
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
 	{eventsEmojiSet}
+	isMutedPubkeyPage={mutedPubkeys.includes(up.currentProfilePointer?.pubkey ?? '')}
 	isMutedHashtagPage={mutedHashtags.includes(up.hashtag ?? '')}
 />

@@ -24,6 +24,7 @@
 		eventsReaction,
 		eventsWebReaction,
 		eventsEmojiSet,
+		isMutedPubkeyPage,
 		isMutedHashtagPage
 	}: {
 		up: UrlParams;
@@ -34,6 +35,7 @@
 		eventsReaction: NostrEvent[];
 		eventsWebReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
+		isMutedPubkeyPage: boolean;
 		isMutedHashtagPage: boolean;
 	} = $props();
 
@@ -103,7 +105,7 @@
 <main>
 	{#if up.currentProfilePointer !== undefined}
 		{@const pubkey = up.currentProfilePointer.pubkey}
-		<Profile {pubkey} profile={profileMap.get(pubkey)} />
+		<Profile {pubkey} profile={profileMap.get(pubkey)} {isMutedPubkeyPage} {rc} {loginPubkey} />
 	{:else if up.hashtag !== undefined}
 		{@const hashtag = up.hashtag}
 		<h2>

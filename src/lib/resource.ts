@@ -580,6 +580,74 @@ export class RelayConnector {
 		this.#sendEvent(eventToSend, options);
 	};
 
+	mutePubkey = async (
+		pubkey: string,
+		loginPubkey: string,
+		eventMuteList: NostrEvent | undefined
+	): Promise<void> => {
+		if (window.nostr?.nip04 === undefined) {
+			return;
+		}
+		const kind = 10000;
+		let tags: string[][];
+		let content: string;
+		if (eventMuteList === undefined) {
+			tags = [];
+			content = await window.nostr.nip04.encrypt(loginPubkey, JSON.stringify([['p', pubkey]]));
+		} else {
+			const { tagList, contentList } = await splitNip51List(eventMuteList, loginPubkey);
+			tags = tagList;
+			content = await window.nostr.nip04.encrypt(
+				loginPubkey,
+				JSON.stringify([...contentList, ['p', pubkey]])
+			);
+		}
+		const eventTemplate: EventTemplate = {
+			kind,
+			tags,
+			content,
+			created_at: now()
+		};
+		const eventToSend = await window.nostr.signEvent(eventTemplate);
+		this.#sendEvent(eventToSend);
+	};
+
+	unmutePubkey = async (
+		pubkey: string,
+		loginPubkey: string,
+		eventMuteList: NostrEvent | undefined
+	): Promise<void> => {
+		if (window.nostr?.nip04 === undefined) {
+			return;
+		}
+		if (eventMuteList === undefined) {
+			console.warn('kind:10000 event does not exist');
+			return;
+		}
+		const { tagList, contentList } = await splitNip51List(eventMuteList, loginPubkey);
+		const tags: string[][] = tagList.filter(
+			(tag) => !(tag.length >= 2 && tag[0] === 'p' && tag[1] === pubkey)
+		);
+		const content: string = !contentList.some(
+			(tag) => tag.length >= 2 && tag[0] === 'p' && tag[1] === pubkey
+		)
+			? eventMuteList.content
+			: await window.nostr.nip04.encrypt(
+					loginPubkey,
+					JSON.stringify(
+						contentList.filter((tag) => !(tag.length >= 2 && tag[0] === 'p' && tag[1] === pubkey))
+					)
+				);
+		const eventTemplate: EventTemplate = {
+			kind: eventMuteList.kind,
+			tags,
+			content,
+			created_at: now()
+		};
+		const eventToSend = await window.nostr.signEvent(eventTemplate);
+		this.#sendEvent(eventToSend);
+	};
+
 	muteHashtag = async (
 		hashtag: string,
 		loginPubkey: string,
