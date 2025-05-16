@@ -160,7 +160,7 @@
 	const completeCustom = (): void => {
 		console.log('[Loading Complete]');
 		const correctionCount = timelineSliced.filter((ev) => ev.created_at === lastUntil).length;
-		countToShow += 10 - correctionCount; //unitlと同時刻のイベントは被って取得されるので補正
+		countToShow += 11 - correctionCount; //unitlと同時刻のイベントは被って取得されるので補正
 		isLoading = false;
 	};
 
@@ -249,7 +249,7 @@
 	{rc}
 	{loginPubkey}
 	{profileMap}
-	eventsWebBookmark={getEventsFiltered(eventsWebBookmark)}
+	eventsWebBookmark={getEventsFiltered(timelineSliced)}
 	eventsReaction={getEventsFiltered(eventsReaction)}
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
 	{eventsEmojiSet}
