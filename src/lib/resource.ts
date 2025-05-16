@@ -407,7 +407,7 @@ export class RelayConnector {
 
 	fetchUserSettings = (pubkey: string) => {
 		this.#rxReqBRp.emit({
-			kinds: [10000, 10030],
+			kinds: [0, 10000, 10030],
 			authors: [pubkey],
 			until: now()
 		});
