@@ -65,7 +65,6 @@ export class RelayConnector {
 	#rxReqBRp: ReqB;
 	#rxReqBAd: ReqB;
 	#rxReqF: ReqF;
-	#completeCustom: () => void;
 
 	#tie: OperatorFunction<
 		EventPacket,
@@ -82,7 +81,7 @@ export class RelayConnector {
 
 	#eventsDeletion: NostrEvent[];
 
-	constructor(useAuth: boolean, completeCustom: () => void) {
+	constructor(useAuth: boolean) {
 		if (useAuth) {
 			this.#rxNostr = createRxNostr({ verifier, authenticator: 'auto' });
 		} else {
@@ -95,7 +94,6 @@ export class RelayConnector {
 		this.#rxReqBRp = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
-		this.#completeCustom = completeCustom;
 		[this.#tie, this.#seenOn] = createTie();
 		[this.#uniq, this.#eventIds] = createUniq((packet: EventPacket): string => packet.event.id);
 		this.#rxNostr.setDefaultRelays(defaultRelays);
@@ -413,8 +411,12 @@ export class RelayConnector {
 		});
 	};
 
-	fetchWebBookmark = (params: UrlParams, loginPubkey?: string, unitl?: number) => {
-		const isScrolled: boolean = unitl !== undefined;
+	fetchWebBookmark = (
+		params: UrlParams,
+		loginPubkey?: string,
+		unitl?: number,
+		completeCustom?: () => void
+	) => {
 		const { currentAddressPointer, currentProfilePointer, hashtag, path } = params;
 		const filterB: LazyFilter = {
 			kinds: [39701],
@@ -447,7 +449,7 @@ export class RelayConnector {
 			filterB['#d'] = [path];
 		}
 		const options: { relays: string[] } = { relays: Array.from(relaySet) };
-		if (isScrolled) {
+		if (completeCustom !== undefined) {
 			const rxReqBAdCustom = createRxBackwardReq();
 			this.#rxNostr
 				.use(rxReqBAdCustom)
@@ -460,7 +462,7 @@ export class RelayConnector {
 				)
 				.subscribe({
 					next: this.#next,
-					complete: this.#completeCustom
+					complete: completeCustom
 				});
 			rxReqBAdCustom.emit(filterB, options);
 			rxReqBAdCustom.over();

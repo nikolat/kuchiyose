@@ -24,7 +24,7 @@
 	let rc: RelayConnector | undefined = $state();
 	let eventsWebBookmark: NostrEvent[] = $state([]);
 	let eventsProfile: NostrEvent[] = $state([]);
-	let profileMap: Map<string, ProfileContent> = $derived(
+	const profileMap: Map<string, ProfileContent> = $derived(
 		new Map<string, ProfileContent>(eventsProfile.map((ev) => [ev.pubkey, JSON.parse(ev.content)]))
 	);
 	let eventsReaction: NostrEvent[] = $state([]);
@@ -36,7 +36,7 @@
 		string[],
 		string[]
 	] = $state([[], [], [], []]);
-	let getMuteListPromise: Promise<[string[], string[], string[], string[]]> = $derived(
+	const getMuteListPromise: Promise<[string[], string[], string[], string[]]> = $derived(
 		getMuteList(eventMuteList, loginPubkey)
 	);
 	$effect(() => {
@@ -127,7 +127,7 @@
 		eventMuteList = undefined;
 		eventsEmojiSet = [];
 		rc?.dispose();
-		rc = new RelayConnector(loginPubkey !== undefined, completeCustom);
+		rc = new RelayConnector(loginPubkey !== undefined);
 		rc.subscribeEventStore(callback);
 		if (loginPubkey !== undefined) {
 			rc.fetchUserInfo(loginPubkey);
@@ -188,7 +188,7 @@
 				}
 				lastUntil = lastUntilNext;
 				console.log('[Loading Start]');
-				rc.fetchWebBookmark(up, loginPubkey, lastUntil);
+				rc.fetchWebBookmark(up, loginPubkey, lastUntil, completeCustom);
 			}
 		} else if (isScrolledBottom && scrollTop < pageMostBottom + scrollThreshold) {
 			isScrolledBottom = false;
