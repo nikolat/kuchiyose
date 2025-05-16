@@ -414,3 +414,33 @@ export const getEmoji = async (
 		}, 10);
 	});
 };
+
+const indexOfFirstUnmatchingCloseParen = (url: string, left: string, right: string): number => {
+	let nest = 0;
+	for (let i = 0; i < url.length; i++) {
+		const c = url.charAt(i);
+		if (c === left) {
+			nest++;
+		} else if (c === right) {
+			if (nest <= 0) {
+				return i;
+			}
+			nest--;
+		}
+	}
+	return -1;
+};
+
+//https://github.com/jiftechnify/motherfucking-nostr-client
+export const urlLinkString = (url: string): [string, string] => {
+	for (const [left, right] of [
+		['(', ')'],
+		['[', ']']
+	]) {
+		const splitIdx: number = indexOfFirstUnmatchingCloseParen(url, left, right);
+		if (splitIdx >= 0) {
+			return [url.substring(0, splitIdx), url.substring(splitIdx)];
+		}
+	}
+	return [url, ''];
+};

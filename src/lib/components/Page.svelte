@@ -12,6 +12,7 @@
 		isValidWebBookmark
 	} from '$lib/utils';
 	import Profile from '$lib/components/Profile.svelte';
+	import Content from '$lib/components/Content.svelte';
 	import AddStar from '$lib/components/AddStar.svelte';
 
 	const {
@@ -274,7 +275,7 @@
 									<a href="/t/{encodeURI(hashtag)}" class="hashtag">#{hashtag}</a>
 								{/each}
 								<br />
-								<span class="content">{webbookmark.content}</span>
+								<span class="content"><Content content={webbookmark.content} /></span>
 							</div>
 							<div class="menu">
 								{#if loginPubkey !== undefined}

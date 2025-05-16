@@ -3,6 +3,7 @@
 	import * as nip05 from 'nostr-tools/nip05';
 	import * as nip19 from 'nostr-tools/nip19';
 	import type { ProfileContent } from 'applesauce-core/helpers';
+	import Content from '$lib/components/Content.svelte';
 
 	const {
 		pubkey,
@@ -58,7 +59,7 @@
 			🔗<a href={profile.website} target="_blank" rel="noopener noreferrer">{profile.website}</a>
 		</div>
 	{/if}
-	<div class="about">{profile?.about ?? ''}</div>
+	<div class="about"><Content content={profile?.about ?? ''} /></div>
 </section>
 
 <style>
