@@ -198,7 +198,7 @@ export const getRelaysToUseFromKind10002Event = (event?: NostrEvent): RelayRecor
 	return newRelays;
 };
 
-const splitNip51List = async (
+export const splitNip51List = async (
 	event: NostrEvent,
 	loginPubkey: string
 ): Promise<{

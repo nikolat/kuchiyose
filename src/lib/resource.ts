@@ -36,7 +36,8 @@ import {
 	getAddressPointerFromAId,
 	getRelaysToUseFromKind10002Event,
 	isValidEmoji,
-	isValidWebBookmark
+	isValidWebBookmark,
+	splitNip51List
 } from '$lib/utils';
 
 export type UrlParams = {
@@ -577,6 +578,76 @@ export class RelayConnector {
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		const options: Partial<RxNostrSendOptions> = { on: { relays: this.#getRelays('write') } };
 		this.#sendEvent(eventToSend, options);
+	};
+
+	muteHashtag = async (
+		hashtag: string,
+		loginPubkey: string,
+		eventMuteList: NostrEvent | undefined
+	): Promise<void> => {
+		if (window.nostr?.nip04 === undefined) {
+			return;
+		}
+		const kind = 10000;
+		let tags: string[][];
+		let content: string;
+		if (eventMuteList === undefined) {
+			tags = [];
+			content = await window.nostr.nip04.encrypt(loginPubkey, JSON.stringify([['t', hashtag]]));
+		} else {
+			const { tagList, contentList } = await splitNip51List(eventMuteList, loginPubkey);
+			tags = tagList;
+			content = await window.nostr.nip04.encrypt(
+				loginPubkey,
+				JSON.stringify([...contentList, ['t', hashtag]])
+			);
+		}
+		const eventTemplate: EventTemplate = {
+			kind,
+			tags,
+			content,
+			created_at: now()
+		};
+		const eventToSend = await window.nostr.signEvent(eventTemplate);
+		this.#sendEvent(eventToSend);
+	};
+
+	unmuteHashtag = async (
+		hashtag: string,
+		loginPubkey: string,
+		eventMuteList: NostrEvent | undefined
+	): Promise<void> => {
+		if (window.nostr?.nip04 === undefined) {
+			return;
+		}
+		if (eventMuteList === undefined) {
+			console.warn('kind:10000 event does not exist');
+			return;
+		}
+		const { tagList, contentList } = await splitNip51List(eventMuteList, loginPubkey);
+		const tags: string[][] = tagList.filter(
+			(tag) => !(tag.length >= 2 && tag[0] === 't' && tag[1].toLowerCase() === hashtag)
+		);
+		const content: string = !contentList.some(
+			(tag) => tag.length >= 2 && tag[0] === 't' && tag[1].toLowerCase() === hashtag
+		)
+			? eventMuteList.content
+			: await window.nostr.nip04.encrypt(
+					loginPubkey,
+					JSON.stringify(
+						contentList.filter(
+							(tag) => !(tag.length >= 2 && tag[0] === 't' && tag[1].toLowerCase() === hashtag)
+						)
+					)
+				);
+		const eventTemplate: EventTemplate = {
+			kind: eventMuteList.kind,
+			tags,
+			content,
+			created_at: now()
+		};
+		const eventToSend = await window.nostr.signEvent(eventTemplate);
+		this.#sendEvent(eventToSend);
 	};
 
 	sendReaction = async (

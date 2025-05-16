@@ -30,7 +30,7 @@
 	let eventsReaction: NostrEvent[] = $state([]);
 	let eventsWebReaction: NostrEvent[] = $state([]);
 	let eventMuteList: NostrEvent | undefined = $state();
-	let [mutedPubkeys, mutedIds, mutedWords, mutedHashTags]: [
+	let [mutedPubkeys, mutedIds, mutedWords, mutedHashtags]: [
 		string[],
 		string[],
 		string[],
@@ -41,11 +41,11 @@
 	);
 	$effect(() => {
 		getMuteListPromise.then((v: [string[], string[], string[], string[]]) => {
-			[mutedPubkeys, mutedIds, mutedWords, mutedHashTags] = v;
+			[mutedPubkeys, mutedIds, mutedWords, mutedHashtags] = v;
 		});
 	});
 	const getEventsFiltered = (events: NostrEvent[]) => {
-		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashTags);
+		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashtags);
 	};
 	let eventsEmojiSet: NostrEvent[] = $state([]);
 	let idTimeoutLoading: number;
@@ -253,4 +253,5 @@
 	eventsReaction={getEventsFiltered(eventsReaction)}
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
 	{eventsEmojiSet}
+	isMutedHashtagPage={mutedHashtags.includes(up.hashtag ?? '')}
 />
