@@ -6,6 +6,7 @@
 	import { preferences } from '$lib/store';
 	import { sitename } from '$lib/config';
 	import { unixNow, type ProfileContent } from 'applesauce-core/helpers';
+	import type { Subscription } from 'rxjs';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import type { Filter } from 'nostr-tools/filter';
 	import {
@@ -25,6 +26,7 @@
 
 	let loginPubkey: string | undefined = $state();
 	let rc: RelayConnector | undefined = $derived(getRelayConnector());
+	let sub: Subscription | undefined;
 	let eventsWebBookmark: NostrEvent[] = $state([]);
 	let eventsProfile: NostrEvent[] = $state([]);
 	const profileMap: Map<string, ProfileContent> = $derived(
@@ -146,18 +148,20 @@
 	};
 
 	const initFetch = () => {
+		sub?.unsubscribe();
 		initStatus();
 		if (rc === undefined) {
 			clearCache();
 			rc = new RelayConnector(loginPubkey !== undefined);
 			setRelayConnector(rc);
-			rc.subscribeEventStore(callback);
+			sub = rc.subscribeEventStore(callback);
 			if (loginPubkey !== undefined) {
 				rc.fetchUserInfo(loginPubkey);
 			} else {
 				rc.fetchWebBookmark(up);
 			}
 		} else {
+			sub = rc.subscribeEventStore(callback);
 			for (const k of [0, 7, 17, 10000, 10030, 30030, 39701]) {
 				callback(k);
 			}

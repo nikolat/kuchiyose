@@ -1,4 +1,9 @@
-import { bufferTime, type MonoTypeOperatorFunction, type OperatorFunction } from 'rxjs';
+import {
+	bufferTime,
+	type MonoTypeOperatorFunction,
+	type OperatorFunction,
+	type Subscription
+} from 'rxjs';
 import {
 	batch,
 	createRxBackwardReq,
@@ -267,7 +272,7 @@ export class RelayConnector {
 		return deletedEventIdSet;
 	};
 
-	subscribeEventStore = (callback: (kind: number, event?: NostrEvent) => void) => {
+	subscribeEventStore = (callback: (kind: number, event?: NostrEvent) => void): Subscription => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
 				case 0: {
