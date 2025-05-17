@@ -2,10 +2,12 @@
 	import { onMount } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { RelayConnector, type UrlParams } from '$lib/resource';
+	import { getRelayConnector, setRelayConnector } from '$lib/resource.svelte';
 	import { preferences } from '$lib/store';
 	import { sitename } from '$lib/config';
 	import { unixNow, type ProfileContent } from 'applesauce-core/helpers';
 	import type { NostrEvent } from 'nostr-tools/pure';
+	import type { Filter } from 'nostr-tools/filter';
 	import {
 		getEventsAddressableLatest,
 		getEventsFilteredByMute,
@@ -22,7 +24,7 @@
 	} = $props();
 
 	let loginPubkey: string | undefined = $state();
-	let rc: RelayConnector | undefined = $state();
+	let rc: RelayConnector | undefined = $derived(getRelayConnector());
 	let eventsWebBookmark: NostrEvent[] = $state([]);
 	let eventsProfile: NostrEvent[] = $state([]);
 	const profileMap: Map<string, ProfileContent> = $derived(
@@ -103,7 +105,23 @@
 				break;
 			}
 			case 39701: {
-				eventsWebBookmark = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [kind] }));
+				const filter: Filter = {
+					kinds: [39701]
+				};
+				if (up.currentAddressPointer !== undefined) {
+					filter.kinds = [up.currentAddressPointer.kind];
+					filter.authors = [up.currentAddressPointer.pubkey];
+					filter['#d'] = [up.currentAddressPointer.identifier];
+				} else if (up.currentProfilePointer !== undefined) {
+					filter.authors = [up.currentProfilePointer.pubkey];
+				}
+				if (up.hashtag !== undefined) {
+					filter['#t'] = [up.hashtag];
+				}
+				if (up.path !== undefined) {
+					filter['#d'] = [up.path];
+				}
+				eventsWebBookmark = getEventsAddressableLatest(rc.getEventsByFilter(filter));
 				break;
 			}
 			default:
@@ -111,8 +129,16 @@
 		}
 	};
 
-	const initSettings = () => {
+	const clearCache = () => {
 		eventsWebBookmark = [];
+		eventsProfile = [];
+		eventsReaction = [];
+		eventsWebReaction = [];
+		eventMuteList = undefined;
+		eventsEmojiSet = [];
+	};
+
+	const initStatus = () => {
 		countToShow = 10;
 		isScrolledBottom = false;
 		isLoading = false;
@@ -120,18 +146,21 @@
 	};
 
 	const initFetch = () => {
-		eventsWebBookmark = [];
-		eventsProfile = [];
-		eventsReaction = [];
-		eventsWebReaction = [];
-		eventMuteList = undefined;
-		eventsEmojiSet = [];
-		rc?.dispose();
-		rc = new RelayConnector(loginPubkey !== undefined);
-		rc.subscribeEventStore(callback);
-		if (loginPubkey !== undefined) {
-			rc.fetchUserInfo(loginPubkey);
+		initStatus();
+		if (rc === undefined) {
+			clearCache();
+			rc = new RelayConnector(loginPubkey !== undefined);
+			setRelayConnector(rc);
+			rc.subscribeEventStore(callback);
+			if (loginPubkey !== undefined) {
+				rc.fetchUserInfo(loginPubkey);
+			} else {
+				rc.fetchWebBookmark(up);
+			}
 		} else {
+			for (const k of [0, 7, 17, 10000, 10030, 30030, 39701]) {
+				callback(k);
+			}
 			rc.fetchWebBookmark(up);
 		}
 	};
@@ -158,7 +187,9 @@
 		}
 		loginPubkey = newLoginPubkey;
 		saveLocalStorage();
-		initSettings();
+		rc?.dispose();
+		rc = undefined;
+		setRelayConnector(rc);
 		initFetch();
 	};
 
@@ -172,7 +203,7 @@
 	let isLoading: boolean = false;
 	let lastUntil: number | undefined = undefined;
 	const completeCustom = (): void => {
-		console.log('[Loading Complete]');
+		console.info('[Loading Complete]');
 		const correctionCount = timelineSliced.filter((ev) => ev.created_at === lastUntil).length;
 		countToShow += 11 - correctionCount; //unitlと同時刻のイベントは被って取得されるので補正
 		isLoading = false;
@@ -201,7 +232,7 @@
 					return;
 				}
 				lastUntil = lastUntilNext;
-				console.log('[Loading Start]');
+				console.info('[Loading Start]');
 				rc.fetchWebBookmark(up, loginPubkey, lastUntil, completeCustom);
 			}
 		} else if (isScrolledBottom && scrollTop < pageMostBottom + scrollThreshold) {
@@ -216,7 +247,6 @@
 	beforeNavigate(() => {
 		document.removeEventListener('nlAuth', nlAuth);
 		document.removeEventListener('scroll', handlerScroll);
-		rc?.dispose();
 	});
 	afterNavigate(() => {
 		document.addEventListener('nlAuth', nlAuth);
@@ -224,7 +254,6 @@
 		setTimeout(() => {
 			initFetch();
 		}, 10);
-		initSettings();
 	});
 
 	const title = $derived.by(() => {
