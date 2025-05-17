@@ -1,4 +1,4 @@
-import type { NostrEvent } from 'nostr-tools/pure';
+import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
 import type { RelayRecord } from 'nostr-tools/relay';
 import { normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
@@ -34,7 +34,7 @@ export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] =
 			eventMap.set(s, ev);
 		}
 	}
-	return Array.from(eventMap.values());
+	return sortEvents(Array.from(eventMap.values()));
 };
 
 export const isValidWebBookmark = (d: string, event?: NostrEvent): boolean => {
