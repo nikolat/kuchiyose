@@ -161,7 +161,7 @@
 			for (const k of [0, 7, 17, 10000, 10030, 30030, 39701]) {
 				callback(k);
 			}
-			rc.fetchWebBookmark(up);
+			rc.fetchWebBookmark(up, loginPubkey);
 		}
 	};
 
