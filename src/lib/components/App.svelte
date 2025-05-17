@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { RelayConnector, type UrlParams } from '$lib/resource';
+	import { preferences } from '$lib/store';
 	import { sitename } from '$lib/config';
 	import { unixNow, type ProfileContent } from 'applesauce-core/helpers';
 	import type { NostrEvent } from 'nostr-tools/pure';
@@ -48,7 +49,6 @@
 		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashtags);
 	};
 	let eventsEmojiSet: NostrEvent[] = $state([]);
-	let idTimeoutLoading: number;
 
 	const callback = (kind: number, event?: NostrEvent) => {
 		if (rc === undefined) {
@@ -136,14 +136,28 @@
 		}
 	};
 
+	preferences.subscribe((value: { loginPubkey: string | undefined }) => {
+		loginPubkey = value.loginPubkey;
+	});
+	const saveLocalStorage = () => {
+		preferences.set({
+			loginPubkey
+		});
+	};
+
 	const nlAuth = (e: Event) => {
-		clearTimeout(idTimeoutLoading);
+		let newLoginPubkey: string | undefined;
 		const ce: CustomEvent = e as CustomEvent;
 		if (ce.detail.type === 'login' || ce.detail.type === 'signup') {
-			loginPubkey = ce.detail.pubkey;
+			newLoginPubkey = ce.detail.pubkey;
 		} else {
-			loginPubkey = undefined;
+			newLoginPubkey = undefined;
 		}
+		if (loginPubkey === newLoginPubkey) {
+			return;
+		}
+		loginPubkey = newLoginPubkey;
+		saveLocalStorage();
 		initSettings();
 		initFetch();
 	};
@@ -207,9 +221,9 @@
 	afterNavigate(() => {
 		document.addEventListener('nlAuth', nlAuth);
 		document.addEventListener('scroll', handlerScroll);
-		idTimeoutLoading = setTimeout(() => {
+		setTimeout(() => {
 			initFetch();
-		}, 1000);
+		}, 10);
 		initSettings();
 	});
 
