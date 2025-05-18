@@ -243,7 +243,7 @@
 					disabled={loginPubkey === undefined ||
 						editTag.length === 0 ||
 						editTagInput.validity.patternMismatch ||
-						editTags.map((t) => t.toLowerCase()).includes(editTag.toLowerCase())}
+						editTags.includes(editTag.toLowerCase())}
 					onclick={() => {
 						editTags.push(editTag.toLowerCase());
 						editTag = '';

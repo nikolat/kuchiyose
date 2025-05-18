@@ -577,12 +577,11 @@ export class RelayConnector {
 	};
 
 	signAndSendEvent = async (eventTemplate: EventTemplate): Promise<void> => {
-		if (window.nostr === undefined || this.#relayRecord === undefined) {
+		if (window.nostr === undefined) {
 			return;
 		}
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		const options: Partial<RxNostrSendOptions> = { on: { relays: this.#getRelays('write') } };
-		this.#sendEvent(eventToSend, options);
+		this.#sendEvent(eventToSend);
 	};
 
 	mutePubkey = async (
