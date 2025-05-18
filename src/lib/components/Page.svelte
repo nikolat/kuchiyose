@@ -41,7 +41,6 @@
 
 	let webBookmarkMap: Map<string, NostrEvent[]> = $derived(getWebBookmarkMap(eventsWebBookmark));
 
-	let isDevMode: boolean = $state(false);
 	let isOpenEdit: boolean = $state(false);
 	let editDTag: string = $state('');
 	let editTitleTag: string = $state('');
@@ -110,8 +109,6 @@
 <header>
 	<h1><a href="/">{sitename}</a></h1>
 	<span class="setting">
-		<input type="checkbox" id="dev-mode" name="mode" bind:checked={isDevMode} />
-		<label for="dev-mode">Dev Mode</label>
 		{#if loginPubkey !== undefined}
 			<a href="/{nip19.npubEncode(loginPubkey)}">
 				<img
@@ -317,7 +314,6 @@
 						{profileMap}
 						eventsReaction={getEventsReactionToTheTarget(webbookmark, eventsReaction)}
 						{eventsEmojiSet}
-						{isDevMode}
 					/>
 				{/each}
 			</dd>
@@ -333,10 +329,6 @@
 	}
 	.setting {
 		align-content: center;
-	}
-	.setting > input,
-	.setting > label {
-		vertical-align: top;
 	}
 	.login-user {
 		width: 48px;

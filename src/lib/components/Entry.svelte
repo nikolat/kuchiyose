@@ -15,8 +15,7 @@
 		loginPubkey,
 		profileMap,
 		eventsReaction,
-		eventsEmojiSet,
-		isDevMode
+		eventsEmojiSet
 	}: {
 		webbookmark: NostrEvent;
 		seenOn: string[];
@@ -27,8 +26,9 @@
 		profileMap: Map<string, ProfileContent>;
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
-		isDevMode: boolean;
 	} = $props();
+
+	let isDetailsVisible: boolean = $state(false);
 
 	const identifier = $derived(
 		webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''
@@ -73,12 +73,39 @@
 			{#if loginPubkey !== undefined}
 				<button
 					type="button"
-					class="fork"
+					class="svg fork"
+					title="fork"
+					aria-label="fork"
 					onclick={() => {
 						fork(webbookmark);
-					}}>Fork</button
+					}}
 				>
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path
+							fill-rule="evenodd"
+							d="M16,16 L16,20 C16,21.1522847 15.1522847,22 14,22 L4,22 C2.84771525,22 2,21.1522847 2,20 L2,10 C2,8.84771525 2.84771525,8 4,8 L8,8 L8,4 C8,2.84771525 8.84771525,2 10,2 L20,2 C21.1522847,2 22,2.84771525 22,4 L22,14 C22,15.1522847 21.1522847,16 20,16 L16,16 Z M14,16 L10,16 C8.84771525,16 8,15.1522847 8,14 L8,10 L4,10 L4,20 L14,20 L14,16 Z M10,4 L10,14 L20,14 L20,4 L10,4 Z"
+						/>
+					</svg>
+				</button>
 			{/if}
+			<span class="show-details">
+				<button
+					type="button"
+					class="svg show-details"
+					title="show details"
+					aria-label="show details"
+					onclick={() => {
+						isDetailsVisible = !isDetailsVisible;
+					}}
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path
+							fill-rule="evenodd"
+							d="M5,14 C3.8954305,14 3,13.1045695 3,12 C3,10.8954305 3.8954305,10 5,10 C6.1045695,10 7,10.8954305 7,12 C7,13.1045695 6.1045695,14 5,14 Z M12,14 C10.8954305,14 10,13.1045695 10,12 C10,10.8954305 10.8954305,10 12,10 C13.1045695,10 14,10.8954305 14,12 C14,13.1045695 13.1045695,14 12,14 Z M19,14 C17.8954305,14 17,13.1045695 17,12 C17,10.8954305 17.8954305,10 19,10 C20.1045695,10 21,10.8954305 21,12 C21,13.1045695 20.1045695,14 19,14 Z"
+						/>
+					</svg>
+				</button>
+			</span>
 			<a href="/{naddr}">
 				<time class="created_at">{new Date(1000 * webbookmark.created_at).toLocaleString()}</time>
 			</a>
@@ -111,24 +138,26 @@
 				{eventsEmojiSet}
 			/>
 		</div>
-		{#if isDevMode}
-			<details class="details">
-				<summary>view JSON</summary>
-				<dl class="details">
-					<dt>Event JSON</dt>
-					<dd>
-						<pre class="json-view"><code>{JSON.stringify(webbookmark, undefined, 2)}</code></pre>
-					</dd>
-					<dt>Relays seen on</dt>
-					<dd>
-						<ul>
-							{#each seenOn as relay (relay)}
-								<li>{relay}</li>
-							{/each}
-						</ul>
-					</dd>
-				</dl>
-			</details>
+		{#if isDetailsVisible}
+			<div class="details">
+				<details class="details" bind:open={isDetailsVisible}>
+					<summary>Details</summary>
+					<dl class="details">
+						<dt>Event JSON</dt>
+						<dd>
+							<pre class="json-view"><code>{JSON.stringify(webbookmark, undefined, 2)}</code></pre>
+						</dd>
+						<dt>Relays seen on</dt>
+						<dd>
+							<ul>
+								{#each seenOn as relay (relay)}
+									<li>{relay}</li>
+								{/each}
+							</ul>
+						</dd>
+					</dl>
+				</details>
+			</div>
 		{/if}
 	</div>
 </div>
@@ -147,7 +176,7 @@
 		height: 48px;
 	}
 	div.avatar {
-		margin-right: 0.5em;
+		margin-right: 12px;
 	}
 	img.avatar {
 		border-radius: 10%;
@@ -162,14 +191,17 @@
 		margin-top: 2px;
 		position: relative;
 	}
-	.fork {
-		padding: 0 3px;
-	}
 	.created_at {
 		font-size: small;
 	}
-	.details {
+	div.details {
+		margin-left: -100px;
+	}
+	details.details {
 		overflow-x: auto;
+	}
+	summary {
+		width: 100%;
 	}
 	button.svg {
 		border: none;
