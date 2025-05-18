@@ -58,7 +58,7 @@
 		</a>
 	</div>
 	<div class="contents">
-		<div class="comment">
+		<div class="bookmark">
 			<a class="name" href="/{nip19.npubEncode(webbookmark.pubkey)}"
 				>@{prof?.name ?? `${nip19.npubEncode(webbookmark.pubkey).slice(0, 15)}...`}</a
 			><span class="hashtags">
@@ -181,7 +181,7 @@
 	img.avatar {
 		border-radius: 10%;
 	}
-	.comment {
+	.bookmark {
 		white-space: pre-line;
 	}
 	.hashtag {
