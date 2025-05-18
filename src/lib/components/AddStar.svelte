@@ -10,22 +10,22 @@
 		sendDeletion,
 		loginPubkey,
 		profileMap,
-		eventsReactionToTheTarget,
+		eventsReaction,
 		eventsEmojiSet
 	}: {
 		sendReaction: (content?: string, emojiurl?: string) => Promise<void>;
 		sendDeletion: (targetEvent: NostrEvent) => Promise<void>;
 		loginPubkey: string | undefined;
 		profileMap: Map<string, ProfileContent>;
-		eventsReactionToTheTarget: NostrEvent[];
+		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
 	} = $props();
 
-	const reactionValidEvents: NostrEvent[] = $derived(
-		[...eventsReactionToTheTarget.filter((ev) => isValidEmoji(ev))].reverse()
+	const reactions: NostrEvent[] = $derived(
+		[...eventsReaction.filter((ev) => isValidEmoji(ev))].reverse()
 	);
-	const reactionFirst: NostrEvent = $derived(reactionValidEvents.at(0)!);
-	const reactionLast: NostrEvent = $derived(reactionValidEvents.at(-1)!);
+	const reactionFirst: NostrEvent = $derived(reactions.at(0)!);
+	const reactionLast: NostrEvent = $derived(reactions.at(-1)!);
 
 	let isAllowedExpand: boolean = $state(false);
 
@@ -76,8 +76,8 @@
 			/>
 		</svg>
 	</button>
-	{#if reactionValidEvents.length <= expansionThreshold || isAllowedExpand}
-		{#each reactionValidEvents as reactionEvent (reactionEvent.id)}<Reaction
+	{#if reactions.length <= expansionThreshold || isAllowedExpand}
+		{#each reactions as reactionEvent (reactionEvent.id)}<Reaction
 				{reactionEvent}
 				{sendDeletion}
 				profile={profileMap.get(reactionEvent.pubkey)}
@@ -93,7 +93,7 @@
 			class="reactionstar-expand"
 			onclick={() => {
 				isAllowedExpand = true;
-			}}>{reactionValidEvents.length}</button
+			}}>{reactions.length}</button
 		><Reaction
 			reactionEvent={reactionLast}
 			{sendDeletion}
