@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { RelayConnector } from '$lib/resource';
 	import { getRoboHashURL } from '$lib/config';
 	import * as nip05 from 'nostr-tools/nip05';
 	import * as nip19 from 'nostr-tools/nip19';
@@ -9,50 +8,55 @@
 	const {
 		pubkey,
 		profile,
+		isLoggedIn,
 		isMutedPubkeyPage,
-		rc,
-		loginPubkey
+		mutePubkey,
+		unmutePubkey
 	}: {
 		pubkey: string;
 		profile: ProfileContent | undefined;
+		isLoggedIn: boolean;
 		isMutedPubkeyPage: boolean;
-		rc: RelayConnector | undefined;
-		loginPubkey: string | undefined;
+		mutePubkey: () => Promise<void>;
+		unmutePubkey: () => Promise<void>;
 	} = $props();
 
-	let nip05string = $derived(profile?.nip05);
-	let banner = $derived(profile?.banner);
-	let display_name = $derived(profile?.display_name);
-	let name = $derived(profile?.name);
+	const nip05string = $derived(profile?.nip05);
+	const banner = $derived(
+		profile?.banner !== undefined && URL.canParse(profile.banner) ? profile.banner : undefined
+	);
+	const picture = $derived(
+		profile?.picture !== undefined && URL.canParse(profile.picture)
+			? profile.picture
+			: getRoboHashURL(pubkey)
+	);
+	const display_name = $derived(profile?.display_name);
+	const name = $derived(profile?.name ?? nip19.npubEncode(pubkey));
+	const website = $derived(
+		profile?.website !== undefined && URL.canParse(profile.website) ? profile.website : undefined
+	);
+	const about = $derived(profile?.about);
 </script>
 
 <section class="profile">
 	<div class="banner">
-		{#if banner !== undefined && URL.canParse(banner)}<img
-				src={banner}
-				alt="banner"
-				class="banner"
-			/>{/if}
+		{#if banner !== undefined}
+			<img src={banner} alt="banner" class="banner" />
+		{/if}
 	</div>
 	<div class="picture">
-		<img
-			src={profile?.picture ?? getRoboHashURL(pubkey)}
-			alt={profile?.name ?? ''}
-			class="picture"
-		/>
+		<img src={picture} alt={name.slice(0, 20)} class="picture" />
 	</div>
 	<h2 class="display_name">
 		{display_name ?? ''}
-		{#if loginPubkey !== undefined}
+		{#if isLoggedIn}
 			{#if isMutedPubkeyPage}
 				<button
 					type="button"
 					class="svg unmute-pubkey"
-					title={`unmute @${name ?? nip19.npubEncode(pubkey)}`}
-					aria-label={`unmute @${name ?? nip19.npubEncode(pubkey)}`}
-					onclick={() => {
-						rc?.unmutePubkey(pubkey, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
-					}}
+					title={`unmute @${name.slice(0, 20)}`}
+					aria-label={`unmute @${name.slice(0, 20)}`}
+					onclick={unmutePubkey}
 				>
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 						<path
@@ -65,11 +69,9 @@
 				<button
 					type="button"
 					class="svg mute-pubkey"
-					title={`mute @${name ?? nip19.npubEncode(pubkey)}`}
-					aria-label={`mute @${name ?? nip19.npubEncode(pubkey)}`}
-					onclick={() => {
-						rc?.mutePubkey(pubkey, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
-					}}
+					title={`mute @${name.slice(0, 20)}`}
+					aria-label={`mute @${name.slice(0, 20)}`}
+					onclick={mutePubkey}
 				>
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 						<path
@@ -81,7 +83,7 @@
 			{/if}
 		{/if}
 	</h2>
-	<div class="name">@{name ?? nip19.npubEncode(pubkey)}</div>
+	<div class="name">@{name}</div>
 	{#if nip05.isNip05(nip05string)}
 		{@const abbreviatedNip05 = nip05string.replace(/^_@/, '')}
 		<div class="nip05">
@@ -94,12 +96,12 @@
 			{/await}
 		</div>
 	{/if}
-	{#if profile?.website !== undefined && URL.canParse(profile.website)}
+	{#if website !== undefined}
 		<div class="website">
-			🔗<a href={profile.website} target="_blank" rel="noopener noreferrer">{profile.website}</a>
+			🔗<a href={website} target="_blank" rel="noopener noreferrer">{website}</a>
 		</div>
 	{/if}
-	<div class="about"><Content content={profile?.about ?? ''} /></div>
+	<div class="about"><Content content={about ?? ''} /></div>
 </section>
 
 <style>

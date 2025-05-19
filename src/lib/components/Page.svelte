@@ -11,6 +11,7 @@
 		getWebBookmarkMap
 	} from '$lib/utils';
 	import Profile from '$lib/components/Profile.svelte';
+	import Hashtag from '$lib/components/Hashtag.svelte';
 	import CreateEntry from '$lib/components/CreateEntry.svelte';
 	import AddStar from '$lib/components/AddStar.svelte';
 	import Entry from '$lib/components/Entry.svelte';
@@ -39,7 +40,7 @@
 		isMutedHashtagPage: boolean;
 	} = $props();
 
-	let webBookmarkMap: Map<string, NostrEvent[]> = $derived(getWebBookmarkMap(eventsWebBookmark));
+	const webBookmarkMap: Map<string, NostrEvent[]> = $derived(getWebBookmarkMap(eventsWebBookmark));
 
 	let isOpenEdit: boolean = $state(false);
 	let editDTag: string = $state('');
@@ -49,6 +50,34 @@
 	let editTagInput: HTMLInputElement | undefined = $state();
 	let editContent: string = $state('');
 
+	const mutePubkey = async (pubkey: string): Promise<void> => {
+		if (rc === undefined || loginPubkey === undefined) {
+			return;
+		}
+		await rc.mutePubkey(pubkey, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
+	};
+
+	const unmutePubkey = async (pubkey: string): Promise<void> => {
+		if (rc === undefined || loginPubkey === undefined) {
+			return;
+		}
+		await rc.unmutePubkey(pubkey, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
+	};
+
+	const muteHashtag = async (hashtag: string): Promise<void> => {
+		if (rc === undefined || loginPubkey === undefined) {
+			return;
+		}
+		await rc.muteHashtag(hashtag, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
+	};
+
+	const unmuteHashtag = async (hashtag: string): Promise<void> => {
+		if (rc === undefined || loginPubkey === undefined) {
+			return;
+		}
+		await rc.unmuteHashtag(hashtag, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
+	};
+
 	const getPublishedAt = (d: string): string | undefined => {
 		if (rc === undefined || loginPubkey === undefined) {
 			return undefined;
@@ -57,7 +86,10 @@
 		return event?.tags.find((tag) => tag.length >= 2 && tag[0] === 'published_at')?.at(1);
 	};
 
-	const sendWebBookmark = async () => {
+	const sendWebBookmark = async (): Promise<void> => {
+		if (rc === undefined) {
+			return;
+		}
 		const kind: number = 39701;
 		const content: string = editContent;
 		const created_at: number = unixNow();
@@ -74,17 +106,28 @@
 		editTag = '';
 		editTags = [];
 		editContent = '';
-		await rc?.signAndSendEvent({ kind, tags, content, created_at });
+		await rc.signAndSendEvent({ kind, tags, content, created_at });
 	};
 
-	const getSendReaction = (target: NostrEvent | string) => {
-		return async (content?: string, emojiurl?: string) => {
-			await rc?.sendReaction(target, content, emojiurl);
-		};
+	const sendReaction = async (
+		target: NostrEvent | string,
+		content?: string,
+		emojiurl?: string
+	): Promise<void> => {
+		if (rc === undefined) {
+			return;
+		}
+		await rc.sendReaction(target, content, emojiurl);
 	};
-	const sendDeletion = async (targetEvent: NostrEvent) => await rc?.sendDeletion(targetEvent);
 
-	const fork = (webbookmark: NostrEvent) => {
+	const sendDeletion = async (targetEvent: NostrEvent): Promise<void> => {
+		if (rc === undefined) {
+			return;
+		}
+		await rc.sendDeletion(targetEvent);
+	};
+
+	const fork = (webbookmark: NostrEvent): void => {
 		const identifier =
 			webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
 		const title =
@@ -123,49 +166,23 @@
 <main>
 	{#if up.currentProfilePointer !== undefined}
 		{@const pubkey = up.currentProfilePointer.pubkey}
-		<Profile {pubkey} profile={profileMap.get(pubkey)} {isMutedPubkeyPage} {rc} {loginPubkey} />
+		<Profile
+			{pubkey}
+			profile={profileMap.get(pubkey)}
+			isLoggedIn={loginPubkey !== undefined}
+			{isMutedPubkeyPage}
+			mutePubkey={() => mutePubkey(pubkey)}
+			unmutePubkey={() => unmutePubkey(pubkey)}
+		/>
 	{:else if up.hashtag !== undefined}
 		{@const hashtag = up.hashtag}
-		<h2>
-			#{hashtag}
-			{#if loginPubkey !== undefined}
-				{#if isMutedHashtagPage}
-					<button
-						type="button"
-						class="svg unmute-hashtag"
-						title={`unmute #${hashtag}`}
-						aria-label={`unmute #${hashtag}`}
-						onclick={() => {
-							rc?.unmuteHashtag(hashtag, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
-						}}
-					>
-						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-							<path
-								fill-rule="evenodd"
-								d="M20.0980654,15.8909586 L18.6838245,14.4767177 C19.3180029,13.8356474 19.9009094,13.1592525 20.4222529,12.4831239 C20.5528408,12.3137648 20.673512,12.1521776 20.7838347,12 C20.673512,11.8478224 20.5528408,11.6862352 20.4222529,11.5168761 C19.8176112,10.7327184 19.1301624,9.94820254 18.37596,9.21885024 C16.2825083,7.1943753 14.1050769,6 12,6 C11.4776994,6 10.9509445,6.07352686 10.4221233,6.21501656 L8.84014974,4.63304296 C9.8725965,4.22137709 10.9270589,4 12,4 C14.7275481,4 17.3356792,5.4306247 19.76629,7.78114976 C20.5955095,8.58304746 21.3456935,9.43915664 22.0060909,10.2956239 C22.4045936,10.8124408 22.687526,11.2189945 22.8424353,11.4612025 L23.1870348,12 L22.8424353,12.5387975 C22.687526,12.7810055 22.4045936,13.1875592 22.0060909,13.7043761 C21.4349259,14.4451181 20.7965989,15.1855923 20.0980652,15.8909583 L20.0980654,15.8909586 Z M17.0055388,18.4197523 C15.3942929,19.4304919 13.7209154,20 12,20 C9.27245185,20 6.66432084,18.5693753 4.23371003,16.2188502 C3.40449054,15.4169525 2.65430652,14.5608434 1.99390911,13.7043761 C1.59540638,13.1875592 1.31247398,12.7810055 1.15756471,12.5387975 L0.812965202,12 L1.15756471,11.4612025 C1.31247398,11.2189945 1.59540638,10.8124408 1.99390911,10.2956239 C2.65430652,9.43915664 3.40449054,8.58304746 4.23371003,7.78114976 C4.6043191,7.42275182 4.9790553,7.0857405 5.35771268,6.77192624 L1.29289322,2.70710678 L2.70710678,1.29289322 L22.7071068,21.2928932 L21.2928932,22.7071068 L17.0055388,18.4197523 Z M6.77972015,8.19393371 C6.39232327,8.50634201 6.00677809,8.84872289 5.62403997,9.21885024 C4.86983759,9.94820254 4.18238879,10.7327184 3.57774714,11.5168761 C3.44715924,11.6862352 3.32648802,11.8478224 3.21616526,12 C3.32648802,12.1521776 3.44715924,12.3137648 3.57774714,12.4831239 C4.18238879,13.2672816 4.86983759,14.0517975 5.62403997,14.7811498 C7.71749166,16.8056247 9.89492315,18 12,18 C13.1681669,18 14.3586152,17.6321975 15.5446291,16.9588426 L14.0319673,15.4461809 C13.4364541,15.7980706 12.7418086,16 12,16 C9.790861,16 8,14.209139 8,12 C8,11.2581914 8.20192939,10.5635459 8.55381909,9.96803265 L6.77972015,8.19393371 Z M10.0677432,11.4819568 C10.0235573,11.6471834 10,11.8208407 10,12 C10,13.1045695 10.8954305,14 12,14 C12.1791593,14 12.3528166,13.9764427 12.5180432,13.9322568 L10.0677432,11.4819568 Z"
-							/>
-						</svg>
-					</button>
-				{:else}
-					<button
-						type="button"
-						class="svg mute-hashtag"
-						title={`mute #${hashtag}`}
-						aria-label={`mute #${hashtag}`}
-						onclick={() => {
-							rc?.muteHashtag(hashtag, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
-						}}
-					>
-						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-							<path
-								fill-rule="evenodd"
-								d="M20.0980654,15.8909586 L18.6838245,14.4767177 C19.3180029,13.8356474 19.9009094,13.1592525 20.4222529,12.4831239 C20.5528408,12.3137648 20.673512,12.1521776 20.7838347,12 C20.673512,11.8478224 20.5528408,11.6862352 20.4222529,11.5168761 C19.8176112,10.7327184 19.1301624,9.94820254 18.37596,9.21885024 C16.2825083,7.1943753 14.1050769,6 12,6 C11.4776994,6 10.9509445,6.07352686 10.4221233,6.21501656 L8.84014974,4.63304296 C9.8725965,4.22137709 10.9270589,4 12,4 C14.7275481,4 17.3356792,5.4306247 19.76629,7.78114976 C20.5955095,8.58304746 21.3456935,9.43915664 22.0060909,10.2956239 C22.4045936,10.8124408 22.687526,11.2189945 22.8424353,11.4612025 L23.1870348,12 L22.8424353,12.5387975 C22.687526,12.7810055 22.4045936,13.1875592 22.0060909,13.7043761 C21.4349259,14.4451181 20.7965989,15.1855923 20.0980652,15.8909583 L20.0980654,15.8909586 Z M17.0055388,18.4197523 C15.3942929,19.4304919 13.7209154,20 12,20 C9.27245185,20 6.66432084,18.5693753 4.23371003,16.2188502 C3.40449054,15.4169525 2.65430652,14.5608434 1.99390911,13.7043761 C1.59540638,13.1875592 1.31247398,12.7810055 1.15756471,12.5387975 L0.812965202,12 L1.15756471,11.4612025 C1.31247398,11.2189945 1.59540638,10.8124408 1.99390911,10.2956239 C2.65430652,9.43915664 3.40449054,8.58304746 4.23371003,7.78114976 C4.6043191,7.42275182 4.9790553,7.0857405 5.35771268,6.77192624 L1.29289322,2.70710678 L2.70710678,1.29289322 L22.7071068,21.2928932 L21.2928932,22.7071068 L17.0055388,18.4197523 Z M6.77972015,8.19393371 C6.39232327,8.50634201 6.00677809,8.84872289 5.62403997,9.21885024 C4.86983759,9.94820254 4.18238879,10.7327184 3.57774714,11.5168761 C3.44715924,11.6862352 3.32648802,11.8478224 3.21616526,12 C3.32648802,12.1521776 3.44715924,12.3137648 3.57774714,12.4831239 C4.18238879,13.2672816 4.86983759,14.0517975 5.62403997,14.7811498 C7.71749166,16.8056247 9.89492315,18 12,18 C13.1681669,18 14.3586152,17.6321975 15.5446291,16.9588426 L14.0319673,15.4461809 C13.4364541,15.7980706 12.7418086,16 12,16 C9.790861,16 8,14.209139 8,12 C8,11.2581914 8.20192939,10.5635459 8.55381909,9.96803265 L6.77972015,8.19393371 Z M10.0677432,11.4819568 C10.0235573,11.6471834 10,11.8208407 10,12 C10,13.1045695 10.8954305,14 12,14 C12.1791593,14 12.3528166,13.9764427 12.5180432,13.9322568 L10.0677432,11.4819568 Z"
-							/>
-						</svg>
-					</button>
-				{/if}
-			{/if}
-		</h2>
+		<Hashtag
+			{hashtag}
+			isLoggedIn={loginPubkey !== undefined}
+			{isMutedHashtagPage}
+			muteHashtag={() => muteHashtag(hashtag)}
+			unmuteHashtag={() => unmuteHashtag(hashtag)}
+		/>
 	{/if}
 	<CreateEntry
 		bind:isOpenEdit
@@ -200,7 +217,8 @@
 				<br />
 				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
 				<AddStar
-					sendReaction={getSendReaction(url)}
+					sendReaction={(content?: string, emojiurl?: string) =>
+						sendReaction(url, content, emojiurl)}
 					{sendDeletion}
 					{loginPubkey}
 					{profileMap}
@@ -214,7 +232,8 @@
 						{webbookmark}
 						seenOn={rc?.getSeenOn(webbookmark.id, false) ?? []}
 						{fork}
-						sendReaction={getSendReaction(webbookmark)}
+						sendReaction={(content?: string, emojiurl?: string) =>
+							sendReaction(webbookmark, content, emojiurl)}
 						{sendDeletion}
 						{loginPubkey}
 						{profileMap}
@@ -263,26 +282,6 @@
 	}
 	.hashtag:not(:first-child) {
 		margin-left: 0.5em;
-	}
-	button.svg {
-		border: none;
-		outline: none;
-		padding: 0;
-		height: 16px;
-		margin: 0;
-		background-color: rgba(127, 127, 127, 0);
-		border-radius: 10%;
-	}
-	button.svg > svg {
-		width: 16px;
-		height: 16px;
-		fill: var(--text-bright);
-	}
-	button.unmute-hashtag > svg {
-		fill: pink;
-	}
-	button.svg:active > svg {
-		fill: yellow;
 	}
 	footer {
 		text-align: center;
