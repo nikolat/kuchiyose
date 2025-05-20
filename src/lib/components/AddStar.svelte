@@ -133,6 +133,7 @@
 	}
 	span.reactionstar-container > button.reactionstar-expand {
 		background-color: transparent;
+		vertical-align: super;
 	}
 	.emoji-picker-container {
 		position: absolute;
