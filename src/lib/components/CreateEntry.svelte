@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { isValidWebBookmark } from '$lib/utils';
 
 	let {
@@ -22,6 +23,36 @@
 		loginPubkey: string | undefined;
 		sendWebBookmark: () => Promise<void>;
 	} = $props();
+
+	const urlSearchParams: URLSearchParams = $derived(page.url.searchParams);
+
+	$effect(() => {
+		const editTagsSet = new Set<string>();
+		for (const [k, v] of urlSearchParams.entries()) {
+			switch (k) {
+				case 'd':
+					editDTag = v;
+					break;
+				case 'title':
+					editTitleTag = v;
+					break;
+				case 't':
+					if (/[^\s#]+/.test(v)) {
+						editTagsSet.add(v.toLowerCase());
+					}
+					break;
+				case 'content':
+					editContent = v;
+					break;
+				default:
+					break;
+			}
+		}
+		editTags = Array.from(editTagsSet);
+		if (urlSearchParams.size > 0) {
+			isOpenEdit = true;
+		}
+	});
 </script>
 
 <details class="edit" bind:open={isOpenEdit}>
