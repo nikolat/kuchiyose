@@ -857,6 +857,64 @@ export class RelayConnector {
 		this.#sendEvent(eventToSend);
 	};
 
+	sendComment = async (content: string, targetEventToReply: NostrEvent): Promise<void> => {
+		if (window.nostr === undefined) {
+			return;
+		}
+		const kind = 1111;
+		const tags: string[][] = [];
+		const recommendedRelay: string = this.getSeenOn(targetEventToReply.id, true).at(0) ?? '';
+		if (targetEventToReply.kind === 1111) {
+			const tagsCopied = targetEventToReply.tags.filter(
+				(tag) => tag.length >= 2 && ['A', 'E', 'I', 'K', 'P'].includes(tag[0])
+			);
+			for (const tag of tagsCopied) {
+				tags.push(tag);
+			}
+			tags.push(['e', targetEventToReply.id, recommendedRelay, targetEventToReply.pubkey]);
+			tags.push(['k', String(targetEventToReply.kind)]);
+		} else if (
+			isReplaceableKind(targetEventToReply.kind) ||
+			isAddressableKind(targetEventToReply.kind)
+		) {
+			const d =
+				targetEventToReply.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+			const a = `${targetEventToReply.kind}:${targetEventToReply.pubkey}:${d}`;
+			tags.push(['A', a, recommendedRelay]);
+			tags.push(['K', String(targetEventToReply.kind)]);
+			tags.push(['P', targetEventToReply.pubkey]);
+			tags.push(['a', a, recommendedRelay]);
+			tags.push(['e', targetEventToReply.id, recommendedRelay, targetEventToReply.pubkey]);
+			tags.push(['k', String(targetEventToReply.kind)]);
+			tags.push(['p', targetEventToReply.pubkey]);
+		} else {
+			tags.push(['E', targetEventToReply.id, recommendedRelay, targetEventToReply.pubkey]);
+			tags.push(['K', String(targetEventToReply.kind)]);
+			tags.push(['P', targetEventToReply.pubkey]);
+			tags.push(['e', targetEventToReply.id, recommendedRelay, targetEventToReply.pubkey]);
+			tags.push(['k', String(targetEventToReply.kind)]);
+			tags.push(['p', targetEventToReply.pubkey]);
+		}
+		const eventTemplate: EventTemplate = {
+			kind,
+			tags,
+			content,
+			created_at: now()
+		};
+		const eventToSend = await window.nostr.signEvent(eventTemplate);
+		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
+		if (isEnabledOutboxModel) {
+			const relayRecord: RelayRecord = getRelaysToUseFromKind10002Event(
+				this.#eventStore.getReplaceable(10002, targetEventToReply.pubkey)
+			);
+			for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
+				relaySet.add(relayUrl);
+			}
+		}
+		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
+		this.#sendEvent(eventToSend, options);
+	};
+
 	sendReaction = async (
 		target: NostrEvent | string,
 		content: string = defaultReactionToAdd,

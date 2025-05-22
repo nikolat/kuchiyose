@@ -111,6 +111,13 @@
 		await rc.signAndSendEvent({ kind, tags, content, created_at });
 	};
 
+	const sendComment = async (content: string, targetEventToReply: NostrEvent): Promise<void> => {
+		if (rc === undefined) {
+			return;
+		}
+		await rc.sendComment(content, targetEventToReply);
+	};
+
 	const sendReaction = async (
 		target: NostrEvent | string,
 		content?: string,
@@ -237,6 +244,7 @@
 						idReferenced={up.currentEventPointer?.id}
 						getSeenOn={(id: string, excludeWs: boolean) => rc?.getSeenOn(id, excludeWs) ?? []}
 						{fork}
+						{sendComment}
 						{sendReaction}
 						{sendDeletion}
 						{loginPubkey}

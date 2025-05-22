@@ -7,7 +7,7 @@
 	import { sitename } from '$lib/config';
 	import { unixNow, type ProfileContent } from 'applesauce-core/helpers';
 	import type { Subscription } from 'rxjs';
-	import type { NostrEvent } from 'nostr-tools/pure';
+	import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
 	import type { Filter } from 'nostr-tools/filter';
 	import {
 		getAddressPointerFromAId,
@@ -87,7 +87,7 @@
 				break;
 			}
 			case 1111: {
-				eventsComment = rc.getEventsByFilter({ kinds: [kind] });
+				eventsComment = sortEvents(rc.getEventsByFilter({ kinds: [kind] }));
 				break;
 			}
 			case 10000: {

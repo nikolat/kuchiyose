@@ -72,7 +72,7 @@ export const getWebBookmarkMap = (eventsWebBookmark: NostrEvent[]) => {
 		if (events === undefined) {
 			map.set(url, [ev]);
 		} else {
-			map.set(url, events.concat(ev));
+			map.set(url, sortEvents(events.concat(ev)));
 		}
 	}
 	return new Map<string, NostrEvent[]>(
