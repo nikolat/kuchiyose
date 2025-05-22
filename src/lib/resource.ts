@@ -405,6 +405,10 @@ export class RelayConnector {
 					if (!this.#eventStore.hasReplaceable(10002, event.pubkey)) {
 						this.#fetchRelayList(event.pubkey);
 					}
+					const filter = { kinds: [39701], '#d': [d] };
+					if (this.#eventStore.getAll(filter).size === 1) {
+						this.#rxReqBAd.emit(filter);
+					}
 					this.#fetchDeletion(event);
 					this.#fetchReaction(event);
 					this.#fetchWebReaction(`https://${d}`);

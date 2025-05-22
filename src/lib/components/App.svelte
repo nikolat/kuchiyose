@@ -51,10 +51,19 @@
 			[mutedPubkeys, mutedIds, mutedWords, mutedHashtags] = v;
 		});
 	});
+	let eventsEmojiSet: NostrEvent[] = $state([]);
 	const getEventsFiltered = (events: NostrEvent[]) => {
 		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashtags);
 	};
-	let eventsEmojiSet: NostrEvent[] = $state([]);
+	const getAllBookmarksEachUrl = (events: NostrEvent[]): NostrEvent[] => {
+		if (rc === undefined) {
+			return [];
+		}
+		const dSet = new Set<string>(
+			events.map((ev) => ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '')
+		);
+		return rc.getEventsByFilter({ kinds: [39701], '#d': Array.from(dSet) });
+	};
 
 	const callback = (kind: number, event?: NostrEvent) => {
 		if (rc === undefined) {
@@ -332,7 +341,7 @@
 	{rc}
 	{loginPubkey}
 	{profileMap}
-	eventsWebBookmark={getEventsFiltered(timelineSliced)}
+	eventsWebBookmark={getAllBookmarksEachUrl(getEventsFiltered(timelineSliced))}
 	eventsReaction={getEventsFiltered(eventsReaction)}
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
 	eventsComment={getEventsFiltered(eventsComment)}
