@@ -301,8 +301,9 @@ export class RelayConnector {
 					break;
 				}
 				case 10002: {
-					this.#relayRecord = this.#getRelaysToUseFromKind10002Event(event);
-					this.#rxNostr.setDefaultRelays(this.#relayRecord);
+					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
+						this.#fetchProfile(event.pubkey);
+					}
 					break;
 				}
 				case 10030: {
@@ -363,6 +364,11 @@ export class RelayConnector {
 			}
 		}
 		return Array.from(relaySet);
+	};
+
+	setRelays = (event: NostrEvent) => {
+		this.#relayRecord = this.#getRelaysToUseFromKind10002Event(event);
+		this.#rxNostr.setDefaultRelays(this.#relayRecord);
 	};
 
 	#fetchProfile = (pubkey: string) => {
@@ -453,6 +459,16 @@ export class RelayConnector {
 		}
 		if (path !== undefined) {
 			filterB['#d'] = [path];
+		}
+		if (filterB.authors !== undefined && isEnabledOutboxModel) {
+			for (const pubkey of filterB.authors) {
+				const relayRecord: RelayRecord = getRelaysToUseFromKind10002Event(
+					this.#eventStore.getReplaceable(10002, pubkey)
+				);
+				for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
+					relaySet.add(relayUrl);
+				}
+			}
 		}
 		const options: { relays: string[] } = { relays: Array.from(relaySet) };
 		if (completeCustom !== undefined) {
@@ -766,16 +782,16 @@ export class RelayConnector {
 			console.warn('emoji is invalid');
 			return;
 		}
-		const relaysToAdd: Set<string> = new Set<string>(this.#getRelays('write'));
+		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
 		if (isEnabledOutboxModel && targetEvent !== undefined) {
 			const relayRecord: RelayRecord = getRelaysToUseFromKind10002Event(
 				this.#eventStore.getReplaceable(10002, targetEvent.pubkey)
 			);
 			for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
-				relaysToAdd.add(relayUrl);
+				relaySet.add(relayUrl);
 			}
 		}
-		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaysToAdd) } };
+		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
 		this.#sendEvent(eventToSend, options);
 	};
 
@@ -794,7 +810,7 @@ export class RelayConnector {
 			created_at: now()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		const relaysToAdd: Set<string> = new Set<string>(this.#getRelays('write'));
+		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
 		if (isEnabledOutboxModel) {
 			const mentionedPubkeys: string[] = targetEvent.tags
 				.filter((tag) => tag.length >= 2 && tag[0] === 'p')
@@ -804,11 +820,11 @@ export class RelayConnector {
 					this.#eventStore.getReplaceable(10002, pubkey)
 				);
 				for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
-					relaysToAdd.add(relayUrl);
+					relaySet.add(relayUrl);
 				}
 			}
 		}
-		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaysToAdd) } };
+		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
 		this.#sendEvent(eventToSend, options);
 	};
 

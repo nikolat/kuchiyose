@@ -92,6 +92,7 @@
 			}
 			case 10002: {
 				if (loginPubkey !== undefined && event?.pubkey === loginPubkey) {
+					rc.setRelays(event);
 					rc.fetchUserSettings(loginPubkey);
 					rc.fetchWebBookmark(up, loginPubkey);
 				}
