@@ -49,6 +49,7 @@ import {
 export type UrlParams = {
 	currentProfilePointer?: nip19.ProfilePointer;
 	currentAddressPointer?: nip19.AddressPointer;
+	currentEventPointer?: nip19.EventPointer;
 	hashtag?: string;
 	path?: string;
 };
@@ -69,6 +70,8 @@ export class RelayConnector {
 	#rxReqB0: ReqB;
 	#rxReqB7: ReqB;
 	#rxReqB17: ReqB;
+	#rxReqB1111: ReqB;
+	#rxReqB10002: ReqB;
 	#rxReqBRp: ReqB;
 	#rxReqBAd: ReqB;
 	#rxReqF: ReqF;
@@ -86,6 +89,7 @@ export class RelayConnector {
 	#secOnCompleteTimeout = 1000;
 	#secBufferTime = 1000;
 	#limitReaction = 100;
+	#limitComment = 100;
 
 	#eventsDeletion: NostrEvent[];
 
@@ -99,6 +103,8 @@ export class RelayConnector {
 		this.#rxReqB0 = createRxBackwardReq();
 		this.#rxReqB7 = createRxBackwardReq();
 		this.#rxReqB17 = createRxBackwardReq();
+		this.#rxReqB1111 = createRxBackwardReq();
+		this.#rxReqB10002 = createRxBackwardReq();
 		this.#rxReqBRp = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
@@ -121,7 +127,7 @@ export class RelayConnector {
 	#defineSubscription = () => {
 		const batchedReq0 = this.#rxReqB0.pipe(
 			bufferTime(this.#secBufferTime),
-			batch(this.#mergeFilter0)
+			batch(this.#mergeFilterRp)
 		);
 		const batchedReq7 = this.#rxReqB7.pipe(
 			bufferTime(this.#secBufferTime),
@@ -130,6 +136,14 @@ export class RelayConnector {
 		const batchedReq17 = this.#rxReqB17.pipe(
 			bufferTime(this.#secBufferTime),
 			batch(this.#mergeFilter17)
+		);
+		const batchedReq1111 = this.#rxReqB1111.pipe(
+			bufferTime(this.#secBufferTime),
+			batch(this.#mergeFilter1111)
+		);
+		const batchedReq10002 = this.#rxReqB10002.pipe(
+			bufferTime(this.#secBufferTime),
+			batch(this.#mergeFilterRp)
 		);
 		this.#rxNostr
 			.use(batchedReq0)
@@ -149,6 +163,20 @@ export class RelayConnector {
 			next: this.#next,
 			complete: this.#complete
 		});
+		this.#rxNostr.use(batchedReq1111).pipe(this.#tie, this.#uniq).subscribe({
+			next: this.#next,
+			complete: this.#complete
+		});
+		this.#rxNostr
+			.use(batchedReq10002)
+			.pipe(
+				this.#tie,
+				latestEach(({ event }) => `${event.kind}:${event.pubkey}`)
+			)
+			.subscribe({
+				next: this.#next,
+				complete: this.#complete
+			});
 		this.#rxNostr
 			.use(this.#rxReqBRp)
 			.pipe(
@@ -178,7 +206,7 @@ export class RelayConnector {
 		});
 	};
 
-	#mergeFilter0: MergeFilter = (a: LazyFilter[], b: LazyFilter[]) => {
+	#mergeFilterRp: MergeFilter = (a: LazyFilter[], b: LazyFilter[]) => {
 		const margedFilters = [...a, ...b];
 		const authors = Array.from(new Set<string>(margedFilters.map((f) => f.authors ?? []).flat()));
 		const f = margedFilters.at(0);
@@ -207,6 +235,21 @@ export class RelayConnector {
 		const rtags = Array.from(new Set<string>(margedFilters.map((f) => f['#r'] ?? []).flat()));
 		const f = margedFilters.at(0);
 		return [{ kinds: [17], '#r': rtags, limit: f?.limit, until: f?.until }];
+	};
+
+	#mergeFilter1111: MergeFilter = (a: LazyFilter[], b: LazyFilter[]) => {
+		const margedFilters = [...a, ...b];
+		const Etags = Array.from(new Set<string>(margedFilters.map((f) => f['#E'] ?? []).flat()));
+		const Atags = Array.from(new Set<string>(margedFilters.map((f) => f['#A'] ?? []).flat()));
+		const f = margedFilters.at(0);
+		const res: LazyFilter[] = [];
+		if (Etags.length > 0) {
+			res.push({ kinds: [1111], '#E': Etags, limit: f?.limit, until: f?.until });
+		}
+		if (Atags.length > 0) {
+			res.push({ kinds: [1111], '#A': Atags, limit: f?.limit, until: f?.until });
+		}
+		return res;
 	};
 
 	#mergeFilterForAddressableEvents = (
@@ -302,6 +345,17 @@ export class RelayConnector {
 					}
 					break;
 				}
+				case 1111: {
+					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
+						this.#fetchProfile(event.pubkey);
+					}
+					if (!this.#eventStore.hasReplaceable(10002, event.pubkey)) {
+						this.#fetchRelayList(event.pubkey);
+					}
+					this.#fetchReaction(event);
+					this.#fetchEventsByATags(event, 'A');
+					break;
+				}
 				case 10002: {
 					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 						this.#fetchProfile(event.pubkey);
@@ -309,7 +363,7 @@ export class RelayConnector {
 					break;
 				}
 				case 10030: {
-					this.#fetchEventsByATags(event);
+					this.#fetchEventsByATags(event, 'a');
 					break;
 				}
 				case 39701: {
@@ -320,8 +374,12 @@ export class RelayConnector {
 					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 						this.#fetchProfile(event.pubkey);
 					}
+					if (!this.#eventStore.hasReplaceable(10002, event.pubkey)) {
+						this.#fetchRelayList(event.pubkey);
+					}
 					this.#fetchReaction(event);
 					this.#fetchWebReaction(`https://${d}`);
+					this.#fetchComment(event);
 					break;
 				}
 				default:
@@ -411,6 +469,35 @@ export class RelayConnector {
 		this.#rxReqB17.emit({ kinds: [17], '#r': [url], limit: this.#limitReaction, until: now() });
 	};
 
+	#fetchComment = (event: NostrEvent) => {
+		let filter: LazyFilter;
+		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
+			const ap: nip19.AddressPointer = {
+				identifier: event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '',
+				pubkey: event.pubkey,
+				kind: event.kind
+			};
+			filter = {
+				kinds: [1111],
+				'#A': [`${ap.kind}:${ap.pubkey}:${ap.identifier}`],
+				limit: this.#limitComment,
+				until: now()
+			};
+		} else {
+			filter = { kinds: [1111], '#E': [event.id], limit: this.#limitComment, until: now() };
+		}
+		this.#rxReqB1111.emit(filter);
+	};
+
+	#fetchRelayList = (pubkey: string) => {
+		const filter: LazyFilter = {
+			kinds: [10002],
+			authors: [pubkey],
+			until: now()
+		};
+		this.#rxReqB10002.emit(filter);
+	};
+
 	fetchKind10002 = (pubkeys: string[], completeCustom: () => void) => {
 		const filter: LazyFilter = {
 			kinds: [10002],
@@ -448,7 +535,8 @@ export class RelayConnector {
 		unitl?: number,
 		completeCustom?: () => void
 	) => {
-		const { currentAddressPointer, currentProfilePointer, hashtag, path } = params;
+		const { currentAddressPointer, currentProfilePointer, currentEventPointer, hashtag, path } =
+			params;
 		const filterB: LazyFilter = {
 			kinds: [39701],
 			until: unitl ?? now(),
@@ -470,6 +558,15 @@ export class RelayConnector {
 		} else if (currentProfilePointer !== undefined) {
 			filterB.authors = [currentProfilePointer.pubkey];
 			for (const relay of currentProfilePointer.relays ?? []) {
+				relaySet.add(normalizeURL(relay));
+			}
+		} else if (currentEventPointer !== undefined) {
+			filterB.kinds =
+				currentEventPointer.kind === undefined ? undefined : [currentEventPointer.kind];
+			filterB.authors =
+				currentEventPointer.author === undefined ? undefined : [currentEventPointer.author];
+			filterB.ids = [currentEventPointer.id];
+			for (const relay of currentEventPointer.relays ?? []) {
 				relaySet.add(normalizeURL(relay));
 			}
 		}
@@ -521,7 +618,7 @@ export class RelayConnector {
 		const filtersF: LazyFilter[] = [filterF];
 		if (loginPubkey !== undefined) {
 			filtersF.push({
-				kinds: [0, 5, 7, 17, 10002, 10030, 39701],
+				kinds: [0, 5, 7, 17, 1111, 10002, 10030, 39701],
 				authors: [loginPubkey],
 				since: now() + 1
 			});
@@ -529,8 +626,10 @@ export class RelayConnector {
 		this.#rxReqF.emit(filtersF);
 	};
 
-	#fetchEventsByATags = (event: NostrEvent) => {
-		const aIds = event.tags.filter((tag) => tag.length >= 2 && tag[0] === 'a').map((tag) => tag[1]);
+	#fetchEventsByATags = (event: NostrEvent, tagName: string) => {
+		const aIds = event.tags
+			.filter((tag) => tag.length >= 2 && tag[0] === tagName)
+			.map((tag) => tag[1]);
 		if (aIds.length === 0) {
 			return;
 		}
@@ -576,7 +675,7 @@ export class RelayConnector {
 					.filter(
 						(tag) =>
 							tag.length >= 3 &&
-							tag[0] === 'a' &&
+							tag[0] === tagName &&
 							URL.canParse(tag[2]) &&
 							tag[2].startsWith('wss://')
 					)

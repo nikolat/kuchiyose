@@ -11,7 +11,9 @@
 
 	const {
 		event,
-		comments,
+		eventsComment,
+		level,
+		idReferenced,
 		getSeenOn,
 		fork,
 		sendReaction,
@@ -22,7 +24,9 @@
 		eventsEmojiSet
 	}: {
 		event: NostrEvent;
-		comments: NostrEvent[];
+		eventsComment: NostrEvent[];
+		level: number;
+		idReferenced: string | undefined;
 		getSeenOn: (id: string, excludeWs: boolean) => string[];
 		fork?: (event: NostrEvent) => void;
 		sendReaction: (event: NostrEvent, content?: string, emojiurl?: string) => Promise<void>;
@@ -65,18 +69,33 @@
 	const linkStr = $derived(isRegularKind(event.kind) ? nevent : naddr);
 	const commentsToTheEvent = $derived(
 		isRegularKind(event.kind)
-			? comments.filter(
+			? eventsComment.filter(
 					(ev) => ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'e')?.at(1) === event.id
 				)
-			: comments.filter(
+			: eventsComment.filter(
 					(ev) =>
 						ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'a')?.at(1) ===
 						`${event.kind}:${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`
 				)
 	);
+	const classNames: string[] = $derived.by(() => {
+		const classNames: string[] = ['tree'];
+		if (level > 0) {
+			classNames.push('comment');
+		}
+		if (level > 0 && level % 2 === 0) {
+			classNames.push('even');
+		} else if (level % 2 === 1) {
+			classNames.push('odd');
+		}
+		if (event.id === idReferenced) {
+			classNames.push('referenced');
+		}
+		return classNames;
+	});
 </script>
 
-<div class="tree">
+<div class={classNames.join(' ')}>
 	<div class="entry">
 		<div class="avatar">
 			<a href="/{nip19.npubEncode(event.pubkey)}">
@@ -192,7 +211,9 @@
 		{#each commentsToTheEvent as comment (comment.id)}
 			<Entry
 				event={comment}
-				{comments}
+				{eventsComment}
+				level={level + 1}
+				{idReferenced}
 				{getSeenOn}
 				{sendReaction}
 				{sendDeletion}
@@ -208,8 +229,10 @@
 <style>
 	.entry {
 		display: flex;
+		margin-bottom: 0.5em;
+	}
+	.tree:not(.comment) > .entry {
 		margin-top: 1em;
-		margin-bottom: 1em;
 	}
 	.contents {
 		width: calc(100% - 64px);
@@ -240,6 +263,9 @@
 	div.details {
 		margin-left: -100px;
 	}
+	div.tree.comment div.details {
+		margin-left: -60px;
+	}
 	details.details {
 		overflow-x: auto;
 	}
@@ -262,5 +288,19 @@
 	}
 	button.svg:active > svg {
 		fill: yellow;
+	}
+	div.tree.comment {
+		margin-left: 20px;
+		padding: 5px;
+		border-radius: 5px;
+	}
+	div.tree.comment.odd {
+		background-color: rgba(255, 127, 127, 0.1);
+	}
+	div.tree.comment.even {
+		background-color: rgba(127, 127, 255, 0.1);
+	}
+	div.tree.comment.referenced {
+		outline: 2px solid yellow;
 	}
 </style>

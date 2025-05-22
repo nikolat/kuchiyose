@@ -10,6 +10,7 @@
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import type { Filter } from 'nostr-tools/filter';
 	import {
+		getAddressPointerFromAId,
 		getEventsAddressableLatest,
 		getEventsFilteredByMute,
 		getMuteList,
@@ -34,6 +35,7 @@
 	);
 	let eventsReaction: NostrEvent[] = $state([]);
 	let eventsWebReaction: NostrEvent[] = $state([]);
+	let eventsComment: NostrEvent[] = $state([]);
 	let eventMuteList: NostrEvent | undefined = $state();
 	let [mutedPubkeys, mutedIds, mutedWords, mutedHashtags]: [
 		string[],
@@ -84,6 +86,10 @@
 				eventsWebReaction = rc.getEventsByFilter({ kinds: [kind] });
 				break;
 			}
+			case 1111: {
+				eventsComment = rc.getEventsByFilter({ kinds: [kind] });
+				break;
+			}
 			case 10000: {
 				if (loginPubkey !== undefined && event?.pubkey === loginPubkey) {
 					eventMuteList = rc.getReplaceableEvent(kind, loginPubkey);
@@ -115,6 +121,17 @@
 					filter['#d'] = [up.currentAddressPointer.identifier];
 				} else if (up.currentProfilePointer !== undefined) {
 					filter.authors = [up.currentProfilePointer.pubkey];
+				} else if (up.currentEventPointer !== undefined) {
+					const ev = rc.getEventsByFilter({ ids: [up.currentEventPointer.id] }).at(0);
+					const ap = getAddressPointerFromAId(
+						ev?.tags.find((tag) => tag.length >= 2 && tag[0] === 'A')?.at(1) ?? ''
+					);
+					if (ap === null) {
+						break;
+					}
+					filter.kinds = [ap.kind];
+					filter.authors = [ap.pubkey];
+					filter['#d'] = [ap.identifier];
 				}
 				if (up.hashtag !== undefined) {
 					filter['#t'] = [up.hashtag];
@@ -135,6 +152,7 @@
 		eventsProfile = [];
 		eventsReaction = [];
 		eventsWebReaction = [];
+		eventsComment = [];
 		eventMuteList = undefined;
 		eventsEmojiSet = [];
 	};
@@ -166,7 +184,9 @@
 			rc.setRelays();
 		}
 		const pubkey: string | undefined =
-			up.currentProfilePointer?.pubkey ?? up.currentAddressPointer?.pubkey;
+			up.currentProfilePointer?.pubkey ??
+			up.currentAddressPointer?.pubkey ??
+			up.currentEventPointer?.author;
 		if (pubkey !== undefined) {
 			pubkeySet.add(pubkey);
 		}
@@ -315,6 +335,7 @@
 	eventsWebBookmark={getEventsFiltered(timelineSliced)}
 	eventsReaction={getEventsFiltered(eventsReaction)}
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
+	eventsComment={getEventsFiltered(eventsComment)}
 	{eventsEmojiSet}
 	isMutedPubkeyPage={mutedPubkeys.includes(up.currentProfilePointer?.pubkey ?? '')}
 	isMutedHashtagPage={mutedHashtags.includes(up.hashtag ?? '')}

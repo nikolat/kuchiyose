@@ -14,7 +14,7 @@
 				throw new TypeError(`"${urlId}" must be naddr`);
 			}
 		} else {
-			throw new TypeError(`"${urlId}" has no channel id`);
+			throw new TypeError(`"${urlId}" must be naddr`);
 		}
 	};
 

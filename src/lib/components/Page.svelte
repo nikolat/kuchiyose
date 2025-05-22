@@ -24,6 +24,7 @@
 		eventsWebBookmark,
 		eventsReaction,
 		eventsWebReaction,
+		eventsComment,
 		eventsEmojiSet,
 		isMutedPubkeyPage,
 		isMutedHashtagPage
@@ -35,6 +36,7 @@
 		eventsWebBookmark: NostrEvent[];
 		eventsReaction: NostrEvent[];
 		eventsWebReaction: NostrEvent[];
+		eventsComment: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
 		isMutedPubkeyPage: boolean;
 		isMutedHashtagPage: boolean;
@@ -230,7 +232,9 @@
 				{#each webbookmarks as webbookmark (webbookmark.pubkey)}
 					<Entry
 						event={webbookmark}
-						comments={[]}
+						{eventsComment}
+						level={0}
+						idReferenced={up.currentEventPointer?.id}
 						getSeenOn={(id: string, excludeWs: boolean) => rc?.getSeenOn(id, excludeWs) ?? []}
 						{fork}
 						{sendReaction}
@@ -265,6 +269,7 @@
 		padding: 5px;
 		background-color: rgba(0, 0, 0, 0.2);
 		position: relative;
+		margin-top: 1em;
 	}
 	.favicon {
 		width: 16px;
