@@ -307,10 +307,21 @@ export class RelayConnector {
 			const ids: string[] = event.tags
 				.filter((tag) => tag.length >= 2 && tag[0] === 'e')
 				.map((tag) => tag[1]);
+			const relaysSeenOnSet = new Set<string>();
 			for (const id of ids) {
 				if (this.#eventStore.hasEvent(id)) {
+					for (const relay of this.getSeenOn(id, true)) {
+						relaysSeenOnSet.add(relay);
+					}
 					this.#eventStore.database.removeEvent(id);
 				}
+			}
+			//削除対象イベント取得元のリレーにkind:5をブロードキャスト
+			if (relaysSeenOnSet.size > 0) {
+				const options: Partial<RxNostrSendOptions> = {
+					on: { relays: Array.from(relaysSeenOnSet) }
+				};
+				this.#sendEvent(event, options);
 			}
 		}
 		this.#eventStore.add(event);
