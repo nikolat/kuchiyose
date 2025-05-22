@@ -93,8 +93,6 @@
 			case 10002: {
 				if (loginPubkey !== undefined && event?.pubkey === loginPubkey) {
 					rc.setRelays(event);
-					rc.fetchUserSettings(loginPubkey);
-					rc.fetchWebBookmark(up, loginPubkey);
 				}
 				break;
 			}
@@ -151,21 +149,38 @@
 	const initFetch = () => {
 		sub?.unsubscribe();
 		initStatus();
+		const pubkeySet = new Set<string>();
 		if (rc === undefined) {
 			clearCache();
 			rc = new RelayConnector(loginPubkey !== undefined);
 			setRelayConnector(rc);
 			sub = rc.subscribeEventStore(callback);
 			if (loginPubkey !== undefined) {
-				rc.fetchUserInfo(loginPubkey);
-			} else {
-				rc.fetchWebBookmark(up);
+				pubkeySet.add(loginPubkey);
 			}
 		} else {
 			sub = rc.subscribeEventStore(callback);
 			for (const k of [0, 7, 17, 10000, 10030, 30030, 39701]) {
 				callback(k);
 			}
+			rc.setRelays();
+		}
+		const pubkey: string | undefined =
+			up.currentProfilePointer?.pubkey ?? up.currentAddressPointer?.pubkey;
+		if (pubkey !== undefined) {
+			pubkeySet.add(pubkey);
+		}
+		if (pubkeySet.size > 0) {
+			rc.fetchKind10002(Array.from(pubkeySet), () => {
+				if (rc === undefined) {
+					return;
+				}
+				if (loginPubkey !== undefined) {
+					rc.fetchUserSettings(loginPubkey);
+				}
+				rc.fetchWebBookmark(up, loginPubkey);
+			});
+		} else {
 			rc.fetchWebBookmark(up, loginPubkey);
 		}
 	};

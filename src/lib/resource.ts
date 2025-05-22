@@ -21,7 +21,8 @@ import {
 	type RxReq,
 	type RxReqEmittable,
 	type RxReqOverable,
-	type RxReqPipeable
+	type RxReqPipeable,
+	completeOnTimeout
 } from 'rx-nostr';
 import { verifier } from '@rx-nostr/crypto';
 import { EventStore } from 'applesauce-core';
@@ -82,6 +83,7 @@ export class RelayConnector {
 	#seenOn: Map<string, Set<string>>;
 	#uniq: MonoTypeOperatorFunction<EventPacket>;
 	#eventIds: Set<string>;
+	#secOnCompleteTimeout = 1000;
 	#secBufferTime = 1000;
 	#limitReaction = 100;
 
@@ -366,9 +368,14 @@ export class RelayConnector {
 		return Array.from(relaySet);
 	};
 
-	setRelays = (event: NostrEvent) => {
-		this.#relayRecord = this.#getRelaysToUseFromKind10002Event(event);
-		this.#rxNostr.setDefaultRelays(this.#relayRecord);
+	setRelays = (event?: NostrEvent) => {
+		if (event === undefined) {
+			this.#relayRecord = undefined;
+			this.#rxNostr.setDefaultRelays(defaultRelays);
+		} else {
+			this.#relayRecord = this.#getRelaysToUseFromKind10002Event(event);
+			this.#rxNostr.setDefaultRelays(this.#relayRecord);
+		}
 	};
 
 	#fetchProfile = (pubkey: string) => {
@@ -404,20 +411,32 @@ export class RelayConnector {
 		this.#rxReqB17.emit({ kinds: [17], '#r': [url], limit: this.#limitReaction, until: now() });
 	};
 
-	fetchUserInfo = (pubkey: string) => {
-		this.#rxReqBRp.emit(
-			{
-				kinds: [10002],
-				authors: [pubkey],
-				until: now()
-			},
-			{ relays: indexerRelays }
-		);
+	fetchKind10002 = (pubkeys: string[], completeCustom: () => void) => {
+		const filter: LazyFilter = {
+			kinds: [10002],
+			authors: pubkeys,
+			until: now()
+		};
+		const options = { relays: indexerRelays };
+		const rxReqBRpCustom = createRxBackwardReq();
+		this.#rxNostr
+			.use(rxReqBRpCustom, options)
+			.pipe(
+				this.#tie,
+				latestEach(({ event }) => `${event.kind}:${event.pubkey}`),
+				completeOnTimeout(this.#secOnCompleteTimeout)
+			)
+			.subscribe({
+				next: this.#next,
+				complete: completeCustom
+			});
+		rxReqBRpCustom.emit(filter);
+		rxReqBRpCustom.over();
 	};
 
 	fetchUserSettings = (pubkey: string) => {
 		this.#rxReqBRp.emit({
-			kinds: [0, 10000, 10030],
+			kinds: [10000, 10030],
 			authors: [pubkey],
 			until: now()
 		});
@@ -480,7 +499,8 @@ export class RelayConnector {
 					latestEach(
 						({ event }) =>
 							`${event.kind}:${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`
-					)
+					),
+					completeOnTimeout(this.#secOnCompleteTimeout)
 				)
 				.subscribe({
 					next: this.#next,
