@@ -229,15 +229,15 @@
 			<dd>
 				{#each webbookmarks as webbookmark (webbookmark.pubkey)}
 					<Entry
-						{webbookmark}
-						seenOn={rc?.getSeenOn(webbookmark.id, false) ?? []}
+						event={webbookmark}
+						comments={[]}
+						getSeenOn={(id: string, excludeWs: boolean) => rc?.getSeenOn(id, excludeWs) ?? []}
 						{fork}
-						sendReaction={(content?: string, emojiurl?: string) =>
-							sendReaction(webbookmark, content, emojiurl)}
+						{sendReaction}
 						{sendDeletion}
 						{loginPubkey}
 						{profileMap}
-						eventsReaction={getEventsReactionToTheTarget(webbookmark, eventsReaction)}
+						{eventsReaction}
 						{eventsEmojiSet}
 					/>
 				{/each}

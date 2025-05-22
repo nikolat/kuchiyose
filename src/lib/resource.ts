@@ -6,6 +6,7 @@ import {
 } from 'rxjs';
 import {
 	batch,
+	completeOnTimeout,
 	createRxBackwardReq,
 	createRxForwardReq,
 	createRxNostr,
@@ -21,8 +22,7 @@ import {
 	type RxReq,
 	type RxReqEmittable,
 	type RxReqOverable,
-	type RxReqPipeable,
-	completeOnTimeout
+	type RxReqPipeable
 } from 'rx-nostr';
 import { verifier } from '@rx-nostr/crypto';
 import { EventStore } from 'applesauce-core';
