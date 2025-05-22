@@ -891,7 +891,7 @@ export class RelayConnector {
 				(tag) => tag.length >= 2 && ['A', 'E', 'I', 'K', 'P'].includes(tag[0])
 			);
 			for (const tag of tagsCopied) {
-				tags.push(tag);
+				tags.push([...tag]);
 			}
 			tags.push(['e', targetEventToReply.id, recommendedRelay, targetEventToReply.pubkey]);
 			tags.push(['k', String(targetEventToReply.kind)]);
