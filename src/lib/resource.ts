@@ -316,6 +316,9 @@ export class RelayConnector {
 					this.#eventStore.database.removeEvent(id);
 				}
 			}
+			for (const relay of this.getSeenOn(event.id, true)) {
+				relaysSeenOnSet.delete(relay);
+			}
 			//削除対象イベント取得元のリレーにkind:5をブロードキャスト
 			if (relaysSeenOnSet.size > 0) {
 				const options: Partial<RxNostrSendOptions> = {
