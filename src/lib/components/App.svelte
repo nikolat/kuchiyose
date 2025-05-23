@@ -55,15 +55,6 @@
 	const getEventsFiltered = (events: NostrEvent[]) => {
 		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashtags);
 	};
-	const getAllBookmarksEachUrl = (events: NostrEvent[]): NostrEvent[] => {
-		if (rc === undefined) {
-			return [];
-		}
-		const dSet = new Set<string>(
-			events.map((ev) => ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '')
-		);
-		return rc.getEventsByFilter({ kinds: [39701], '#d': Array.from(dSet) });
-	};
 
 	const callback = (kind: number, event?: NostrEvent) => {
 		if (rc === undefined) {
@@ -329,6 +320,29 @@
 		}
 		return `${title} | ${sitename}`;
 	});
+
+	const getAllBookmarksEachUrl = (events: NostrEvent[], hashtag?: string): NostrEvent[] => {
+		if (rc === undefined) {
+			return [];
+		}
+		const dSet = new Set<string>(
+			events.map((ev) => ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '')
+		);
+		const filter: Filter = { kinds: [39701], '#d': Array.from(dSet) };
+		if (hashtag !== undefined) {
+			filter['#t'] = [hashtag];
+		}
+		return rc.getEventsByFilter(filter);
+	};
+	const isRoot: boolean = $derived(Object.values(up).every((v) => v === undefined));
+	const filteredTimeline = $derived(getEventsFiltered(timelineSliced));
+	const eventsWebBookmarkToShow = $derived(
+		isRoot
+			? getAllBookmarksEachUrl(filteredTimeline)
+			: up.hashtag !== undefined
+				? getAllBookmarksEachUrl(filteredTimeline, up.hashtag)
+				: filteredTimeline
+	);
 </script>
 
 <svelte:head>
@@ -341,7 +355,7 @@
 	{rc}
 	{loginPubkey}
 	{profileMap}
-	eventsWebBookmark={getAllBookmarksEachUrl(getEventsFiltered(timelineSliced))}
+	eventsWebBookmark={eventsWebBookmarkToShow}
 	eventsReaction={getEventsFiltered(eventsReaction)}
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
 	eventsComment={getEventsFiltered(eventsComment)}
