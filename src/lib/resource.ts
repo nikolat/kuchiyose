@@ -17,6 +17,7 @@ import {
 	type EventPacket,
 	type LazyFilter,
 	type MergeFilter,
+	type ReqPacket,
 	type RxNostr,
 	type RxNostrSendOptions,
 	type RxReq,
@@ -73,6 +74,7 @@ export class RelayConnector {
 	#rxReqB17: ReqB;
 	#rxReqB1111: ReqB;
 	#rxReqB10002: ReqB;
+	#rxReqB39701Url: ReqB;
 	#rxReqBRp: ReqB;
 	#rxReqBAd: ReqB;
 	#rxReqF: ReqF;
@@ -107,6 +109,7 @@ export class RelayConnector {
 		this.#rxReqB17 = createRxBackwardReq();
 		this.#rxReqB1111 = createRxBackwardReq();
 		this.#rxReqB10002 = createRxBackwardReq();
+		this.#rxReqB39701Url = createRxBackwardReq();
 		this.#rxReqBRp = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
@@ -127,92 +130,58 @@ export class RelayConnector {
 	};
 
 	#defineSubscription = () => {
-		const batchedReq0 = this.#rxReqB0.pipe(
-			bufferTime(this.#secBufferTime),
-			batch(this.#mergeFilterRp)
-		);
-		const batchedReq5 = this.#rxReqB5.pipe(
-			bufferTime(this.#secBufferTime),
-			batch(this.#mergeFilterRg)
-		);
-		const batchedReq7 = this.#rxReqB7.pipe(
-			bufferTime(this.#secBufferTime),
-			batch(this.#mergeFilterRg)
-		);
-		const batchedReq17 = this.#rxReqB17.pipe(
-			bufferTime(this.#secBufferTime),
-			batch(this.#mergeFilter17)
-		);
-		const batchedReq1111 = this.#rxReqB1111.pipe(
-			bufferTime(this.#secBufferTime),
-			batch(this.#mergeFilter1111)
-		);
-		const batchedReq10002 = this.#rxReqB10002.pipe(
-			bufferTime(this.#secBufferTime),
-			batch(this.#mergeFilterRp)
-		);
-		this.#rxNostr
-			.use(batchedReq0)
-			.pipe(
-				this.#tie,
-				latestEach(({ event }) => `${event.kind}:${event.pubkey}`)
-			)
-			.subscribe({
-				next: this.#next,
-				complete: this.#complete
-			});
+		const getRpId = ({ event }: { event: NostrEvent }) => `${event.kind}:${event.pubkey}`;
+		const getAdId = ({ event }: { event: NostrEvent }) =>
+			`${event.kind}:${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`;
+		const next = this.#next;
+		const complete = this.#complete;
+		const bt: OperatorFunction<ReqPacket, ReqPacket[]> = bufferTime(this.#secBufferTime);
+		const batchedReq0 = this.#rxReqB0.pipe(bt, batch(this.#mergeFilterRp));
+		const batchedReq5 = this.#rxReqB5.pipe(bt, batch(this.#mergeFilterRg));
+		const batchedReq7 = this.#rxReqB7.pipe(bt, batch(this.#mergeFilterRg));
+		const batchedReq17 = this.#rxReqB17.pipe(bt, batch(this.#mergeFilter17));
+		const batchedReq1111 = this.#rxReqB1111.pipe(bt, batch(this.#mergeFilter1111));
+		const batchedReq10002 = this.#rxReqB10002.pipe(bt, batch(this.#mergeFilterRp));
+		const batchedReq39701Url = this.#rxReqB39701Url.pipe(bt, batch(this.#mergeFilter39701Url));
+		this.#rxNostr.use(batchedReq0).pipe(this.#tie, latestEach(getRpId)).subscribe({
+			next,
+			complete
+		});
 		this.#rxNostr.use(batchedReq5).pipe(this.#tie, this.#uniq).subscribe({
-			next: this.#next,
-			complete: this.#complete
+			next,
+			complete
 		});
 		this.#rxNostr.use(batchedReq7).pipe(this.#tie, this.#uniq).subscribe({
-			next: this.#next,
-			complete: this.#complete
+			next,
+			complete
 		});
 		this.#rxNostr.use(batchedReq17).pipe(this.#tie, this.#uniq).subscribe({
-			next: this.#next,
-			complete: this.#complete
+			next,
+			complete
 		});
 		this.#rxNostr.use(batchedReq1111).pipe(this.#tie, this.#uniq).subscribe({
-			next: this.#next,
-			complete: this.#complete
+			next,
+			complete
 		});
-		this.#rxNostr
-			.use(batchedReq10002)
-			.pipe(
-				this.#tie,
-				latestEach(({ event }) => `${event.kind}:${event.pubkey}`)
-			)
-			.subscribe({
-				next: this.#next,
-				complete: this.#complete
-			});
-		this.#rxNostr
-			.use(this.#rxReqBRp)
-			.pipe(
-				this.#tie,
-				latestEach(({ event }) => `${event.kind}:${event.pubkey}`)
-			)
-			.subscribe({
-				next: this.#next,
-				complete: this.#complete
-			});
-		this.#rxNostr
-			.use(this.#rxReqBAd)
-			.pipe(
-				this.#tie,
-				latestEach(
-					({ event }) =>
-						`${event.kind}:${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`
-				)
-			)
-			.subscribe({
-				next: this.#next,
-				complete: this.#complete
-			});
-		this.#rxNostr.use(this.#rxReqF).pipe(this.#tie).subscribe({
-			next: this.#next,
-			complete: this.#complete
+		this.#rxNostr.use(batchedReq10002).pipe(this.#tie, latestEach(getRpId)).subscribe({
+			next,
+			complete
+		});
+		this.#rxNostr.use(batchedReq39701Url).pipe(this.#tie, latestEach(getAdId)).subscribe({
+			next,
+			complete
+		});
+		this.#rxNostr.use(this.#rxReqBRp).pipe(this.#tie, latestEach(getRpId)).subscribe({
+			next,
+			complete
+		});
+		this.#rxNostr.use(this.#rxReqBAd).pipe(this.#tie, latestEach(getAdId)).subscribe({
+			next,
+			complete
+		});
+		this.#rxNostr.use(this.#rxReqF).pipe(this.#tie, this.#uniq).subscribe({
+			next,
+			complete
 		});
 	};
 
@@ -264,6 +233,13 @@ export class RelayConnector {
 			}
 		}
 		return res;
+	};
+
+	#mergeFilter39701Url: MergeFilter = (a: LazyFilter[], b: LazyFilter[]) => {
+		const margedFilters = [...a, ...b];
+		const dtags = Array.from(new Set<string>(margedFilters.map((f) => f['#d'] ?? []).flat()));
+		const f = margedFilters.at(0);
+		return [{ kinds: [39701], '#d': dtags, limit: f?.limit, until: f?.until }];
 	};
 
 	#mergeFilterForAddressableEvents = (
@@ -410,7 +386,7 @@ export class RelayConnector {
 					}
 					const filter = { kinds: [39701], '#d': [d] };
 					if (this.#eventStore.getAll(filter).size === 1) {
-						this.#rxReqBAd.emit(filter);
+						this.#rxReqB39701Url.emit(filter);
 					}
 					this.#fetchDeletion(event);
 					this.#fetchReaction(event);
