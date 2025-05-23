@@ -946,14 +946,21 @@ export class RelayConnector {
 		if (typeof target !== 'string') {
 			targetEvent = target;
 			kind = 7;
-			const recommendedRelay: string = this.getSeenOn(targetEvent.id, true).at(0) ?? '';
+			const recommendedRelayForTargetEvent: string =
+				this.getSeenOn(targetEvent.id, true).at(0) ?? '';
+			const recommendedRelayForAuthor: string =
+				this.getSeenOn(this.getReplaceableEvent(0, targetEvent.pubkey)?.id ?? '', true).at(0) ?? '';
 			if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
 				const d = targetEvent.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
-				tags.push(['a', `${targetEvent.kind}:${targetEvent.pubkey}:${d}`, recommendedRelay]);
+				tags.push([
+					'a',
+					`${targetEvent.kind}:${targetEvent.pubkey}:${d}`,
+					recommendedRelayForTargetEvent
+				]);
 			}
 			tags.push(
-				['e', targetEvent.id, recommendedRelay, '', targetEvent.pubkey],
-				['p', targetEvent.pubkey],
+				['e', targetEvent.id, recommendedRelayForTargetEvent, targetEvent.pubkey],
+				['p', targetEvent.pubkey, recommendedRelayForAuthor],
 				['k', String(targetEvent.kind)]
 			);
 		} else {
