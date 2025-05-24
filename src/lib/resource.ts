@@ -27,7 +27,14 @@ import {
 } from 'rx-nostr';
 import { verifier } from '@rx-nostr/crypto';
 import { EventStore } from 'applesauce-core';
-import { getInboxes, getTagValue, isValidProfile } from 'applesauce-core/helpers';
+import {
+	getAddressPointerFromATag,
+	getDeleteCoordinates,
+	getDeleteIds,
+	getInboxes,
+	getTagValue,
+	isValidProfile
+} from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
 import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
 import type { RelayRecord } from 'nostr-tools/relay';
@@ -40,12 +47,7 @@ import {
 	isEnabledOutboxModel,
 	indexerRelays
 } from '$lib/config';
-import {
-	getAddressPointerFromAId,
-	isValidEmoji,
-	isValidWebBookmark,
-	splitNip51List
-} from '$lib/utils';
+import { isValidEmoji, isValidWebBookmark, splitNip51List } from '$lib/utils';
 
 export type UrlParams = {
 	isError?: boolean;
@@ -285,9 +287,8 @@ export class RelayConnector {
 				return;
 			}
 		} else if (event.kind === 5) {
-			const ids: string[] = event.tags
-				.filter((tag) => tag.length >= 2 && tag[0] === 'e')
-				.map((tag) => tag[1]);
+			const ids: string[] = getDeleteIds(event);
+			const aids: string[] = getDeleteCoordinates(event);
 			const relaysSeenOnSet = new Set<string>();
 			for (const id of ids) {
 				if (this.#eventStore.hasEvent(id)) {
@@ -295,6 +296,30 @@ export class RelayConnector {
 						relaysSeenOnSet.add(relay);
 					}
 					this.#eventStore.database.removeEvent(id);
+				}
+			}
+			for (const aid of aids) {
+				let ap: nip19.AddressPointer;
+				try {
+					ap = getAddressPointerFromATag(['a', aid]);
+				} catch (error) {
+					console.warn(error);
+					continue;
+				}
+				const filter: Filter = {
+					kinds: [ap.kind],
+					authors: [ap.pubkey],
+					until: event.created_at
+				};
+				if (ap.identifier.length > 0) {
+					filter['#d'] = [ap.identifier];
+				}
+				const evs: Set<NostrEvent> = this.#eventStore.getAll(filter);
+				for (const ev of evs) {
+					for (const relay of this.getSeenOn(ev.id, true)) {
+						relaysSeenOnSet.add(relay);
+					}
+					this.#eventStore.database.removeEvent(ev.id);
 				}
 			}
 			for (const relay of this.getSeenOn(event.id, true)) {
@@ -641,17 +666,20 @@ export class RelayConnector {
 	};
 
 	#fetchEventsByATags = (event: NostrEvent, tagName: string) => {
-		const aIds = event.tags
-			.filter((tag) => tag.length >= 2 && tag[0] === tagName)
-			.map((tag) => tag[1]);
-		if (aIds.length === 0) {
+		const aTags = event.tags.filter((tag) => tag.length >= 2 && tag[0] === tagName && !!tag[1]);
+		if (aTags.length === 0) {
 			return;
 		}
 		const filters = [];
-		for (const aId of aIds) {
-			const ap: nip19.AddressPointer | null = getAddressPointerFromAId(aId);
+		for (const aTag of aTags) {
+			let ap: nip19.AddressPointer;
+			try {
+				ap = getAddressPointerFromATag(aTag);
+			} catch (error) {
+				console.warn(error);
+				continue;
+			}
 			if (
-				ap !== null &&
 				!this.#eventStore.hasReplaceable(
 					ap.kind,
 					ap.pubkey,

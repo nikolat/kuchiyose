@@ -1,5 +1,4 @@
 import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
-import * as nip19 from 'nostr-tools/nip19';
 import { getTagValue } from 'applesauce-core/helpers';
 import data from '@emoji-mart/data';
 // @ts-expect-error なんもわからんかも
@@ -9,20 +8,6 @@ interface MyBaseEmoji extends BaseEmoji {
 	shortcodes: string;
 	src: string | undefined;
 }
-
-export const getAddressPointerFromAId = (aId: string): nip19.AddressPointer | null => {
-	const sp = aId.split(':');
-	if (sp.length < 3) {
-		return null;
-	}
-	try {
-		const ap: nip19.AddressPointer = { identifier: sp[2], pubkey: sp[1], kind: parseInt(sp[0]) };
-		return ap;
-	} catch (error) {
-		console.warn(error);
-		return null;
-	}
-};
 
 export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] => {
 	const eventMap: Map<string, NostrEvent> = new Map<string, NostrEvent>();

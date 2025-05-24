@@ -7,6 +7,7 @@
 	import { preferences } from '$lib/store';
 	import { sitename } from '$lib/config';
 	import {
+		getAddressPointerFromATag,
 		getProfileContent,
 		getTagValue,
 		unixNow,
@@ -15,8 +16,8 @@
 	import type { Subscription } from 'rxjs';
 	import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
 	import type { Filter } from 'nostr-tools/filter';
+	import * as nip19 from 'nostr-tools/nip19';
 	import {
-		getAddressPointerFromAId,
 		getEventsAddressableLatest,
 		getEventsFilteredByMute,
 		getMuteList,
@@ -132,8 +133,17 @@
 					if (ev === undefined) {
 						break;
 					}
-					const ap = getAddressPointerFromAId(getTagValue(ev, 'A') ?? '');
-					if (ap === null) {
+					const ATag: string[] | undefined = ev.tags.find(
+						(tag) => tag.length >= 2 && tag[0] === 'A'
+					);
+					if (ATag === undefined) {
+						break;
+					}
+					let ap: nip19.AddressPointer;
+					try {
+						ap = getAddressPointerFromATag(ATag);
+					} catch (error) {
+						console.warn(error);
 						break;
 					}
 					filter.kinds = [ap.kind];
