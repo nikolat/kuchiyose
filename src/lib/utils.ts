@@ -2,6 +2,7 @@ import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
 import type { RelayRecord } from 'nostr-tools/relay';
 import { normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
+import { getTagValue } from 'applesauce-core/helpers';
 import data from '@emoji-mart/data';
 // @ts-expect-error なんもわからんかも
 import type { BaseEmoji } from '@types/emoji-mart';
@@ -28,7 +29,7 @@ export const getAddressPointerFromAId = (aId: string): nip19.AddressPointer | nu
 export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] => {
 	const eventMap: Map<string, NostrEvent> = new Map<string, NostrEvent>();
 	for (const ev of events) {
-		const s = `${ev.kind}:${ev.pubkey}:${ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`;
+		const s = `${ev.kind}:${ev.pubkey}:${getTagValue(ev, 'd') ?? ''}`;
 		const event = eventMap.get(s);
 		if (event === undefined || ev.created_at > event.created_at) {
 			eventMap.set(s, ev);
@@ -63,7 +64,7 @@ export const isValidWebBookmark = (d: string, event?: NostrEvent): boolean => {
 export const getWebBookmarkMap = (eventsWebBookmark: NostrEvent[]) => {
 	const map = new Map<string, NostrEvent[]>();
 	for (const ev of eventsWebBookmark) {
-		const d = ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+		const d = getTagValue(ev, 'd') ?? '';
 		if (!isValidWebBookmark(d, ev)) {
 			continue;
 		}
@@ -86,7 +87,7 @@ export const getWebBookmarkMap = (eventsWebBookmark: NostrEvent[]) => {
 export const getTitleFromWebbookmarks = (eventsWebBookmark: NostrEvent[]): string | undefined => {
 	const map = new Map<string, NostrEvent[]>();
 	for (const ev of eventsWebBookmark) {
-		const title = ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'title')?.at(1);
+		const title = getTagValue(ev, 'title');
 		if (title === undefined || title.length === 0) {
 			continue;
 		}
@@ -130,47 +131,37 @@ export const getAllTagsMap = (eventsWebBookmark: NostrEvent[]): Map<string, numb
 
 export const getEventsReactionToTheTarget = (
 	target: NostrEvent | string,
-	eventsReaction: NostrEvent[],
-	mutedPubkeys: string[] = []
+	eventsReaction: NostrEvent[]
 ): NostrEvent[] => {
 	if (typeof target !== 'string') {
-		return getEventsReactionToTheEvent(target, eventsReaction, mutedPubkeys);
+		return getEventsReactionToTheEvent(target, eventsReaction);
 	} else {
-		return getEventsReactionToTheUrl(target, eventsReaction, mutedPubkeys);
+		return getEventsReactionToTheUrl(target, eventsReaction);
 	}
 };
 
 const getEventsReactionToTheEvent = (
 	event: NostrEvent,
-	eventsReaction: NostrEvent[],
-	mutedPubkeys: string[] = []
+	eventsReaction: NostrEvent[]
 ): NostrEvent[] => {
 	return eventsReaction.filter((ev) => {
-		const a = ev.tags.findLast((tag) => tag.length >= 2 && tag[0] === 'a')?.at(1);
+		const a = getTagValue(ev, 'a');
 		if (a !== undefined) {
-			const d = event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+			const d = getTagValue(event, 'd') ?? '';
 			return a === `${event.kind}:${event.pubkey}:${d}`;
 		} else {
 			return (
 				ev.tags
 					.filter((tag) => tag.length >= 2 && tag[0] === 'e')
 					.at(-1)
-					?.at(1) === event.id && !mutedPubkeys.includes(ev.pubkey)
+					?.at(1) === event.id
 			);
 		}
 	});
 };
 
-const getEventsReactionToTheUrl = (
-	url: string,
-	eventsReaction: NostrEvent[],
-	mutedPubkeys: string[] = []
-): NostrEvent[] => {
-	return eventsReaction.filter(
-		(ev) =>
-			ev.tags.findLast((tag) => tag.length >= 2 && tag[0] === 'r')?.at(1) === url &&
-			!mutedPubkeys.includes(ev.pubkey)
-	);
+const getEventsReactionToTheUrl = (url: string, eventsReaction: NostrEvent[]): NostrEvent[] => {
+	return eventsReaction.filter((ev) => getTagValue(ev, 'r') === url);
 };
 
 export const getRelaysToUseFromKind10002Event = (event?: NostrEvent): RelayRecord => {

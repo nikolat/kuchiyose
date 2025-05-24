@@ -6,7 +6,12 @@
 	import { getRelayConnector, setRelayConnector } from '$lib/resource.svelte';
 	import { preferences } from '$lib/store';
 	import { sitename } from '$lib/config';
-	import { unixNow, type ProfileContent } from 'applesauce-core/helpers';
+	import {
+		getProfileContent,
+		getTagValue,
+		unixNow,
+		type ProfileContent
+	} from 'applesauce-core/helpers';
 	import type { Subscription } from 'rxjs';
 	import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
 	import type { Filter } from 'nostr-tools/filter';
@@ -32,7 +37,7 @@
 	let eventsWebBookmark: NostrEvent[] = $state([]);
 	let eventsProfile: NostrEvent[] = $state([]);
 	const profileMap: Map<string, ProfileContent> = $derived(
-		new Map<string, ProfileContent>(eventsProfile.map((ev) => [ev.pubkey, JSON.parse(ev.content)]))
+		new Map<string, ProfileContent>(eventsProfile.map((ev) => [ev.pubkey, getProfileContent(ev)]))
 	);
 	let eventsReaction: NostrEvent[] = $state([]);
 	let eventsWebReaction: NostrEvent[] = $state([]);
@@ -124,9 +129,10 @@
 					filter.authors = [up.currentProfilePointer.pubkey];
 				} else if (up.currentEventPointer !== undefined) {
 					const ev = rc.getEventsByFilter({ ids: [up.currentEventPointer.id] }).at(0);
-					const ap = getAddressPointerFromAId(
-						ev?.tags.find((tag) => tag.length >= 2 && tag[0] === 'A')?.at(1) ?? ''
-					);
+					if (ev === undefined) {
+						break;
+					}
+					const ap = getAddressPointerFromAId(getTagValue(ev, 'A') ?? '');
 					if (ap === null) {
 						break;
 					}
@@ -311,7 +317,9 @@
 		if (up.currentAddressPointer !== undefined) {
 			const ap = up.currentAddressPointer;
 			const event = rc?.getReplaceableEvent(ap.kind, ap.pubkey, ap.identifier);
-			title = event?.tags.find((tag) => tag.length >= 2 && tag[0] === 'title')?.at(1);
+			if (event !== undefined) {
+				title = getTagValue(event, 'title');
+			}
 		} else if (up.currentProfilePointer !== undefined) {
 			const profile: ProfileContent | undefined = profileMap.get(up.currentProfilePointer.pubkey);
 			if (profile !== undefined) {
@@ -336,7 +344,7 @@
 			return [];
 		}
 		const dSet = new Set<string>(
-			events.map((ev) => ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '')
+			events.map((ev) => getTagValue(ev, 'd')).filter((ev) => ev !== undefined)
 		);
 		const filter: Filter = { kinds: [39701], '#d': Array.from(dSet) };
 		if (hashtag !== undefined) {

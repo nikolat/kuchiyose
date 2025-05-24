@@ -4,7 +4,7 @@
 	import * as nip19 from 'nostr-tools/nip19';
 	import { isRegularKind } from 'nostr-tools/kinds';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import type { ProfileContent } from 'applesauce-core/helpers';
+	import { getTagValue, type ProfileContent } from 'applesauce-core/helpers';
 	import Content from '$lib/components/Content.svelte';
 	import AddStar from '$lib/components/AddStar.svelte';
 	import Entry from '$lib/components/Entry.svelte';
@@ -43,9 +43,7 @@
 	let isCommentFormVisible: boolean = $state(false);
 	let editComment: string = $state('');
 
-	const identifier = $derived(
-		event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''
-	);
+	const identifier = $derived(getTagValue(event, 'd') ?? '');
 	const hashtags = $derived(
 		new Set<string>(
 			event.tags
@@ -73,13 +71,11 @@
 	const linkStr = $derived(isRegularKind(event.kind) ? nevent : naddr);
 	const commentsToTheEvent = $derived(
 		isRegularKind(event.kind)
-			? eventsComment.filter(
-					(ev) => ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'e')?.at(1) === event.id
-				)
+			? eventsComment.filter((ev) => getTagValue(ev, 'e') === event.id)
 			: eventsComment.filter(
 					(ev) =>
-						ev.tags.find((tag) => tag.length >= 2 && tag[0] === 'a')?.at(1) ===
-						`${event.kind}:${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`
+						getTagValue(ev, 'a') ===
+						`${event.kind}:${event.pubkey}:${getTagValue(event, 'd') ?? ''}`
 				)
 	);
 	const classNames: string[] = $derived.by(() => {

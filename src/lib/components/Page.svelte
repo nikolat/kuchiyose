@@ -4,7 +4,7 @@
 	import type { RelayConnector, UrlParams } from '$lib/resource';
 	import * as nip19 from 'nostr-tools/nip19';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import { unixNow, type ProfileContent } from 'applesauce-core/helpers';
+	import { getTagValue, unixNow, type ProfileContent } from 'applesauce-core/helpers';
 	import {
 		getAllTagsMap,
 		getEventsReactionToTheTarget,
@@ -86,7 +86,10 @@
 			return undefined;
 		}
 		const event = rc.getReplaceableEvent(39701, loginPubkey, d);
-		return event?.tags.find((tag) => tag.length >= 2 && tag[0] === 'published_at')?.at(1);
+		if (event === undefined) {
+			return undefined;
+		}
+		return getTagValue(event, 'published_at');
 	};
 
 	const sendWebBookmark = async (): Promise<void> => {
@@ -145,10 +148,8 @@
 	const getSeenOn = (id: string, excludeWs: boolean) => rc?.getSeenOn(id, excludeWs) ?? [];
 
 	const fork = (webbookmark: NostrEvent): void => {
-		const identifier =
-			webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
-		const title =
-			webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'title')?.at(1) ?? '';
+		const identifier = getTagValue(webbookmark, 'd') ?? '';
+		const title = getTagValue(webbookmark, 'title') ?? '';
 		const hashtags = Array.from(
 			new Set<string>(
 				webbookmark.tags

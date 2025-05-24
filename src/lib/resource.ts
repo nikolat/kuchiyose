@@ -27,6 +27,7 @@ import {
 } from 'rx-nostr';
 import { verifier } from '@rx-nostr/crypto';
 import { EventStore } from 'applesauce-core';
+import { getTagValue } from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
 import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
 import type { RelayRecord } from 'nostr-tools/relay';
@@ -133,7 +134,7 @@ export class RelayConnector {
 	#defineSubscription = () => {
 		const getRpId = ({ event }: { event: NostrEvent }) => `${event.kind}:${event.pubkey}`;
 		const getAdId = ({ event }: { event: NostrEvent }) =>
-			`${event.kind}:${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`;
+			`${event.kind}:${event.pubkey}:${getTagValue(event, 'd') ?? ''}`;
 		const next = this.#next;
 		const complete = this.#complete;
 		const bt: OperatorFunction<ReqPacket, ReqPacket[]> = bufferTime(this.#secBufferTime);
@@ -375,7 +376,7 @@ export class RelayConnector {
 					break;
 				}
 				case 39701: {
-					const d = event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+					const d = getTagValue(event, 'd') ?? '';
 					if (!isValidWebBookmark(d, event)) {
 						return;
 					}
@@ -466,7 +467,7 @@ export class RelayConnector {
 		let filter: LazyFilter;
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
 			const ap: nip19.AddressPointer = {
-				identifier: event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '',
+				identifier: getTagValue(event, 'd') ?? '',
 				pubkey: event.pubkey,
 				kind: event.kind
 			};
@@ -490,7 +491,7 @@ export class RelayConnector {
 		let filter: LazyFilter;
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
 			const ap: nip19.AddressPointer = {
-				identifier: event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '',
+				identifier: getTagValue(event, 'd') ?? '',
 				pubkey: event.pubkey,
 				kind: event.kind
 			};
@@ -611,8 +612,7 @@ export class RelayConnector {
 				.pipe(
 					this.#tie,
 					latestEach(
-						({ event }) =>
-							`${event.kind}:${event.pubkey}:${event.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? ''}`
+						({ event }) => `${event.kind}:${event.pubkey}:${getTagValue(event, 'd') ?? ''}`
 					),
 					completeOnTimeout(this.#secOnCompleteTimeout)
 				)
@@ -894,8 +894,7 @@ export class RelayConnector {
 			isReplaceableKind(targetEventToReply.kind) ||
 			isAddressableKind(targetEventToReply.kind)
 		) {
-			const d =
-				targetEventToReply.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+			const d = getTagValue(targetEventToReply, 'd') ?? '';
 			const a = `${targetEventToReply.kind}:${targetEventToReply.pubkey}:${d}`;
 			tags.push(['A', a, recommendedRelay]);
 			tags.push(['K', String(targetEventToReply.kind)]);
@@ -952,7 +951,7 @@ export class RelayConnector {
 			const recommendedRelayForAuthor: string =
 				this.getSeenOn(this.getReplaceableEvent(0, targetEvent.pubkey)?.id ?? '', true).at(0) ?? '';
 			if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
-				const d = targetEvent.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
+				const d = getTagValue(targetEvent, 'd') ?? '';
 				tags.push([
 					'a',
 					`${targetEvent.kind}:${targetEvent.pubkey}:${d}`,
