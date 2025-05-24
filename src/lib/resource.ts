@@ -28,12 +28,15 @@ import {
 import { verifier } from '@rx-nostr/crypto';
 import { EventStore } from 'applesauce-core';
 import {
+	getAddressPointerForEvent,
 	getAddressPointerFromATag,
+	getCoordinateFromAddressPointer,
 	getDeleteCoordinates,
 	getDeleteIds,
 	getInboxes,
 	getTagValue,
-	isValidProfile
+	isValidProfile,
+	parseCoordinate
 } from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
 import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
@@ -299,11 +302,8 @@ export class RelayConnector {
 				}
 			}
 			for (const aid of aids) {
-				let ap: nip19.AddressPointer;
-				try {
-					ap = getAddressPointerFromATag(['a', aid]);
-				} catch (error) {
-					console.warn(error);
+				const ap: nip19.AddressPointer | null = parseCoordinate(aid, true, true);
+				if (ap === null) {
 					continue;
 				}
 				const filter: Filter = {
@@ -485,14 +485,10 @@ export class RelayConnector {
 	#fetchReaction = (event: NostrEvent) => {
 		let filter: LazyFilter;
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
-			const ap: nip19.AddressPointer = {
-				identifier: getTagValue(event, 'd') ?? '',
-				pubkey: event.pubkey,
-				kind: event.kind
-			};
+			const ap: nip19.AddressPointer = getAddressPointerForEvent(event);
 			filter = {
 				kinds: [7],
-				'#a': [`${ap.kind}:${ap.pubkey}:${ap.identifier}`],
+				'#a': [getCoordinateFromAddressPointer(ap)],
 				limit: this.#limitReaction,
 				until: now()
 			};
@@ -509,14 +505,10 @@ export class RelayConnector {
 	#fetchComment = (event: NostrEvent) => {
 		let filter: LazyFilter;
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
-			const ap: nip19.AddressPointer = {
-				identifier: getTagValue(event, 'd') ?? '',
-				pubkey: event.pubkey,
-				kind: event.kind
-			};
+			const ap: nip19.AddressPointer = getAddressPointerForEvent(event);
 			filter = {
 				kinds: [1111],
-				'#A': [`${ap.kind}:${ap.pubkey}:${ap.identifier}`],
+				'#A': [getCoordinateFromAddressPointer(ap)],
 				limit: this.#limitComment,
 				until: now()
 			};
