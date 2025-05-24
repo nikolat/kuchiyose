@@ -358,13 +358,7 @@ export const getEmoji = async (
 	emojiPickerContainer: HTMLElement,
 	emojiMap: Map<string, string>,
 	autoClose: boolean,
-	onCallbackEmojiSelect: ({
-		emojiStr,
-		emojiUrl
-	}: {
-		emojiStr: string;
-		emojiUrl: string | undefined;
-	}) => void
+	callbackEmojiSelect: (emojiStr: string, emojiUrl: string | undefined) => Promise<void>
 ): Promise<void> => {
 	const { Picker } = await import('emoji-mart');
 	return new Promise((resolve) => {
@@ -379,7 +373,7 @@ export const getEmoji = async (
 		const onEmojiSelect = (emoji: MyBaseEmoji) => {
 			const emojiStr = emoji.native ?? emoji.shortcodes;
 			const emojiUrl = emoji.src;
-			onCallbackEmojiSelect({ emojiStr, emojiUrl });
+			callbackEmojiSelect(emojiStr, emojiUrl);
 			if (autoClose) {
 				close();
 			}

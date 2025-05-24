@@ -30,18 +30,17 @@
 	let isAllowedExpand: boolean = $state(false);
 
 	let emojiPickerContainer: HTMLElement | undefined = $state();
-	const callSendEmoji = () => {
+	const callSendEmoji = async (): Promise<void> => {
 		if (emojiPickerContainer === undefined) {
 			return;
 		}
-		getEmoji(
-			emojiPickerContainer,
-			getEmojiMap(eventsEmojiSet),
-			true,
-			({ emojiStr, emojiUrl }: { emojiStr: string; emojiUrl: string | undefined }) => {
-				sendReaction(emojiStr, emojiUrl);
-			}
-		);
+		const callbackEmojiSelect = async (
+			emojiStr: string,
+			emojiUrl: string | undefined
+		): Promise<void> => {
+			await sendReaction(emojiStr, emojiUrl);
+		};
+		await getEmoji(emojiPickerContainer, getEmojiMap(eventsEmojiSet), true, callbackEmojiSelect);
 	};
 </script>
 
@@ -50,8 +49,8 @@
 		class="reactionstar-send"
 		title="add a star"
 		disabled={loginPubkey === undefined}
-		onclick={() => {
-			sendReaction();
+		onclick={async () => {
+			await sendReaction();
 		}}
 		aria-label="add a star"
 	>
@@ -66,7 +65,7 @@
 		class="reactionstar-send"
 		title="add an emoji"
 		disabled={loginPubkey === undefined}
-		onclick={callSendEmoji}
+		onclick={async () => await callSendEmoji()}
 		aria-label="add an emoji"
 	>
 		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
