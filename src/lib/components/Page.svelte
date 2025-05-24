@@ -129,6 +129,9 @@
 		await rc.sendReaction(target, content, emojiurl);
 	};
 
+	const sendReactionToUrl = (url: string) => (content?: string, emojiurl?: string) =>
+		sendReaction(url, content, emojiurl);
+
 	const sendDeletion = async (targetEvent: NostrEvent): Promise<void> => {
 		if (rc === undefined) {
 			return;
@@ -136,20 +139,26 @@
 		await rc.sendDeletion(targetEvent);
 	};
 
+	const idReferenced: string | undefined = $derived(up.currentEventPointer?.id);
+
+	const getSeenOn = (id: string, excludeWs: boolean) => rc?.getSeenOn(id, excludeWs) ?? [];
+
 	const fork = (webbookmark: NostrEvent): void => {
 		const identifier =
 			webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'd')?.at(1) ?? '';
 		const title =
 			webbookmark.tags.find((tag) => tag.length >= 2 && tag[0] === 'title')?.at(1) ?? '';
-		const hashtags = new Set<string>(
-			webbookmark.tags
-				.filter((tag) => tag.length >= 2 && tag[0] === 't')
-				.map((tag) => tag[1].toLowerCase())
+		const hashtags = Array.from(
+			new Set<string>(
+				webbookmark.tags
+					.filter((tag) => tag.length >= 2 && tag[0] === 't')
+					.map((tag) => tag[1].toLowerCase())
+			)
 		);
 		editDTag = identifier;
 		editTitleTag = title;
 		editTag = '';
-		editTags = Array.from(hashtags);
+		editTags = hashtags;
 		editContent = webbookmark.content;
 		isOpenEdit = true;
 		setTimeout(() => {
@@ -226,8 +235,7 @@
 				<br />
 				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
 				<AddStar
-					sendReaction={(content?: string, emojiurl?: string) =>
-						sendReaction(url, content, emojiurl)}
+					sendReaction={sendReactionToUrl(url)}
 					{sendDeletion}
 					{loginPubkey}
 					{profileMap}
@@ -241,8 +249,8 @@
 						event={webbookmark}
 						{eventsComment}
 						level={0}
-						idReferenced={up.currentEventPointer?.id}
-						getSeenOn={(id: string, excludeWs: boolean) => rc?.getSeenOn(id, excludeWs) ?? []}
+						{idReferenced}
+						{getSeenOn}
 						{fork}
 						{sendComment}
 						{sendReaction}
