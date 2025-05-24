@@ -27,7 +27,7 @@ import {
 } from 'rx-nostr';
 import { verifier } from '@rx-nostr/crypto';
 import { EventStore } from 'applesauce-core';
-import { getTagValue } from 'applesauce-core/helpers';
+import { getInboxes, getTagValue, isValidProfile } from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
 import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
 import type { RelayRecord } from 'nostr-tools/relay';
@@ -42,7 +42,6 @@ import {
 } from '$lib/config';
 import {
 	getAddressPointerFromAId,
-	getRelaysToUseFromKind10002Event,
 	isValidEmoji,
 	isValidWebBookmark,
 	splitNip51List
@@ -281,7 +280,11 @@ export class RelayConnector {
 			return;
 		}
 		console.info('kind', event.kind);
-		if (event.kind === 5) {
+		if (event.kind === 0) {
+			if (!isValidProfile(event)) {
+				return;
+			}
+		} else if (event.kind === 5) {
 			const ids: string[] = event.tags
 				.filter((tag) => tag.length >= 2 && tag[0] === 'e')
 				.map((tag) => tag[1]);
@@ -326,15 +329,6 @@ export class RelayConnector {
 	subscribeEventStore = (callback: (kind: number, event?: NostrEvent) => void): Subscription => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
-				case 0: {
-					try {
-						JSON.parse(event.content);
-					} catch (error) {
-						console.warn({ error, event });
-						return;
-					}
-					break;
-				}
 				case 5: {
 					this.#eventsDeletion = sortEvents(Array.from(this.#eventStore.getAll([{ kinds: [5] }])));
 					break;
@@ -579,10 +573,12 @@ export class RelayConnector {
 				relaySet.add(normalizeURL(relay));
 			}
 		} else if (currentEventPointer !== undefined) {
-			filterB.kinds =
-				currentEventPointer.kind === undefined ? undefined : [currentEventPointer.kind];
-			filterB.authors =
-				currentEventPointer.author === undefined ? undefined : [currentEventPointer.author];
+			if (currentEventPointer.kind !== undefined) {
+				filterB.kinds = [currentEventPointer.kind];
+			}
+			if (currentEventPointer.author !== undefined) {
+				filterB.authors = [currentEventPointer.author];
+			}
 			filterB.ids = [currentEventPointer.id];
 			for (const relay of currentEventPointer.relays ?? []) {
 				relaySet.add(normalizeURL(relay));
@@ -596,10 +592,11 @@ export class RelayConnector {
 		}
 		if (filterB.authors !== undefined && isEnabledOutboxModel) {
 			for (const pubkey of filterB.authors) {
-				const relayRecord: RelayRecord = getRelaysToUseFromKind10002Event(
-					this.#eventStore.getReplaceable(10002, pubkey)
-				);
-				for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
+				const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
+				if (event10002 === undefined) {
+					continue;
+				}
+				for (const relayUrl of getInboxes(event10002)) {
 					relaySet.add(relayUrl);
 				}
 			}
@@ -920,11 +917,14 @@ export class RelayConnector {
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
 		if (isEnabledOutboxModel) {
-			const relayRecord: RelayRecord = getRelaysToUseFromKind10002Event(
-				this.#eventStore.getReplaceable(10002, targetEventToReply.pubkey)
+			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(
+				10002,
+				targetEventToReply.pubkey
 			);
-			for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
-				relaySet.add(relayUrl);
+			if (event10002 !== undefined) {
+				for (const relayUrl of getInboxes(event10002)) {
+					relaySet.add(relayUrl);
+				}
 			}
 		}
 		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
@@ -984,11 +984,14 @@ export class RelayConnector {
 		}
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
 		if (isEnabledOutboxModel && targetEvent !== undefined) {
-			const relayRecord: RelayRecord = getRelaysToUseFromKind10002Event(
-				this.#eventStore.getReplaceable(10002, targetEvent.pubkey)
+			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(
+				10002,
+				targetEvent.pubkey
 			);
-			for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
-				relaySet.add(relayUrl);
+			if (event10002 !== undefined) {
+				for (const relayUrl of getInboxes(event10002)) {
+					relaySet.add(relayUrl);
+				}
 			}
 		}
 		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
@@ -1016,10 +1019,11 @@ export class RelayConnector {
 				.filter((tag) => tag.length >= 2 && tag[0] === 'p')
 				.map((tag) => tag[1]);
 			for (const pubkey of mentionedPubkeys) {
-				const relayRecord: RelayRecord = getRelaysToUseFromKind10002Event(
-					this.#eventStore.getReplaceable(10002, pubkey)
-				);
-				for (const [relayUrl, _] of Object.entries(relayRecord).filter(([_, obj]) => obj.read)) {
+				const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
+				if (event10002 === undefined) {
+					continue;
+				}
+				for (const relayUrl of getInboxes(event10002)) {
 					relaySet.add(relayUrl);
 				}
 			}

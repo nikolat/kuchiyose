@@ -1,6 +1,4 @@
 import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
-import type { RelayRecord } from 'nostr-tools/relay';
-import { normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
 import { getTagValue } from 'applesauce-core/helpers';
 import data from '@emoji-mart/data';
@@ -162,31 +160,6 @@ const getEventsReactionToTheEvent = (
 
 const getEventsReactionToTheUrl = (url: string, eventsReaction: NostrEvent[]): NostrEvent[] => {
 	return eventsReaction.filter((ev) => getTagValue(ev, 'r') === url);
-};
-
-export const getRelaysToUseFromKind10002Event = (event?: NostrEvent): RelayRecord => {
-	const newRelays: RelayRecord = {};
-	for (const tag of event?.tags.filter(
-		(tag) => tag.length >= 2 && tag[0] === 'r' && URL.canParse(tag[1])
-	) ?? []) {
-		const url: string = normalizeURL(tag[1]);
-		const isRead: boolean = tag.length === 2 || tag[2] === 'read';
-		const isWrite: boolean = tag.length === 2 || tag[2] === 'write';
-		if (newRelays[url] === undefined) {
-			newRelays[url] = {
-				read: isRead,
-				write: isWrite
-			};
-		} else {
-			if (isRead) {
-				newRelays[url].read = true;
-			}
-			if (isWrite) {
-				newRelays[url].write = true;
-			}
-		}
-	}
-	return newRelays;
 };
 
 export const splitNip51List = async (
