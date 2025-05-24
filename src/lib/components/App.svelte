@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { RelayConnector, type UrlParams } from '$lib/resource';
 	import { getRelayConnector, setRelayConnector } from '$lib/resource.svelte';
 	import { preferences } from '$lib/store';
@@ -346,6 +347,13 @@
 </script>
 
 <svelte:head>
+	<meta property="og:title" content={sitename} />
+	<meta property="og:type" content="website" />
+	<meta property="og:image" content={`${page.url.origin}/ogp.png`} />
+	<meta property="og:url" content={page.url.href} />
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
+	<link rel="manifest" href="/manifest.json" />
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css" />
 	<title>{title}</title>
 </svelte:head>
