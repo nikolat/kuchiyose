@@ -1,4 +1,4 @@
-# nostr-web-bookmark-trend
+# KUCHIYOSE
 
 Nostr events of web bookmark.
 
