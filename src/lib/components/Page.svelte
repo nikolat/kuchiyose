@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { getRoboHashURL, linkGitHub, sitename } from '$lib/config';
 	import type { RelayConnector, UrlParams } from '$lib/resource';
 	import * as nip19 from 'nostr-tools/nip19';
@@ -169,20 +170,24 @@
 
 <header>
 	<h1><a href="/">{sitename}</a></h1>
-	<span class="setting">
-		{#if loginPubkey !== undefined}
-			<a href="/{nip19.npubEncode(loginPubkey)}">
-				<img
-					src={profileMap.get(loginPubkey)?.picture ?? getRoboHashURL(loginPubkey)}
-					alt="your avatar"
-					class="login-user"
-				/>
-			</a>
-		{/if}
-	</span>
+	{#if !up.isError}
+		<span class="setting">
+			{#if loginPubkey !== undefined}
+				<a href="/{nip19.npubEncode(loginPubkey)}">
+					<img
+						src={profileMap.get(loginPubkey)?.picture ?? getRoboHashURL(loginPubkey)}
+						alt="your avatar"
+						class="login-user"
+					/>
+				</a>
+			{/if}
+		</span>
+	{/if}
 </header>
 <main>
-	{#if up.currentProfilePointer !== undefined}
+	{#if up.isError}
+		<h2>{page.status} {page.error?.message ?? ''}</h2>
+	{:else if up.currentProfilePointer !== undefined}
 		{@const pubkey = up.currentProfilePointer.pubkey}
 		<Profile
 			{pubkey}
@@ -202,68 +207,70 @@
 			unmuteHashtag={() => unmuteHashtag(hashtag)}
 		/>
 	{/if}
-	<CreateEntry
-		bind:isOpenEdit
-		bind:editDTag
-		bind:editTitleTag
-		bind:editTag
-		bind:editTags
-		bind:editTagInput
-		bind:editContent
-		{loginPubkey}
-		{sendWebBookmark}
-	/>
-	<section class="tag-cloud">
-		{#each getAllTagsMap(eventsWebBookmark) as [t, n] (t)}
-			<a href="/t/{encodeURI(t)}" class="hashtag">#{t}</a>:{n}
-		{/each}
-	</section>
-	<dl class="url">
-		{#each webBookmarkMap as [url, webbookmarks] (url)}
-			{@const path = url.replace(/^https?:\/\//, '')}
-			{@const title = getTitleFromWebbookmarks(webbookmarks)}
-			{@const n = webbookmarks.length}
-			<dt>
-				<img
-					src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(url)}`}
-					alt="favicon"
-					class="favicon"
-				/>
-				<a href={url} target="_blank" rel="noopener noreferrer">{title ?? url}</a>
-				<br />
-				<span class="url">{url}</span>
-				<br />
-				<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
-				<AddStar
-					sendReaction={sendReactionToUrl(url)}
-					{sendDeletion}
-					{loginPubkey}
-					{profileMap}
-					eventsReaction={getEventsReactionToTheTarget(url, eventsWebReaction)}
-					{eventsEmojiSet}
-				/>
-			</dt>
-			<dd>
-				{#each webbookmarks as webbookmark (webbookmark.pubkey)}
-					<Entry
-						event={webbookmark}
-						{eventsComment}
-						level={0}
-						{idReferenced}
-						{getSeenOn}
-						{fork}
-						{sendComment}
-						{sendReaction}
+	{#if !up.isError}
+		<CreateEntry
+			bind:isOpenEdit
+			bind:editDTag
+			bind:editTitleTag
+			bind:editTag
+			bind:editTags
+			bind:editTagInput
+			bind:editContent
+			{loginPubkey}
+			{sendWebBookmark}
+		/>
+		<section class="tag-cloud">
+			{#each getAllTagsMap(eventsWebBookmark) as [t, n] (t)}
+				<a href="/t/{encodeURI(t)}" class="hashtag">#{t}</a>:{n}
+			{/each}
+		</section>
+		<dl class="url">
+			{#each webBookmarkMap as [url, webbookmarks] (url)}
+				{@const path = url.replace(/^https?:\/\//, '')}
+				{@const title = getTitleFromWebbookmarks(webbookmarks)}
+				{@const n = webbookmarks.length}
+				<dt>
+					<img
+						src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(url)}`}
+						alt="favicon"
+						class="favicon"
+					/>
+					<a href={url} target="_blank" rel="noopener noreferrer">{title ?? url}</a>
+					<br />
+					<span class="url">{url}</span>
+					<br />
+					<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
+					<AddStar
+						sendReaction={sendReactionToUrl(url)}
 						{sendDeletion}
 						{loginPubkey}
 						{profileMap}
-						{eventsReaction}
+						eventsReaction={getEventsReactionToTheTarget(url, eventsWebReaction)}
 						{eventsEmojiSet}
 					/>
-				{/each}
-			</dd>
-		{/each}
-	</dl>
+				</dt>
+				<dd>
+					{#each webbookmarks as webbookmark (webbookmark.pubkey)}
+						<Entry
+							event={webbookmark}
+							{eventsComment}
+							level={0}
+							{idReferenced}
+							{getSeenOn}
+							{fork}
+							{sendComment}
+							{sendReaction}
+							{sendDeletion}
+							{loginPubkey}
+							{profileMap}
+							{eventsReaction}
+							{eventsEmojiSet}
+						/>
+					{/each}
+				</dd>
+			{/each}
+		</dl>
+	{/if}
 </main>
 <footer><a href={linkGitHub} target="_blank" rel="noopener noreferrer">GitHub</a></footer>
 

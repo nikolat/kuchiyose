@@ -282,14 +282,23 @@
 	};
 
 	onMount(async () => {
+		if (up.isError) {
+			return;
+		}
 		const { init } = await import('nostr-login');
 		init({});
 	});
 	beforeNavigate(() => {
+		if (up.isError) {
+			return;
+		}
 		document.removeEventListener('nlAuth', nlAuth);
 		document.removeEventListener('scroll', handlerScroll);
 	});
 	afterNavigate(() => {
+		if (up.isError) {
+			return;
+		}
 		document.addEventListener('nlAuth', nlAuth);
 		document.addEventListener('scroll', handlerScroll);
 		setTimeout(() => {

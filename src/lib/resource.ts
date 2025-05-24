@@ -48,6 +48,7 @@ import {
 } from '$lib/utils';
 
 export type UrlParams = {
+	isError?: boolean;
 	currentProfilePointer?: nip19.ProfilePointer;
 	currentAddressPointer?: nip19.AddressPointer;
 	currentEventPointer?: nip19.EventPointer;
