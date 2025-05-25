@@ -172,7 +172,6 @@
 					: getEventsByFilter({
 							ids: [d.type === 'note' ? d.data : d.type === 'nevent' ? d.data.id : '']
 						}).at(0)}
-			{@const enc = ct.encoded}
 			{#if event !== undefined}
 				<Entry
 					{event}
@@ -192,6 +191,7 @@
 					{getReplaceableEvent}
 				/>
 			{:else}
+				{@const enc = ct.encoded}
 				<a href={`/${enc}`}>{`nostr:${enc}`}</a>
 			{/if}
 		{/if}
