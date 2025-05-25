@@ -121,7 +121,7 @@
 					<Content
 						content={event.content}
 						{eventsComment}
-						level={level + 1}
+						{level}
 						{idReferenced}
 						{getSeenOn}
 						{fork}
