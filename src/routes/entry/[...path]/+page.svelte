@@ -6,7 +6,7 @@
 	let path: string | undefined = $state();
 
 	afterNavigate(() => {
-		path = page.params.path;
+		path = encodeURI(page.params.path);
 	});
 </script>
 

@@ -50,7 +50,13 @@ import {
 	isEnabledOutboxModel,
 	indexerRelays
 } from '$lib/config';
-import { isValidEmoji, isValidWebBookmark, splitNip51List } from '$lib/utils';
+import {
+	getIdsForFilter,
+	getPubkeysForFilter,
+	isValidEmoji,
+	isValidWebBookmark,
+	splitNip51List
+} from '$lib/utils';
 
 export type UrlParams = {
 	isError?: boolean;
@@ -81,6 +87,7 @@ export class RelayConnector {
 	#rxReqB1111: ReqB;
 	#rxReqB10002: ReqB;
 	#rxReqB39701Url: ReqB;
+	#rxReqBId: ReqB;
 	#rxReqBRp: ReqB;
 	#rxReqBAd: ReqB;
 	#rxReqF: ReqF;
@@ -116,6 +123,7 @@ export class RelayConnector {
 		this.#rxReqB1111 = createRxBackwardReq();
 		this.#rxReqB10002 = createRxBackwardReq();
 		this.#rxReqB39701Url = createRxBackwardReq();
+		this.#rxReqBId = createRxBackwardReq();
 		this.#rxReqBRp = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
@@ -149,6 +157,7 @@ export class RelayConnector {
 		const batchedReq1111 = this.#rxReqB1111.pipe(bt, batch(this.#mergeFilter1111));
 		const batchedReq10002 = this.#rxReqB10002.pipe(bt, batch(this.#mergeFilterRp));
 		const batchedReq39701Url = this.#rxReqB39701Url.pipe(bt, batch(this.#mergeFilter39701Url));
+		const batchedReqId = this.#rxReqBId.pipe(bt, batch(this.#mergeFilterId));
 		this.#rxNostr.use(batchedReq0).pipe(this.#tie, latestEach(getRpId)).subscribe({
 			next,
 			complete
@@ -174,6 +183,10 @@ export class RelayConnector {
 			complete
 		});
 		this.#rxNostr.use(batchedReq39701Url).pipe(this.#tie, latestEach(getAdId)).subscribe({
+			next,
+			complete
+		});
+		this.#rxNostr.use(batchedReqId).pipe(this.#tie, this.#uniq).subscribe({
 			next,
 			complete
 		});
@@ -246,6 +259,13 @@ export class RelayConnector {
 		const dtags = Array.from(new Set<string>(margedFilters.map((f) => f['#d'] ?? []).flat()));
 		const f = margedFilters.at(0);
 		return [{ kinds: [39701], '#d': dtags, limit: f?.limit, until: f?.until }];
+	};
+
+	#mergeFilterId: MergeFilter = (a: LazyFilter[], b: LazyFilter[]) => {
+		const margedFilters = [...a, ...b];
+		const ids = Array.from(new Set<string>(margedFilters.map((f) => f.ids ?? []).flat()));
+		const f = margedFilters.at(0);
+		return [{ ids: ids, limit: f?.limit, until: f?.until, since: f?.since }];
 	};
 
 	#mergeFilterForAddressableEvents = (
@@ -354,6 +374,18 @@ export class RelayConnector {
 	subscribeEventStore = (callback: (kind: number, event?: NostrEvent) => void): Subscription => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
+				case 1: {
+					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
+						this.#fetchProfile(event.pubkey);
+					}
+					if (!this.#eventStore.hasReplaceable(10002, event.pubkey)) {
+						this.#fetchRelayList(event.pubkey);
+					}
+					this.#fetchDeletion(event);
+					this.#fetchReaction(event);
+					this.#fetchEventsQuoted(event);
+					break;
+				}
 				case 5: {
 					this.#eventsDeletion = sortEvents(Array.from(this.#eventStore.getAll([{ kinds: [5] }])));
 					break;
@@ -382,6 +414,7 @@ export class RelayConnector {
 					this.#fetchDeletion(event);
 					this.#fetchReaction(event);
 					this.#fetchEventsByATags(event, 'A');
+					this.#fetchEventsQuoted(event);
 					break;
 				}
 				case 10002: {
@@ -413,6 +446,7 @@ export class RelayConnector {
 					this.#fetchReaction(event);
 					this.#fetchWebReaction(`https://${d}`);
 					this.#fetchComment(event);
+					this.#fetchEventsQuoted(event);
 					break;
 				}
 				default:
@@ -516,6 +550,137 @@ export class RelayConnector {
 			filter = { kinds: [1111], '#E': [event.id], limit: this.#limitComment, until: now() };
 		}
 		this.#rxReqB1111.emit(filter);
+	};
+
+	#getEventsByIdWithRelayHint = (
+		event: NostrEvent,
+		tagNameToGet: string,
+		relaysToExclude: string[],
+		onlyLastOne: boolean = false
+	) => {
+		const until = now();
+		if (['e', 'q'].includes(tagNameToGet)) {
+			let eTags = event.tags.filter((tag) => tag.length >= 3 && tag[0] === tagNameToGet);
+			if (onlyLastOne) {
+				eTags = [eTags.at(-1) ?? []];
+			}
+			for (const eTag of eTags) {
+				const id = eTag[1];
+				try {
+					nip19.neventEncode({ id });
+				} catch (_error) {
+					continue;
+				}
+				const relayHint = eTag[2];
+				if (
+					this.#eventStore.hasEvent(id) ||
+					relayHint === undefined ||
+					!URL.canParse(relayHint) ||
+					!relayHint.startsWith('wss://')
+				) {
+					continue;
+				}
+				const relay = normalizeURL(relayHint);
+				if (relaysToExclude.includes(relay)) {
+					continue;
+				}
+				const options: { relays: string[] } = {
+					relays: [relay]
+				};
+				this.#rxReqBId.emit({ ids: [id], until }, options);
+			}
+		} else if (tagNameToGet === 'a') {
+			let aTags = event.tags.filter((tag) => tag.length >= 3 && tag[0] === tagNameToGet);
+			if (onlyLastOne) {
+				aTags = [aTags.at(-1) ?? []];
+			}
+			for (const aTag of aTags) {
+				let ap: nip19.AddressPointer;
+				try {
+					ap = getAddressPointerFromATag(aTag);
+					nip19.naddrEncode(ap);
+				} catch (error) {
+					console.warn(error);
+					continue;
+				}
+				const relayHint = aTag[2];
+				if (
+					ap === null ||
+					this.#eventStore.hasReplaceable(
+						ap.kind,
+						ap.pubkey,
+						isAddressableKind(ap.kind) ? ap.identifier : undefined
+					) ||
+					relayHint === undefined ||
+					!URL.canParse(relayHint) ||
+					!relayHint.startsWith('wss://')
+				) {
+					continue;
+				}
+				const relay = normalizeURL(relayHint);
+				if (relaysToExclude.includes(relay)) {
+					continue;
+				}
+				const filter: LazyFilter = {
+					kinds: [ap.kind],
+					authors: [ap.pubkey],
+					until
+				};
+				if (isAddressableKind(ap.kind)) {
+					filter['#d'] = [ap.identifier];
+				}
+				const options: { relays: string[] } = {
+					relays: [relay]
+				};
+				this.#rxReqBAd.emit(filter, options);
+			}
+		}
+	};
+
+	#fetchEventsQuoted = (event: NostrEvent) => {
+		const oId = getIdsForFilter([event]);
+		const { ids, aps } = oId;
+		const idsFiltered = ids.filter((id) => !this.#eventStore.hasEvent(id));
+		const apsFiltered = aps.filter(
+			(ap) =>
+				!this.#eventStore.hasReplaceable(
+					ap.kind,
+					ap.pubkey,
+					isAddressableKind(ap.kind) ? ap.identifier : undefined
+				)
+		);
+		const oPk = getPubkeysForFilter([event]);
+		const { pubkeys } = oPk;
+		const pubkeysFilterd = pubkeys.filter((pubkey) => !this.#eventStore.hasReplaceable(0, pubkey));
+		const until = now();
+		const relays = Array.from(
+			new Set<string>([...this.#getRelays('read'), ...oId.relays, ...oPk.relays])
+		);
+		const options: { relays: string[] } = {
+			relays
+		};
+		if (idsFiltered.length > 0) {
+			console.log({ ids: idsFiltered, until, relays });
+			this.#rxReqBId.emit({ ids: idsFiltered, until }, options);
+		}
+		if (apsFiltered.length > 0) {
+			for (const ap of apsFiltered) {
+				const f: LazyFilter = {
+					kinds: [ap.kind],
+					authors: [ap.pubkey],
+					until
+				};
+				if (isAddressableKind(ap.kind)) {
+					f['#d'] = [ap.identifier];
+				}
+				this.#rxReqBRp.emit(f, options);
+			}
+		}
+		if (pubkeysFilterd.length > 0) {
+			this.#rxReqB0.emit({ kinds: [0], authors: pubkeysFilterd, until }, options);
+		}
+		//リレーヒント付き引用による取得
+		this.#getEventsByIdWithRelayHint(event, 'q', relays, false);
 	};
 
 	#fetchRelayList = (pubkey: string) => {
@@ -667,6 +832,7 @@ export class RelayConnector {
 			let ap: nip19.AddressPointer;
 			try {
 				ap = getAddressPointerFromATag(aTag);
+				nip19.naddrEncode(ap);
 			} catch (error) {
 				console.warn(error);
 				continue;

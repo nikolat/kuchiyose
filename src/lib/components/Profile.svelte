@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { getRoboHashURL } from '$lib/config';
+	import type { NostrEvent } from 'nostr-tools/pure';
+	import type { Filter } from 'nostr-tools/filter';
 	import * as nip05 from 'nostr-tools/nip05';
 	import * as nip19 from 'nostr-tools/nip19';
 	import type { ProfileContent } from 'applesauce-core/helpers';
@@ -11,7 +13,21 @@
 		isLoggedIn,
 		isMutedPubkeyPage,
 		mutePubkey,
-		unmutePubkey
+		unmutePubkey,
+		eventsComment,
+		level,
+		idReferenced,
+		getSeenOn,
+		fork,
+		sendComment,
+		sendReaction,
+		sendDeletion,
+		loginPubkey,
+		profileMap,
+		eventsReaction,
+		eventsEmojiSet,
+		getEventsByFilter,
+		getReplaceableEvent
 	}: {
 		pubkey: string;
 		profile: ProfileContent | undefined;
@@ -19,6 +35,20 @@
 		isMutedPubkeyPage: boolean;
 		mutePubkey: () => Promise<void>;
 		unmutePubkey: () => Promise<void>;
+		eventsComment: NostrEvent[];
+		level: number;
+		idReferenced: string | undefined;
+		getSeenOn: (id: string, excludeWs: boolean) => string[];
+		fork: (event: NostrEvent) => void;
+		sendComment: (content: string, targetEventToReply: NostrEvent) => Promise<void>;
+		sendReaction: (event: NostrEvent, content?: string, emojiurl?: string) => Promise<void>;
+		sendDeletion: (event: NostrEvent) => Promise<void>;
+		loginPubkey: string | undefined;
+		profileMap: Map<string, ProfileContent>;
+		eventsReaction: NostrEvent[];
+		eventsEmojiSet: NostrEvent[];
+		getEventsByFilter: (filters: Filter | Filter[]) => NostrEvent[];
+		getReplaceableEvent: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined;
 	} = $props();
 
 	const nip05string = $derived(profile?.nip05);
@@ -101,7 +131,25 @@
 			🔗<a href={website} target="_blank" rel="noopener noreferrer">{website}</a>
 		</div>
 	{/if}
-	<div class="about"><Content content={about ?? ''} /></div>
+	<div class="about">
+		<Content
+			content={about ?? ''}
+			{eventsComment}
+			level={level + 1}
+			{idReferenced}
+			{getSeenOn}
+			{fork}
+			{sendComment}
+			{sendReaction}
+			{sendDeletion}
+			{loginPubkey}
+			{profileMap}
+			{eventsReaction}
+			{eventsEmojiSet}
+			{getEventsByFilter}
+			{getReplaceableEvent}
+		/>
+	</div>
 </section>
 
 <style>

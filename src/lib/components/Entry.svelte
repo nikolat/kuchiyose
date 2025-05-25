@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { getRoboHashURL } from '$lib/config';
 	import { getEventsReactionToTheTarget } from '$lib/utils';
-	import * as nip19 from 'nostr-tools/nip19';
-	import { isRegularKind } from 'nostr-tools/kinds';
 	import type { NostrEvent } from 'nostr-tools/pure';
+	import type { Filter } from 'nostr-tools/filter';
+	import { isRegularKind } from 'nostr-tools/kinds';
+	import * as nip19 from 'nostr-tools/nip19';
 	import { getTagValue, type ProfileContent } from 'applesauce-core/helpers';
 	import Content from '$lib/components/Content.svelte';
 	import AddStar from '$lib/components/AddStar.svelte';
@@ -22,14 +23,16 @@
 		loginPubkey,
 		profileMap,
 		eventsReaction,
-		eventsEmojiSet
+		eventsEmojiSet,
+		getEventsByFilter,
+		getReplaceableEvent
 	}: {
 		event: NostrEvent;
 		eventsComment: NostrEvent[];
 		level: number;
 		idReferenced: string | undefined;
 		getSeenOn: (id: string, excludeWs: boolean) => string[];
-		fork?: (event: NostrEvent) => void;
+		fork: (event: NostrEvent) => void;
 		sendComment: (content: string, targetEventToReply: NostrEvent) => Promise<void>;
 		sendReaction: (event: NostrEvent, content?: string, emojiurl?: string) => Promise<void>;
 		sendDeletion: (event: NostrEvent) => Promise<void>;
@@ -37,6 +40,8 @@
 		profileMap: Map<string, ProfileContent>;
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
+		getEventsByFilter: (filters: Filter | Filter[]) => NostrEvent[];
+		getReplaceableEvent: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined;
 	} = $props();
 
 	let isDetailsVisible: boolean = $state(false);
@@ -106,13 +111,31 @@
 			<div class="note">
 				<a class="name" href="/{nip19.npubEncode(event.pubkey)}"
 					>@{prof?.name ?? `${nip19.npubEncode(event.pubkey).slice(0, 15)}...`}</a
-				>{#if event.kind === 39701}<span class="hashtags">
-						{#each hashtags as hashtag (hashtag)}
-							<a href="/t/{encodeURI(hashtag)}" class="hashtag">#{hashtag}</a>
-						{/each}
-					</span>{/if}
+				><span class="hashtags">
+					{#each hashtags as hashtag (hashtag)}
+						<a href="/t/{encodeURI(hashtag)}" class="hashtag">#{hashtag}</a>
+					{/each}
+				</span>
 				<br />
-				<span class="content"><Content content={event.content} /></span>
+				<span class="content">
+					<Content
+						content={event.content}
+						{eventsComment}
+						level={level + 1}
+						{idReferenced}
+						{getSeenOn}
+						{fork}
+						{sendComment}
+						{sendReaction}
+						{sendDeletion}
+						{loginPubkey}
+						{profileMap}
+						{eventsReaction}
+						{eventsEmojiSet}
+						{getEventsByFilter}
+						{getReplaceableEvent}
+					/>
+				</span>
 			</div>
 			<div class="menu">
 				<a href="/{linkStr}">
@@ -253,6 +276,7 @@
 				level={level + 1}
 				{idReferenced}
 				{getSeenOn}
+				{fork}
 				{sendComment}
 				{sendReaction}
 				{sendDeletion}
@@ -260,6 +284,8 @@
 				{profileMap}
 				{eventsReaction}
 				{eventsEmojiSet}
+				{getEventsByFilter}
+				{getReplaceableEvent}
 			/>
 		{/each}
 	</div>

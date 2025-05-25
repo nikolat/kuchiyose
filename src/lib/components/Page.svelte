@@ -2,14 +2,21 @@
 	import { page } from '$app/state';
 	import { getRoboHashURL, linkGitHub, sitename } from '$lib/config';
 	import type { RelayConnector, UrlParams } from '$lib/resource';
-	import * as nip19 from 'nostr-tools/nip19';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import { getTagValue, unixNow, type ProfileContent } from 'applesauce-core/helpers';
+	import type { Filter } from 'nostr-tools/filter';
+	import * as nip19 from 'nostr-tools/nip19';
+	import {
+		getCoordinateFromAddressPointer,
+		getTagValue,
+		unixNow,
+		type ProfileContent
+	} from 'applesauce-core/helpers';
 	import {
 		getAllTagsMap,
 		getEventsReactionToTheTarget,
 		getTitleFromWebbookmarks,
-		getWebBookmarkMap
+		getWebBookmarkMap,
+		urlLinkString
 	} from '$lib/utils';
 	import Profile from '$lib/components/Profile.svelte';
 	import Hashtag from '$lib/components/Hashtag.svelte';
@@ -112,6 +119,98 @@
 		editTag = '';
 		editTags = [];
 		editContent = '';
+		const mentionPubkeys: Set<string> = new Set();
+		const quoteIds: Set<string> = new Set<string>();
+		const apsMap: Map<string, nip19.AddressPointer> = new Map<string, nip19.AddressPointer>();
+		const matchesIteratorId = content.matchAll(
+			/(^|\W|\b)(nostr:(note1\w{58}|nevent1\w+|naddr1\w+))($|\W|\b)/g
+		);
+		for (const match of matchesIteratorId) {
+			let d;
+			try {
+				d = nip19.decode(match[3]);
+			} catch (error) {
+				console.warn(error);
+				console.info(content);
+				continue;
+			}
+			if (d.type === 'note') {
+				quoteIds.add(d.data);
+			} else if (d.type === 'nevent') {
+				quoteIds.add(d.data.id);
+				if (d.data.author !== undefined) {
+					mentionPubkeys.add(d.data.author);
+				}
+			} else if (d.type === 'naddr') {
+				apsMap.set(getCoordinateFromAddressPointer(d.data), d.data);
+				mentionPubkeys.add(d.data.pubkey);
+			}
+		}
+		const matchesIteratorPubkey = content.matchAll(
+			/(^|\W|\b)(nostr:(npub1\w{58}|nprofile1\w+))($|\W|\b)/g
+		);
+		for (const match of matchesIteratorPubkey) {
+			let d;
+			try {
+				d = nip19.decode(match[3]);
+			} catch (error) {
+				console.warn(error);
+				console.info(content);
+				continue;
+			}
+			if (d.type === 'npub') {
+				mentionPubkeys.add(d.data);
+			} else if (d.type === 'nprofile') {
+				mentionPubkeys.add(d.data.pubkey);
+			}
+		}
+		const matchesIteratorLink = content.matchAll(/https?:\/\/[\w!?/=+\-_~:;.,*&@#$%()[\]]+/g);
+		const links: Set<string> = new Set();
+		for (const match of matchesIteratorLink) {
+			links.add(urlLinkString(match[0])[0]);
+		}
+		for (const id of quoteIds) {
+			const qTag: string[] = ['q', id];
+			const recommendedRelayForQuote: string | undefined = getSeenOn(id, true).at(0);
+			const ev = rc.getEventsByFilter({ ids: [id] }).at(0);
+			if (recommendedRelayForQuote !== undefined) {
+				qTag.push(recommendedRelayForQuote);
+				const pubkeyForQuote: string | undefined = ev?.pubkey;
+				if (pubkeyForQuote !== undefined) {
+					qTag.push(pubkeyForQuote);
+				}
+			}
+			tags.push(qTag);
+			if (ev !== undefined) {
+				mentionPubkeys.add(ev.pubkey);
+			}
+		}
+		for (const [a, ap] of apsMap) {
+			const aTag: string[] = ['a', a];
+			const ev: NostrEvent | undefined = rc.getReplaceableEvent(ap.kind, ap.pubkey, ap.identifier);
+			const recommendedRelayForQuote: string | undefined =
+				getSeenOn(ev?.id ?? '', true).at(0) ??
+				ap.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
+			if (recommendedRelayForQuote !== undefined) {
+				aTag.push(recommendedRelayForQuote);
+			}
+			tags.push(aTag);
+			mentionPubkeys.add(ap.pubkey);
+		}
+		for (const p of mentionPubkeys) {
+			const pTag = ['p', p];
+			const kind0 = rc.getReplaceableEvent(0, p);
+			if (kind0 !== undefined) {
+				const recommendedRelayForPubkey: string | undefined = getSeenOn(kind0.id, true).at(0);
+				if (recommendedRelayForPubkey !== undefined) {
+					pTag.push(recommendedRelayForPubkey);
+				}
+			}
+			tags.push(pTag);
+		}
+		for (const r of links) {
+			tags.push(['r', r]);
+		}
 		await rc.signAndSendEvent({ kind, tags, content, created_at });
 	};
 
@@ -146,6 +245,11 @@
 	const idReferenced: string | undefined = $derived(up.currentEventPointer?.id);
 
 	const getSeenOn = (id: string, excludeWs: boolean) => rc?.getSeenOn(id, excludeWs) ?? [];
+
+	const getEventsByFilter = (filters: Filter | Filter[]) => rc?.getEventsByFilter(filters) ?? [];
+
+	const getReplaceableEvent = (kind: number, pubkey: string, d?: string) =>
+		rc?.getReplaceableEvent(kind, pubkey, d);
 
 	const fork = (webbookmark: NostrEvent): void => {
 		const identifier = getTagValue(webbookmark, 'd') ?? '';
@@ -197,6 +301,20 @@
 			{isMutedPubkeyPage}
 			mutePubkey={() => mutePubkey(pubkey)}
 			unmutePubkey={() => unmutePubkey(pubkey)}
+			{eventsComment}
+			level={0}
+			{idReferenced}
+			{getSeenOn}
+			{fork}
+			{sendComment}
+			{sendReaction}
+			{sendDeletion}
+			{loginPubkey}
+			{profileMap}
+			{eventsReaction}
+			{eventsEmojiSet}
+			{getEventsByFilter}
+			{getReplaceableEvent}
 		/>
 	{:else if up.hashtag !== undefined}
 		{@const hashtag = up.hashtag}
@@ -208,7 +326,28 @@
 			unmuteHashtag={() => unmuteHashtag(hashtag)}
 		/>
 	{/if}
-	{#if !up.isError}
+	{#if up.currentEventPointer !== undefined && up.currentEventPointer.kind !== 1111}
+		{@const event = rc?.getEventsByFilter({ ids: [up.currentEventPointer.id] }).at(0)}
+		{#if event !== undefined}
+			<Entry
+				{event}
+				{eventsComment}
+				level={0}
+				{idReferenced}
+				{getSeenOn}
+				{fork}
+				{sendComment}
+				{sendReaction}
+				{sendDeletion}
+				{loginPubkey}
+				{profileMap}
+				{eventsReaction}
+				{eventsEmojiSet}
+				{getEventsByFilter}
+				{getReplaceableEvent}
+			/>
+		{/if}
+	{:else if !up.isError}
 		<CreateEntry
 			bind:isOpenEdit
 			bind:editDTag
@@ -266,6 +405,8 @@
 							{profileMap}
 							{eventsReaction}
 							{eventsEmojiSet}
+							{getEventsByFilter}
+							{getReplaceableEvent}
 						/>
 					{/each}
 				</dd>

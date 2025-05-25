@@ -1,5 +1,11 @@
 import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
-import { getTagValue } from 'applesauce-core/helpers';
+import { normalizeURL } from 'nostr-tools/utils';
+import * as nip19 from 'nostr-tools/nip19';
+import {
+	getCoordinateFromAddressPointer,
+	getProfileContent,
+	getTagValue
+} from 'applesauce-core/helpers';
 import data from '@emoji-mart/data';
 // @ts-expect-error なんもわからんかも
 import type { BaseEmoji } from '@types/emoji-mart';
@@ -9,10 +15,17 @@ interface MyBaseEmoji extends BaseEmoji {
 	src: string | undefined;
 }
 
+export const kindsForParse: number[] = [1, 42, 1111, 30023, 39701];
+
 export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] => {
 	const eventMap: Map<string, NostrEvent> = new Map<string, NostrEvent>();
 	for (const ev of events) {
-		const s = `${ev.kind}:${ev.pubkey}:${getTagValue(ev, 'd') ?? ''}`;
+		const ap: nip19.AddressPointer = {
+			kind: ev.kind,
+			pubkey: ev.pubkey,
+			identifier: getTagValue(ev, 'd') ?? ''
+		};
+		const s = getCoordinateFromAddressPointer(ap);
 		const event = eventMap.get(s);
 		if (event === undefined || ev.created_at > event.created_at) {
 			eventMap.set(s, ev);
@@ -247,6 +260,109 @@ export const getEventsFilteredByMute = (
 		filteredEvents.push(event);
 	}
 	return filteredEvents;
+};
+
+export const getPubkeysForFilter = (
+	events: NostrEvent[]
+): { pubkeys: string[]; relays: string[] } => {
+	const pubkeySet: Set<string> = new Set();
+	const relaySet: Set<string> = new Set<string>();
+	for (const ev of events) {
+		let content: string | undefined = undefined;
+		if (ev.kind === 0) {
+			content = getProfileContent(ev).about;
+		} else if (kindsForParse.includes(ev.kind)) {
+			content = ev.content;
+		}
+		if (content !== undefined) {
+			const matchesIterator = content.matchAll(
+				/nostr:(npub1\w{58}|nprofile1\w+|nevent1\w+|naddr1\w+)/g
+			);
+			for (const match of matchesIterator) {
+				let d;
+				try {
+					d = nip19.decode(match[1]);
+				} catch (_error) {
+					continue;
+				}
+				if (d.type === 'npub') {
+					pubkeySet.add(d.data);
+				} else if (d.type === 'nprofile') {
+					pubkeySet.add(d.data.pubkey);
+					if (d.data.relays !== undefined) {
+						for (const relay of d.data.relays) {
+							relaySet.add(normalizeURL(relay));
+						}
+					}
+				} else if (d.type === 'nevent' && d.data.author !== undefined) {
+					pubkeySet.add(d.data.author);
+					if (d.data.relays !== undefined) {
+						for (const relay of d.data.relays) {
+							relaySet.add(normalizeURL(relay));
+						}
+					}
+				} else if (d.type === 'naddr') {
+					pubkeySet.add(d.data.pubkey);
+					if (d.data.relays !== undefined) {
+						for (const relay of d.data.relays) {
+							relaySet.add(normalizeURL(relay));
+						}
+					}
+				}
+			}
+		}
+	}
+	return { pubkeys: Array.from(pubkeySet), relays: Array.from(relaySet) };
+};
+
+export const getIdsForFilter = (
+	events: NostrEvent[]
+): { ids: string[]; aps: nip19.AddressPointer[]; relays: string[] } => {
+	const idSet: Set<string> = new Set<string>();
+	const aps: nip19.AddressPointer[] = [];
+	const apsSet: Set<string> = new Set<string>();
+	const relaySet: Set<string> = new Set<string>();
+	for (const ev of events) {
+		let content: string | undefined = undefined;
+		if (ev.kind === 0) {
+			content = getProfileContent(ev).about;
+		} else if (kindsForParse.includes(ev.kind)) {
+			content = ev.content;
+		}
+		if (content !== undefined) {
+			const matchesIterator = content.matchAll(/nostr:(note1\w{58}|nevent1\w+|naddr1\w+)/g);
+			for (const match of matchesIterator) {
+				let d;
+				try {
+					d = nip19.decode(match[1]);
+				} catch (_error) {
+					continue;
+				}
+				if (d.type === 'note') {
+					idSet.add(d.data);
+				} else if (d.type === 'nevent') {
+					idSet.add(d.data.id);
+					if (d.data.relays !== undefined) {
+						for (const relay of d.data.relays) {
+							relaySet.add(normalizeURL(relay));
+						}
+					}
+				} else if (d.type === 'naddr') {
+					const str = getCoordinateFromAddressPointer(d.data);
+					if (!apsSet.has(str)) {
+						aps.push(d.data);
+						apsSet.add(str);
+					}
+					if (d.data.relays !== undefined) {
+						for (const relay of d.data.relays) {
+							relaySet.add(normalizeURL(relay));
+						}
+					}
+				}
+			}
+		}
+	}
+	return { ids: Array.from(idSet), aps: aps, relays: Array.from(relaySet) };
 };
 
 const inputCount = (input: string): number => {
