@@ -654,13 +654,16 @@ export class RelayConnector {
 		const pubkeysFilterd = pubkeys.filter((pubkey) => !this.#eventStore.hasReplaceable(0, pubkey));
 		const until = now();
 		const relays = Array.from(
-			new Set<string>([...this.#getRelays('read'), ...oId.relays, ...oPk.relays])
+			new Set<string>([
+				...(this.#getRelays('read').length > 0 ? this.#getRelays('read') : defaultRelays),
+				...oId.relays,
+				...oPk.relays
+			])
 		);
 		const options: { relays: string[] } = {
 			relays
 		};
 		if (idsFiltered.length > 0) {
-			console.log({ ids: idsFiltered, until, relays });
 			this.#rxReqBId.emit({ ids: idsFiltered, until }, options);
 		}
 		if (apsFiltered.length > 0) {
