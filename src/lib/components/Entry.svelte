@@ -314,6 +314,7 @@
 	}
 	img.avatar {
 		border-radius: 10%;
+		object-fit: cover;
 	}
 	.note {
 		white-space: pre-line;
