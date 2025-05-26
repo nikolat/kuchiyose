@@ -654,6 +654,18 @@ export class RelayConnector {
 	#fetchEventsQuoted = (event: NostrEvent) => {
 		const oId = getIdsForFilter([event]);
 		const { ids, aps } = oId;
+		for (const id of ids) {
+			const event = this.#eventStore.getEvent(id);
+			if (event !== undefined) {
+				this.#callbackQuote(event);
+			}
+		}
+		for (const ap of aps) {
+			const event = this.#eventStore.getReplaceable(ap.kind, ap.pubkey, ap.identifier);
+			if (event !== undefined) {
+				this.#callbackQuote(event);
+			}
+		}
 		const idsFiltered = ids.filter((id) => !this.#eventStore.hasEvent(id));
 		const apsFiltered = aps.filter(
 			(ap) =>

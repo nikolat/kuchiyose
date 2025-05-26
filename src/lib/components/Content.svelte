@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getRoboHashURL } from '$lib/config';
+	import { getRoboHashURL, limitDepth } from '$lib/config';
 	import { urlLinkString } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import * as nip19 from 'nostr-tools/nip19';
@@ -174,7 +174,7 @@
 					: eventsQuoted.find(
 							(ev) => ev.id === (d.type === 'note' ? d.data : d.type === 'nevent' ? d.data.id : '')
 						)}
-			{#if event !== undefined}
+			{#if event !== undefined && level < limitDepth}
 				<Entry
 					{event}
 					{eventsComment}
