@@ -53,6 +53,7 @@ import {
 import {
 	getIdsForFilter,
 	getPubkeysForFilter,
+	getTagsForContent,
 	isValidEmoji,
 	isValidWebBookmark,
 	splitNip51List
@@ -1060,43 +1061,50 @@ export class RelayConnector {
 		this.#sendEvent(eventToSend);
 	};
 
-	sendComment = async (content: string, targetEventToReply: NostrEvent): Promise<void> => {
+	sendComment = async (content: string, targetEvent: NostrEvent): Promise<void> => {
 		if (window.nostr === undefined) {
 			return;
 		}
 		const kind = 1111;
 		const tags: string[][] = [];
-		const recommendedRelay: string = this.getSeenOn(targetEventToReply.id, true).at(0) ?? '';
-		if (targetEventToReply.kind === 1111) {
-			const tagsCopied = targetEventToReply.tags.filter(
+		const relayHintEvent: string = this.getSeenOn(targetEvent.id, true).at(0) ?? '';
+		const relayHintAuthor: string =
+			this.getSeenOn(this.getReplaceableEvent(0, targetEvent.pubkey)?.id ?? '', true).at(0) ?? '';
+		const pTag = ['p', targetEvent.pubkey, relayHintAuthor];
+		if (targetEvent.kind === 1111) {
+			const tagsCopied = targetEvent.tags.filter(
 				(tag) => tag.length >= 2 && ['A', 'E', 'I', 'K', 'P'].includes(tag[0])
 			);
 			for (const tag of tagsCopied) {
 				tags.push([...tag]);
 			}
-			tags.push(['e', targetEventToReply.id, recommendedRelay, targetEventToReply.pubkey]);
-			tags.push(['k', String(targetEventToReply.kind)]);
-		} else if (
-			isReplaceableKind(targetEventToReply.kind) ||
-			isAddressableKind(targetEventToReply.kind)
-		) {
-			const d = getTagValue(targetEventToReply, 'd') ?? '';
-			const a = `${targetEventToReply.kind}:${targetEventToReply.pubkey}:${d}`;
-			tags.push(['A', a, recommendedRelay]);
-			tags.push(['K', String(targetEventToReply.kind)]);
-			tags.push(['P', targetEventToReply.pubkey]);
-			tags.push(['a', a, recommendedRelay]);
-			tags.push(['e', targetEventToReply.id, recommendedRelay, targetEventToReply.pubkey]);
-			tags.push(['k', String(targetEventToReply.kind)]);
-			tags.push(['p', targetEventToReply.pubkey]);
+			tags.push(['e', targetEvent.id, relayHintEvent, targetEvent.pubkey]);
+			tags.push(['k', String(targetEvent.kind)]);
+		} else if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
+			const d = getTagValue(targetEvent, 'd') ?? '';
+			const a = `${targetEvent.kind}:${targetEvent.pubkey}:${d}`;
+			tags.push(['A', a, relayHintEvent]);
+			tags.push(['K', String(targetEvent.kind)]);
+			tags.push(['P', targetEvent.pubkey, relayHintAuthor]);
+			tags.push(['a', a, relayHintEvent]);
+			tags.push(['e', targetEvent.id, relayHintEvent, targetEvent.pubkey]);
+			tags.push(['k', String(targetEvent.kind)]);
 		} else {
-			tags.push(['E', targetEventToReply.id, recommendedRelay, targetEventToReply.pubkey]);
-			tags.push(['K', String(targetEventToReply.kind)]);
-			tags.push(['P', targetEventToReply.pubkey]);
-			tags.push(['e', targetEventToReply.id, recommendedRelay, targetEventToReply.pubkey]);
-			tags.push(['k', String(targetEventToReply.kind)]);
-			tags.push(['p', targetEventToReply.pubkey]);
+			tags.push(['E', targetEvent.id, relayHintEvent, targetEvent.pubkey]);
+			tags.push(['K', String(targetEvent.kind)]);
+			tags.push(['P', targetEvent.pubkey, relayHintAuthor]);
+			tags.push(['e', targetEvent.id, relayHintEvent, targetEvent.pubkey]);
+			tags.push(['k', String(targetEvent.kind)]);
 		}
+		for (const tag of getTagsForContent(
+			content,
+			this.getSeenOn,
+			this.getEventsByFilter,
+			this.getReplaceableEvent
+		).filter((tag) => !(tag[0] === 'p' && tag[1] === targetEvent.pubkey))) {
+			tags.push(tag);
+		}
+		tags.push(pTag);
 		const eventTemplate: EventTemplate = {
 			kind,
 			tags,
@@ -1108,7 +1116,7 @@ export class RelayConnector {
 		if (isEnabledOutboxModel) {
 			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(
 				10002,
-				targetEventToReply.pubkey
+				targetEvent.pubkey
 			);
 			if (event10002 !== undefined) {
 				for (const relayUrl of getInboxes(event10002)) {
