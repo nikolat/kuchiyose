@@ -677,7 +677,7 @@ export class RelayConnector {
 				if (isAddressableKind(ap.kind)) {
 					f['#d'] = [ap.identifier];
 				}
-				this.#rxReqBRp.emit(f, options);
+				this.#rxReqBAd.emit(f, options);
 			}
 		}
 		if (pubkeysFilterd.length > 0) {
