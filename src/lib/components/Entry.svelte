@@ -2,7 +2,6 @@
 	import { getRoboHashURL } from '$lib/config';
 	import { getEventsReactionToTheTarget } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import type { Filter } from 'nostr-tools/filter';
 	import { isRegularKind } from 'nostr-tools/kinds';
 	import * as nip19 from 'nostr-tools/nip19';
 	import { getTagValue, type ProfileContent } from 'applesauce-core/helpers';
@@ -24,8 +23,7 @@
 		profileMap,
 		eventsReaction,
 		eventsEmojiSet,
-		getEventsByFilter,
-		getReplaceableEvent
+		eventsQuoted
 	}: {
 		event: NostrEvent;
 		eventsComment: NostrEvent[];
@@ -40,8 +38,7 @@
 		profileMap: Map<string, ProfileContent>;
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
-		getEventsByFilter: (filters: Filter | Filter[]) => NostrEvent[];
-		getReplaceableEvent: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined;
+		eventsQuoted: NostrEvent[];
 	} = $props();
 
 	let isDetailsVisible: boolean = $state(false);
@@ -132,8 +129,7 @@
 						{profileMap}
 						{eventsReaction}
 						{eventsEmojiSet}
-						{getEventsByFilter}
-						{getReplaceableEvent}
+						{eventsQuoted}
 					/>
 				</span>
 			</div>
@@ -284,8 +280,7 @@
 				{profileMap}
 				{eventsReaction}
 				{eventsEmojiSet}
-				{getEventsByFilter}
-				{getReplaceableEvent}
+				{eventsQuoted}
 			/>
 		{/each}
 	</div>

@@ -2,9 +2,8 @@
 	import { getRoboHashURL } from '$lib/config';
 	import { urlLinkString } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import type { Filter } from 'nostr-tools/filter';
 	import * as nip19 from 'nostr-tools/nip19';
-	import type { ProfileContent } from 'applesauce-core/helpers';
+	import { getTagValue, type ProfileContent } from 'applesauce-core/helpers';
 	import Entry from '$lib/components/Entry.svelte';
 
 	const {
@@ -21,8 +20,7 @@
 		profileMap,
 		eventsReaction,
 		eventsEmojiSet,
-		getEventsByFilter,
-		getReplaceableEvent
+		eventsQuoted
 	}: {
 		content: string;
 		eventsComment: NostrEvent[];
@@ -37,8 +35,7 @@
 		profileMap: Map<string, ProfileContent>;
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
-		getEventsByFilter: (filters: Filter | Filter[]) => NostrEvent[];
-		getReplaceableEvent: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined;
+		eventsQuoted: NostrEvent[];
 	} = $props();
 
 	type Token =
@@ -168,10 +165,15 @@
 		{:else if ['note', 'nevent', 'naddr'].includes(d.type)}
 			{@const event =
 				d.type === 'naddr'
-					? getReplaceableEvent(d.data.kind, d.data.pubkey, d.data.identifier)
-					: getEventsByFilter({
-							ids: [d.type === 'note' ? d.data : d.type === 'nevent' ? d.data.id : '']
-						}).at(0)}
+					? eventsQuoted.find(
+							(ev) =>
+								ev.kind === d.data.kind &&
+								ev.pubkey === d.data.pubkey &&
+								(getTagValue(ev, 'd') ?? '') === d.data.identifier
+						)
+					: eventsQuoted.find(
+							(ev) => ev.id === (d.type === 'note' ? d.data : d.type === 'nevent' ? d.data.id : '')
+						)}
 			{#if event !== undefined}
 				<Entry
 					{event}
@@ -187,8 +189,7 @@
 					{profileMap}
 					{eventsReaction}
 					{eventsEmojiSet}
-					{getEventsByFilter}
-					{getReplaceableEvent}
+					{eventsQuoted}
 				/>
 			{:else}
 				{@const enc = ct.encoded}

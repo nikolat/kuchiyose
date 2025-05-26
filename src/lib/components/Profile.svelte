@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { getRoboHashURL } from '$lib/config';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import type { Filter } from 'nostr-tools/filter';
 	import * as nip05 from 'nostr-tools/nip05';
 	import * as nip19 from 'nostr-tools/nip19';
 	import type { ProfileContent } from 'applesauce-core/helpers';
@@ -26,8 +25,7 @@
 		profileMap,
 		eventsReaction,
 		eventsEmojiSet,
-		getEventsByFilter,
-		getReplaceableEvent
+		eventsQuoted
 	}: {
 		pubkey: string;
 		profile: ProfileContent | undefined;
@@ -47,8 +45,7 @@
 		profileMap: Map<string, ProfileContent>;
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
-		getEventsByFilter: (filters: Filter | Filter[]) => NostrEvent[];
-		getReplaceableEvent: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined;
+		eventsQuoted: NostrEvent[];
 	} = $props();
 
 	const nip05string = $derived(profile?.nip05);
@@ -146,8 +143,7 @@
 			{profileMap}
 			{eventsReaction}
 			{eventsEmojiSet}
-			{getEventsByFilter}
-			{getReplaceableEvent}
+			{eventsQuoted}
 		/>
 	</div>
 </section>

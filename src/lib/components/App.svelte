@@ -3,7 +3,12 @@
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { RelayConnector, type UrlParams } from '$lib/resource';
-	import { getRelayConnector, setRelayConnector } from '$lib/resource.svelte';
+	import {
+		getEventsQuoted,
+		getRelayConnector,
+		setEventsQuoted,
+		setRelayConnector
+	} from '$lib/resource.svelte';
 	import { preferences } from '$lib/store';
 	import { sitename } from '$lib/config';
 	import {
@@ -59,11 +64,12 @@
 		});
 	});
 	let eventsEmojiSet: NostrEvent[] = $state([]);
+	let eventsQuoted: NostrEvent[] = $derived(getEventsQuoted());
 	const getEventsFiltered = (events: NostrEvent[]) => {
 		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashtags);
 	};
 
-	const callback = (kind: number, event?: NostrEvent) => {
+	const callback = (kind: number, event?: NostrEvent): void => {
 		if (rc === undefined) {
 			return;
 		}
@@ -164,6 +170,13 @@
 		}
 	};
 
+	const callbackQuote = (event: NostrEvent): void => {
+		if (!eventsQuoted.map((ev) => ev.id).includes(event.id)) {
+			eventsQuoted.push(event);
+			setEventsQuoted(eventsQuoted);
+		}
+	};
+
 	const clearCache = () => {
 		eventsWebBookmark = [];
 		eventsProfile = [];
@@ -172,6 +185,7 @@
 		eventsComment = [];
 		eventMuteList = undefined;
 		eventsEmojiSet = [];
+		eventsQuoted = [];
 	};
 
 	const initStatus = () => {
@@ -187,7 +201,7 @@
 		const pubkeySet = new Set<string>();
 		if (rc === undefined) {
 			clearCache();
-			rc = new RelayConnector(loginPubkey !== undefined);
+			rc = new RelayConnector(loginPubkey !== undefined, callbackQuote);
 			setRelayConnector(rc);
 			sub = rc.subscribeEventStore(callback);
 			if (loginPubkey !== undefined) {
@@ -395,6 +409,7 @@
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
 	eventsComment={getEventsFiltered(eventsComment)}
 	{eventsEmojiSet}
+	{eventsQuoted}
 	isMutedPubkeyPage={mutedPubkeys.includes(up.currentProfilePointer?.pubkey ?? '')}
 	isMutedHashtagPage={mutedHashtags.includes(up.hashtag ?? '')}
 />

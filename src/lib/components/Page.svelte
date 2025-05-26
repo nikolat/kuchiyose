@@ -3,7 +3,6 @@
 	import { getRoboHashURL, linkGitHub, sitename } from '$lib/config';
 	import type { RelayConnector, UrlParams } from '$lib/resource';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import type { Filter } from 'nostr-tools/filter';
 	import * as nip19 from 'nostr-tools/nip19';
 	import { getTagValue, unixNow, type ProfileContent } from 'applesauce-core/helpers';
 	import {
@@ -29,6 +28,7 @@
 		eventsWebReaction,
 		eventsComment,
 		eventsEmojiSet,
+		eventsQuoted,
 		isMutedPubkeyPage,
 		isMutedHashtagPage
 	}: {
@@ -41,6 +41,7 @@
 		eventsWebReaction: NostrEvent[];
 		eventsComment: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
+		eventsQuoted: NostrEvent[];
 		isMutedPubkeyPage: boolean;
 		isMutedHashtagPage: boolean;
 	} = $props();
@@ -157,11 +158,6 @@
 
 	const getSeenOn = (id: string, excludeWs: boolean) => rc?.getSeenOn(id, excludeWs) ?? [];
 
-	const getEventsByFilter = (filters: Filter | Filter[]) => rc?.getEventsByFilter(filters) ?? [];
-
-	const getReplaceableEvent = (kind: number, pubkey: string, d?: string) =>
-		rc?.getReplaceableEvent(kind, pubkey, d);
-
 	const fork = (webbookmark: NostrEvent): void => {
 		const identifier = getTagValue(webbookmark, 'd') ?? '';
 		const title = getTagValue(webbookmark, 'title') ?? '';
@@ -224,8 +220,7 @@
 			{profileMap}
 			{eventsReaction}
 			{eventsEmojiSet}
-			{getEventsByFilter}
-			{getReplaceableEvent}
+			{eventsQuoted}
 		/>
 	{:else if up.hashtag !== undefined}
 		{@const hashtag = up.hashtag}
@@ -254,8 +249,7 @@
 				{profileMap}
 				{eventsReaction}
 				{eventsEmojiSet}
-				{getEventsByFilter}
-				{getReplaceableEvent}
+				{eventsQuoted}
 			/>
 		{/if}
 	{:else if !up.isError}
@@ -316,8 +310,7 @@
 							{profileMap}
 							{eventsReaction}
 							{eventsEmojiSet}
-							{getEventsByFilter}
-							{getReplaceableEvent}
+							{eventsQuoted}
 						/>
 					{/each}
 				</dd>

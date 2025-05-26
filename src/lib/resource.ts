@@ -88,11 +88,13 @@ export class RelayConnector {
 	#rxReqB1111: ReqB;
 	#rxReqB10002: ReqB;
 	#rxReqB39701Url: ReqB;
-	#rxReqBId: ReqB;
+	#rxReqBIdQ: ReqB;
 	#rxReqBRp: ReqB;
 	#rxReqBAd: ReqB;
+	#rxReqBAdQ: ReqB;
 	#rxReqF: ReqF;
-
+	#eventsDeletion: NostrEvent[];
+	#callbackQuote: (event: NostrEvent) => void;
 	#tie: OperatorFunction<
 		EventPacket,
 		EventPacket & {
@@ -103,14 +105,13 @@ export class RelayConnector {
 	#seenOn: Map<string, Set<string>>;
 	#uniq: MonoTypeOperatorFunction<EventPacket>;
 	#eventIds: Set<string>;
+
 	#secOnCompleteTimeout = 1000;
 	#secBufferTime = 1000;
 	#limitReaction = 100;
 	#limitComment = 100;
 
-	#eventsDeletion: NostrEvent[];
-
-	constructor(useAuth: boolean) {
+	constructor(useAuth: boolean, callbackQuote: (event: NostrEvent) => void) {
 		if (useAuth) {
 			this.#rxNostr = createRxNostr({ verifier, authenticator: 'auto' });
 		} else {
@@ -124,15 +125,18 @@ export class RelayConnector {
 		this.#rxReqB1111 = createRxBackwardReq();
 		this.#rxReqB10002 = createRxBackwardReq();
 		this.#rxReqB39701Url = createRxBackwardReq();
-		this.#rxReqBId = createRxBackwardReq();
+		this.#rxReqBIdQ = createRxBackwardReq();
 		this.#rxReqBRp = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
+		this.#rxReqBAdQ = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
+		this.#eventsDeletion = [];
+		this.#callbackQuote = callbackQuote;
 		[this.#tie, this.#seenOn] = createTie();
 		[this.#uniq, this.#eventIds] = createUniq((packet: EventPacket): string => packet.event.id);
+
 		this.#rxNostr.setDefaultRelays(defaultRelays);
 		this.#defineSubscription();
-		this.#eventsDeletion = [];
 	}
 
 	dispose = () => {
@@ -158,7 +162,7 @@ export class RelayConnector {
 		const batchedReq1111 = this.#rxReqB1111.pipe(bt, batch(this.#mergeFilter1111));
 		const batchedReq10002 = this.#rxReqB10002.pipe(bt, batch(this.#mergeFilterRp));
 		const batchedReq39701Url = this.#rxReqB39701Url.pipe(bt, batch(this.#mergeFilter39701Url));
-		const batchedReqId = this.#rxReqBId.pipe(bt, batch(this.#mergeFilterId));
+		const batchedReqIdQ = this.#rxReqBIdQ.pipe(bt, batch(this.#mergeFilterId));
 		this.#rxNostr.use(batchedReq0).pipe(this.#tie, latestEach(getRpId)).subscribe({
 			next,
 			complete
@@ -187,8 +191,8 @@ export class RelayConnector {
 			next,
 			complete
 		});
-		this.#rxNostr.use(batchedReqId).pipe(this.#tie, this.#uniq).subscribe({
-			next,
+		this.#rxNostr.use(batchedReqIdQ).pipe(this.#tie, this.#uniq).subscribe({
+			next: this.#nextCallbackQuote,
 			complete
 		});
 		this.#rxNostr.use(this.#rxReqBRp).pipe(this.#tie, latestEach(getRpId)).subscribe({
@@ -197,6 +201,10 @@ export class RelayConnector {
 		});
 		this.#rxNostr.use(this.#rxReqBAd).pipe(this.#tie, latestEach(getAdId)).subscribe({
 			next,
+			complete
+		});
+		this.#rxNostr.use(this.#rxReqBAdQ).pipe(this.#tie, latestEach(getAdId)).subscribe({
+			next: this.#nextCallbackQuote,
 			complete
 		});
 		this.#rxNostr.use(this.#rxReqF).pipe(this.#tie, this.#uniq).subscribe({
@@ -355,6 +363,11 @@ export class RelayConnector {
 			}
 		}
 		this.#eventStore.add(event);
+	};
+
+	#nextCallbackQuote = (packet: EventPacket): void => {
+		this.#callbackQuote(packet.event);
+		this.#next(packet);
 	};
 
 	#complete = () => {};
@@ -588,7 +601,7 @@ export class RelayConnector {
 				const options: { relays: string[] } = {
 					relays: [relay]
 				};
-				this.#rxReqBId.emit({ ids: [id], until }, options);
+				this.#rxReqBIdQ.emit({ ids: [id], until }, options);
 			}
 		} else if (tagNameToGet === 'a') {
 			let aTags = event.tags.filter((tag) => tag.length >= 3 && tag[0] === tagNameToGet);
@@ -633,7 +646,7 @@ export class RelayConnector {
 				const options: { relays: string[] } = {
 					relays: [relay]
 				};
-				this.#rxReqBAd.emit(filter, options);
+				this.#rxReqBAdQ.emit(filter, options);
 			}
 		}
 	};
@@ -665,7 +678,7 @@ export class RelayConnector {
 			relays
 		};
 		if (idsFiltered.length > 0) {
-			this.#rxReqBId.emit({ ids: idsFiltered, until }, options);
+			this.#rxReqBIdQ.emit({ ids: idsFiltered, until }, options);
 		}
 		if (apsFiltered.length > 0) {
 			for (const ap of apsFiltered) {
@@ -677,7 +690,7 @@ export class RelayConnector {
 				if (isAddressableKind(ap.kind)) {
 					f['#d'] = [ap.identifier];
 				}
-				this.#rxReqBAd.emit(f, options);
+				this.#rxReqBAdQ.emit(f, options);
 			}
 		}
 		if (pubkeysFilterd.length > 0) {
