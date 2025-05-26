@@ -2,7 +2,7 @@
 	import { expansionThreshold } from '$lib/config';
 	import { getEmoji, getEmojiMap, isValidEmoji } from '$lib/utils';
 	import Reaction from '$lib/components/Reaction.svelte';
-	import type { NostrEvent } from 'nostr-tools/pure';
+	import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
 	import type { ProfileContent } from 'applesauce-core/helpers';
 
 	let {
@@ -22,7 +22,7 @@
 	} = $props();
 
 	const reactions: NostrEvent[] = $derived(
-		[...eventsReaction.filter((ev) => isValidEmoji(ev))].reverse()
+		sortEvents([...eventsReaction.filter((ev) => isValidEmoji(ev))]).reverse()
 	);
 	const reactionFirst: NostrEvent = $derived(reactions.at(0)!);
 	const reactionLast: NostrEvent = $derived(reactions.at(-1)!);
