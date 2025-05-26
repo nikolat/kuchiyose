@@ -365,7 +365,6 @@
 		fill: yellow;
 	}
 	div.tree.comment {
-		margin-left: 20px;
 		padding: 5px;
 		border-radius: 5px;
 	}
