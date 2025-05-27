@@ -296,6 +296,10 @@
 	.tree {
 		margin-top: 5px;
 	}
+	.tree:not(.comment) {
+		max-height: 30em;
+		overflow-y: auto;
+	}
 	.tree:not(.comment) > .entry {
 		margin-top: 1em;
 	}
