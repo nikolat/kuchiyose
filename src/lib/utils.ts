@@ -415,19 +415,19 @@ export const getTagsForContent = (
 		if (d.type === 'npub') {
 			ppMap.set(d.data, { pubkey: d.data });
 		} else if (d.type === 'nprofile') {
-			ppMap.set(d.data.pubkey, { pubkey: d.data.pubkey, relays: d.data.relays });
+			ppMap.set(d.data.pubkey, d.data);
 		}
 	}
 	const matchesIteratorLink = content.matchAll(/https?:\/\/[\w!?/=+\-_~:;.,*&@#$%()[\]]+/g);
-	const links: Set<string> = new Set();
+	const links: Set<string> = new Set<string>();
 	for (const match of matchesIteratorLink) {
 		links.add(urlLinkString(match[0])[0]);
 	}
 	for (const [id, ep] of epMap) {
 		const qTag: string[] = ['q', id];
+		const ev: NostrEvent | undefined = getEventsByFilter({ ids: [id] }).at(0);
 		const recommendedRelayForQuote: string | undefined =
 			getSeenOn(id, true).at(0) ?? ep.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
-		const ev = getEventsByFilter({ ids: [id] }).at(0);
 		if (recommendedRelayForQuote !== undefined) {
 			qTag.push(recommendedRelayForQuote);
 			const pubkeyForQuote: string | undefined = ev?.pubkey;
@@ -453,15 +453,13 @@ export const getTagsForContent = (
 		ppMap.set(ap.pubkey, { pubkey: ap.pubkey });
 	}
 	for (const [p, pp] of ppMap) {
-		const pTag = ['p', p];
-		const kind0 = getReplaceableEvent(0, p);
-		if (kind0 !== undefined) {
-			const recommendedRelayForPubkey: string | undefined =
-				getSeenOn(kind0.id, true).at(0) ??
-				pp.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
-			if (recommendedRelayForPubkey !== undefined) {
-				pTag.push(recommendedRelayForPubkey);
-			}
+		const pTag: string[] = ['p', p];
+		const kind0: NostrEvent | undefined = getReplaceableEvent(0, p);
+		const recommendedRelayForPubkey: string | undefined =
+			getSeenOn(kind0?.id ?? '', true).at(0) ??
+			pp.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
+		if (recommendedRelayForPubkey !== undefined) {
+			pTag.push(recommendedRelayForPubkey);
 		}
 		tags.push(pTag);
 	}
