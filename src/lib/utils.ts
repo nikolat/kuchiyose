@@ -373,9 +373,9 @@ export const getTagsForContent = (
 	getReplaceableEvent: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined
 ): string[][] => {
 	const tags: string[][] = [];
-	const mentionPubkeys: Set<string> = new Set();
-	const quoteIds: Set<string> = new Set<string>();
-	const apsMap: Map<string, nip19.AddressPointer> = new Map<string, nip19.AddressPointer>();
+	const ppMap: Map<string, nip19.ProfilePointer> = new Map<string, nip19.ProfilePointer>();
+	const epMap: Map<string, nip19.EventPointer> = new Map<string, nip19.EventPointer>();
+	const apMap: Map<string, nip19.AddressPointer> = new Map<string, nip19.AddressPointer>();
 	const matchesIteratorId = content.matchAll(
 		/(^|\W|\b)(nostr:(note1\w{58}|nevent1\w+|naddr1\w+))($|\W|\b)/g
 	);
@@ -389,15 +389,15 @@ export const getTagsForContent = (
 			continue;
 		}
 		if (d.type === 'note') {
-			quoteIds.add(d.data);
+			epMap.set(d.data, { id: d.data });
 		} else if (d.type === 'nevent') {
-			quoteIds.add(d.data.id);
+			epMap.set(d.data.id, d.data);
 			if (d.data.author !== undefined) {
-				mentionPubkeys.add(d.data.author);
+				ppMap.set(d.data.author, { pubkey: d.data.author });
 			}
 		} else if (d.type === 'naddr') {
-			apsMap.set(getCoordinateFromAddressPointer(d.data), d.data);
-			mentionPubkeys.add(d.data.pubkey);
+			apMap.set(getCoordinateFromAddressPointer(d.data), d.data);
+			ppMap.set(d.data.pubkey, { pubkey: d.data.pubkey });
 		}
 	}
 	const matchesIteratorPubkey = content.matchAll(
@@ -413,9 +413,9 @@ export const getTagsForContent = (
 			continue;
 		}
 		if (d.type === 'npub') {
-			mentionPubkeys.add(d.data);
+			ppMap.set(d.data, { pubkey: d.data });
 		} else if (d.type === 'nprofile') {
-			mentionPubkeys.add(d.data.pubkey);
+			ppMap.set(d.data.pubkey, { pubkey: d.data.pubkey, relays: d.data.relays });
 		}
 	}
 	const matchesIteratorLink = content.matchAll(/https?:\/\/[\w!?/=+\-_~:;.,*&@#$%()[\]]+/g);
@@ -423,9 +423,10 @@ export const getTagsForContent = (
 	for (const match of matchesIteratorLink) {
 		links.add(urlLinkString(match[0])[0]);
 	}
-	for (const id of quoteIds) {
+	for (const [id, ep] of epMap) {
 		const qTag: string[] = ['q', id];
-		const recommendedRelayForQuote: string | undefined = getSeenOn(id, true).at(0);
+		const recommendedRelayForQuote: string | undefined =
+			getSeenOn(id, true).at(0) ?? ep.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
 		const ev = getEventsByFilter({ ids: [id] }).at(0);
 		if (recommendedRelayForQuote !== undefined) {
 			qTag.push(recommendedRelayForQuote);
@@ -436,26 +437,28 @@ export const getTagsForContent = (
 		}
 		tags.push(qTag);
 		if (ev !== undefined) {
-			mentionPubkeys.add(ev.pubkey);
+			ppMap.set(ev.pubkey, { pubkey: ev.pubkey });
 		}
 	}
-	for (const [a, ap] of apsMap) {
-		const aTag: string[] = ['a', a];
+	for (const [a, ap] of apMap) {
+		const qTag: string[] = ['q', a];
 		const ev: NostrEvent | undefined = getReplaceableEvent(ap.kind, ap.pubkey, ap.identifier);
 		const recommendedRelayForQuote: string | undefined =
 			getSeenOn(ev?.id ?? '', true).at(0) ??
 			ap.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
 		if (recommendedRelayForQuote !== undefined) {
-			aTag.push(recommendedRelayForQuote);
+			qTag.push(recommendedRelayForQuote);
 		}
-		tags.push(aTag);
-		mentionPubkeys.add(ap.pubkey);
+		tags.push(qTag);
+		ppMap.set(ap.pubkey, { pubkey: ap.pubkey });
 	}
-	for (const p of mentionPubkeys) {
+	for (const [p, pp] of ppMap) {
 		const pTag = ['p', p];
 		const kind0 = getReplaceableEvent(0, p);
 		if (kind0 !== undefined) {
-			const recommendedRelayForPubkey: string | undefined = getSeenOn(kind0.id, true).at(0);
+			const recommendedRelayForPubkey: string | undefined =
+				getSeenOn(kind0.id, true).at(0) ??
+				pp.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
 			if (recommendedRelayForPubkey !== undefined) {
 				pTag.push(recommendedRelayForPubkey);
 			}

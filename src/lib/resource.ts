@@ -576,7 +576,7 @@ export class RelayConnector {
 		if (['e', 'q'].includes(tagNameToGet)) {
 			let eTags = event.tags.filter((tag) => tag.length >= 3 && tag[0] === tagNameToGet);
 			if (onlyLastOne) {
-				eTags = [eTags.at(-1) ?? []];
+				eTags = [eTags.at(-1)].filter((tag) => tag !== undefined);
 			}
 			for (const eTag of eTags) {
 				const id = eTag[1];
@@ -603,18 +603,18 @@ export class RelayConnector {
 				};
 				this.#rxReqBIdQ.emit({ ids: [id], until }, options);
 			}
-		} else if (tagNameToGet === 'a') {
+		}
+		if (['a', 'q'].includes(tagNameToGet)) {
 			let aTags = event.tags.filter((tag) => tag.length >= 3 && tag[0] === tagNameToGet);
 			if (onlyLastOne) {
-				aTags = [aTags.at(-1) ?? []];
+				aTags = [aTags.at(-1)].filter((tag) => tag !== undefined);
 			}
 			for (const aTag of aTags) {
 				let ap: nip19.AddressPointer;
 				try {
 					ap = getAddressPointerFromATag(aTag);
 					nip19.naddrEncode(ap);
-				} catch (error) {
-					console.warn(error);
+				} catch (_error) {
 					continue;
 				}
 				const relayHint = aTag[2];
