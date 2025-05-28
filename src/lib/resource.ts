@@ -1086,7 +1086,11 @@ export class RelayConnector {
 		this.#sendEvent(eventToSend);
 	};
 
-	sendComment = async (content: string, targetEvent: NostrEvent): Promise<void> => {
+	sendComment = async (
+		content: string,
+		targetEvent: NostrEvent,
+		eventsEmojiSet: NostrEvent[]
+	): Promise<void> => {
 		if (window.nostr === undefined) {
 			return;
 		}
@@ -1123,6 +1127,7 @@ export class RelayConnector {
 		}
 		for (const tag of getTagsForContent(
 			content,
+			eventsEmojiSet,
 			this.getSeenOn,
 			this.getEventsByFilter,
 			this.getReplaceableEvent

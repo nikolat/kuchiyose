@@ -368,6 +368,7 @@ export const getIdsForFilter = (
 
 export const getTagsForContent = (
 	content: string,
+	eventsEmojiSet: NostrEvent[],
 	getSeenOn: (id: string, excludeWs: boolean) => string[],
 	getEventsByFilter: (filters: Filter | Filter[]) => NostrEvent[],
 	getReplaceableEvent: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined
@@ -432,6 +433,17 @@ export const getTagsForContent = (
 	for (const match of matchesIteratorLink) {
 		links.add(urlLinkString(match[0])[0]);
 	}
+	const emojiMapToAdd: Map<string, string> = new Map<string, string>();
+	const emojiMap: Map<string, string> = getEmojiMap(eventsEmojiSet);
+	const matchesIteratorEmojiTag = content.matchAll(
+		new RegExp(`:(${Array.from(emojiMap.keys()).join('|')}):`, 'g')
+	);
+	for (const match of matchesIteratorEmojiTag) {
+		const url = emojiMap.get(match[1]);
+		if (url !== undefined) {
+			emojiMapToAdd.set(match[1], url);
+		}
+	}
 	for (const [id, ep] of epMap) {
 		const qTag: string[] = ['q', id];
 		const ev: NostrEvent | undefined = getEventsByFilter({ ids: [id] }).at(0);
@@ -476,6 +488,9 @@ export const getTagsForContent = (
 	}
 	for (const r of links) {
 		tags.push(['r', r]);
+	}
+	for (const [shortcode, url] of emojiMapToAdd) {
+		tags.push(['emoji', shortcode, url]);
 	}
 	return tags;
 };

@@ -44,6 +44,7 @@
 	let isDetailsVisible: boolean = $state(false);
 	let isCommentFormVisible: boolean = $state(false);
 	let editComment: string = $state('');
+	let isEmojiPickerOpened: boolean = $state(false);
 
 	const identifier = $derived(getTagValue(event, 'd') ?? '');
 	const hashtags = $derived(
@@ -139,7 +140,7 @@
 					/>
 				</span>
 			</div>
-			<div class="menu">
+			<div class={isEmojiPickerOpened ? 'menu emoji-picker-opened' : 'menu'}>
 				<a href="/{linkStr}">
 					<time datetime={new Date(1000 * event.created_at).toISOString()} class="created_at"
 						>{getDateTimeString(event.created_at)}</time
@@ -153,6 +154,7 @@
 					{profileMap}
 					eventsReaction={getEventsReactionToTheTarget(event, eventsReaction)}
 					{eventsEmojiSet}
+					bind:isEmojiPickerOpened
 				/>
 			</div>
 			<div class="command">
@@ -309,8 +311,12 @@
 		margin-top: 5px;
 	}
 	.tree:not(.comment) {
-		max-height: 30em;
+		max-height: 40em;
 		overflow-y: auto;
+	}
+	/* ↑の overflow-y: auto の影響で引用内の絵文字ピッカーが隠れてしまうため 本当は overflow-y: visible にしたい… */
+	.tree .menu.emoji-picker-opened {
+		min-height: 460px;
 	}
 	.tree:not(.comment) > .entry {
 		margin-top: 1em;

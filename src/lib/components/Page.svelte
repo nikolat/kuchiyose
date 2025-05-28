@@ -117,6 +117,7 @@
 		editContent = '';
 		for (const tag of getTagsForContent(
 			content,
+			eventsEmojiSet,
 			rc.getSeenOn,
 			rc.getEventsByFilter,
 			rc.getReplaceableEvent
@@ -130,7 +131,7 @@
 		if (rc === undefined) {
 			return;
 		}
-		await rc.sendComment(content, targetEventToReply);
+		await rc.sendComment(content, targetEventToReply, eventsEmojiSet);
 	};
 
 	const sendReaction = async (
@@ -262,6 +263,7 @@
 			bind:editTagInput
 			bind:editContent
 			{loginPubkey}
+			{eventsEmojiSet}
 			{sendWebBookmark}
 		/>
 		<section class="tag-cloud">

@@ -11,7 +11,8 @@
 		loginPubkey,
 		profileMap,
 		eventsReaction,
-		eventsEmojiSet
+		eventsEmojiSet,
+		isEmojiPickerOpened = $bindable()
 	}: {
 		sendReaction: (content?: string, emojiurl?: string) => Promise<void>;
 		sendDeletion: (targetEvent: NostrEvent) => Promise<void>;
@@ -19,6 +20,7 @@
 		profileMap: Map<string, ProfileContent>;
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
+		isEmojiPickerOpened?: boolean;
 	} = $props();
 
 	const reactions: NostrEvent[] = $derived(
@@ -34,25 +36,32 @@
 		if (emojiPickerContainer === undefined) {
 			return;
 		}
+		if (emojiPickerContainer.children.length > 0) {
+			return;
+		}
 		const callbackEmojiSelect = async (
 			emojiStr: string,
 			emojiUrl: string | undefined
 		): Promise<void> => {
+			isEmojiPickerOpened = false;
 			await sendReaction(emojiStr, emojiUrl);
 		};
+		isEmojiPickerOpened = true;
 		await getEmoji(emojiPickerContainer, getEmojiMap(eventsEmojiSet), true, callbackEmojiSelect);
+		isEmojiPickerOpened = false;
 	};
 </script>
 
 <span class="reactionstar-container">
 	<button
+		type="button"
 		class="reactionstar-send"
 		title="add a star"
+		aria-label="add a star"
 		disabled={loginPubkey === undefined}
 		onclick={async () => {
 			await sendReaction();
 		}}
-		aria-label="add a star"
 	>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
 			<path
@@ -62,11 +71,12 @@
 		</svg>
 	</button>
 	<button
+		type="button"
 		class="reactionstar-send"
 		title="add an emoji"
+		aria-label="add an emoji"
 		disabled={loginPubkey === undefined}
 		onclick={async () => await callSendEmoji()}
-		aria-label="add an emoji"
 	>
 		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 			<path
@@ -89,6 +99,7 @@
 			profile={profileMap.get(reactionFirst.pubkey)}
 			isAuthor={reactionFirst.pubkey === loginPubkey}
 		/><button
+			type="button"
 			class="reactionstar-expand"
 			onclick={() => {
 				isAllowedExpand = true;

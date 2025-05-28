@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { isValidWebBookmark } from '$lib/utils';
+	import { getEmoji, getEmojiMap, isValidWebBookmark } from '$lib/utils';
+	import type { NostrEvent } from 'nostr-tools/pure';
 
 	let {
 		isOpenEdit = $bindable(),
@@ -11,6 +12,7 @@
 		editTagInput = $bindable(),
 		editContent = $bindable(),
 		loginPubkey,
+		eventsEmojiSet,
 		sendWebBookmark
 	}: {
 		isOpenEdit: boolean;
@@ -21,6 +23,7 @@
 		editTagInput: HTMLInputElement | undefined;
 		editContent: string;
 		loginPubkey: string | undefined;
+		eventsEmojiSet: NostrEvent[];
 		sendWebBookmark: () => Promise<void>;
 	} = $props();
 
@@ -53,6 +56,41 @@
 			isOpenEdit = true;
 		}
 	});
+
+	let editContentTextArea: HTMLTextAreaElement;
+	let emojiPickerContainer: HTMLElement | undefined = $state();
+	const insertText = (word: string, enableNewline: boolean = true): void => {
+		let sentence = editContentTextArea.value;
+		const len = sentence.length;
+		const pos = editContentTextArea.selectionStart;
+		const before = sentence.slice(0, pos);
+		const after = sentence.slice(pos, pos + len);
+		if (enableNewline && !(before.length === 0 || before.endsWith('\n'))) {
+			word = `\n${word}`;
+		}
+		sentence = before + word + after;
+		editContentTextArea.value = sentence;
+		editContentTextArea.focus();
+		editContentTextArea.selectionStart = pos + word.length;
+		editContentTextArea.selectionEnd = pos + word.length;
+		editContent = sentence;
+	};
+	const callGetEmoji = () => {
+		if (emojiPickerContainer === undefined) {
+			return;
+		}
+		if (emojiPickerContainer.children.length > 0) {
+			return;
+		}
+		getEmoji(
+			emojiPickerContainer,
+			getEmojiMap(eventsEmojiSet),
+			false,
+			async (emojiStr: string, _emojiUrl: string | undefined): Promise<void> => {
+				insertText(emojiStr, false);
+			}
+		);
+	};
 </script>
 
 <details class="edit" bind:open={isOpenEdit}>
@@ -93,8 +131,8 @@
 			<label for="edit-category">Category(t-tag)</label>
 			{#each editTags as tTag (tTag)}
 				<span class="category-tag">#{tTag}</span><button
-					class="svg category-delete"
 					type="button"
+					class="svg category-delete"
 					title="delete the category"
 					aria-label="delete the category"
 					disabled={loginPubkey === undefined}
@@ -147,8 +185,28 @@
 			<label for="edit-comment">Comment(content)</label>
 		</dt>
 		<dd class="content">
-			<textarea id="edit-comment" disabled={loginPubkey === undefined} bind:value={editContent}
+			<textarea
+				id="edit-comment"
+				disabled={loginPubkey === undefined}
+				bind:value={editContent}
+				bind:this={editContentTextArea}
 			></textarea>
+			<button
+				type="button"
+				class="svg add-emoji"
+				aria-label="add emoji"
+				title="add emoji"
+				disabled={loginPubkey === undefined}
+				onclick={callGetEmoji}
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+					<path
+						fill-rule="evenodd"
+						d="M12,23 C5.92486775,23 1,18.0751322 1,12 C1,5.92486775 5.92486775,1 12,1 C18.0751322,1 23,5.92486775 23,12 C23,18.0751322 18.0751322,23 12,23 Z M12,21 C16.9705627,21 21,16.9705627 21,12 C21,7.02943725 16.9705627,3 12,3 C7.02943725,3 3,7.02943725 3,12 C3,16.9705627 7.02943725,21 12,21 Z M15.2746538,14.2978292 L16.9105622,15.4483958 C15.7945475,17.0351773 13.9775544,18 12,18 C10.0224456,18 8.20545254,17.0351773 7.08943782,15.4483958 L8.72534624,14.2978292 C9.4707028,15.3575983 10.6804996,16 12,16 C13.3195004,16 14.5292972,15.3575983 15.2746538,14.2978292 Z M14,11 L14,9 L16,9 L16,11 L14,11 Z M8,11 L8,9 L10,9 L10,11 L8,11 Z"
+					/>
+				</svg>
+			</button>
+			<div class="emoji-picker-container" bind:this={emojiPickerContainer}></div>
 		</dd>
 		<dt class="submit">Submit</dt>
 		<dd class="submit">
@@ -165,8 +223,10 @@
 	summary {
 		width: 100%;
 	}
-	dl.edit input,
-	dl.edit textarea {
+	dl.edit input {
+		min-width: 18em;
+	}
+	dd.d-tag input {
 		min-width: 15em;
 	}
 	.d-tag {
@@ -182,6 +242,9 @@
 	}
 	.category-tag {
 		margin-left: 0.5em;
+	}
+	dd.content {
+		position: relative;
 	}
 	button.svg {
 		border: none;
