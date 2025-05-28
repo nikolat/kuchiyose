@@ -340,9 +340,6 @@
 		margin-top: 5px;
 	}
 	div.details {
-		margin-left: -100px;
-	}
-	div.tree.comment div.details {
 		margin-left: -60px;
 	}
 	details.details {
