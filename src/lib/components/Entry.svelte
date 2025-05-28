@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getRoboHashURL } from '$lib/config';
-	import { getEventsReactionToTheTarget } from '$lib/utils';
+	import { getDateTimeString, getEventsReactionToTheTarget } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import { isAddressableKind, isRegularKind, isReplaceableKind } from 'nostr-tools/kinds';
 	import * as nip19 from 'nostr-tools/nip19';
@@ -142,7 +142,7 @@
 			<div class="menu">
 				<a href="/{linkStr}">
 					<time datetime={new Date(1000 * event.created_at).toISOString()} class="created_at"
-						>{new Date(1000 * event.created_at).toLocaleString()}</time
+						>{getDateTimeString(event.created_at)}</time
 					>
 				</a>
 				<AddStar

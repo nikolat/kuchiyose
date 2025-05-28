@@ -607,3 +607,16 @@ export const urlLinkString = (url: string): [string, string] => {
 	}
 	return [url, ''];
 };
+
+const dtformat = new Intl.DateTimeFormat('ja-jp', {
+	year: 'numeric',
+	month: '2-digit',
+	day: '2-digit',
+	hour: '2-digit',
+	minute: '2-digit',
+	second: '2-digit'
+});
+
+export const getDateTimeString = (created_at: number): string => {
+	return dtformat.format(new Date(created_at * 1000)).replaceAll('/', '-');
+};
