@@ -118,6 +118,11 @@
 					encoded: mMention.replace(/nostr:/, ''),
 					value: mMention
 				});
+			} else {
+				children.push({
+					type: 'text',
+					value: mLink ?? mMention ?? ''
+				});
 			}
 			children.push({
 				type: 'text',
