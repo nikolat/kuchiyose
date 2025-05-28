@@ -255,16 +255,19 @@
 		background-color: rgba(127, 127, 127, 0);
 		border-radius: 10%;
 	}
+	button.svg > svg {
+		width: 16px;
+		height: 16px;
+		fill: var(--text-bright);
+	}
+	button.svg:active > svg {
+		fill: yellow;
+	}
 	button.category-delete {
 		vertical-align: sub;
 	}
 	button.category-add {
 		margin-top: 7px;
-	}
-	button.svg > svg {
-		width: 16px;
-		height: 16px;
-		fill: var(--text-bright);
 	}
 	button.category-add {
 		height: 24px;
