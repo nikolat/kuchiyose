@@ -2,7 +2,7 @@
 	import { getRoboHashURL } from '$lib/config';
 	import { getEventsReactionToTheTarget } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import { isRegularKind } from 'nostr-tools/kinds';
+	import { isAddressableKind, isRegularKind, isReplaceableKind } from 'nostr-tools/kinds';
 	import * as nip19 from 'nostr-tools/nip19';
 	import { getTagValue, type ProfileContent } from 'applesauce-core/helpers';
 	import Content from '$lib/components/Content.svelte';
@@ -71,6 +71,12 @@
 		})
 	);
 	const linkStr = $derived(isRegularKind(event.kind) ? nevent : naddr);
+	const getEncode = (event: NostrEvent, relays?: string[]): string => {
+		const d = getTagValue(event, 'd') ?? '';
+		return isReplaceableKind(event.kind) || isAddressableKind(event.kind)
+			? nip19.naddrEncode({ identifier: d, pubkey: event.pubkey, kind: event.kind, relays })
+			: nip19.neventEncode({ ...event, author: event.pubkey, relays });
+	};
 	const commentsToTheEvent = $derived(
 		isRegularKind(event.kind)
 			? eventsComment.filter((ev) => getTagValue(ev, 'e') === event.id)
@@ -248,6 +254,10 @@
 					<details class="details" bind:open={isDetailsVisible}>
 						<summary>Details</summary>
 						<dl class="details">
+							<dt>User ID</dt>
+							<dd><code>{nip19.npubEncode(event.pubkey)}</code></dd>
+							<dt>Event ID</dt>
+							<dd><code>{getEncode(event)}</code></dd>
 							<dt>Event JSON</dt>
 							<dd>
 								<pre class="json-view"><code>{JSON.stringify(event, undefined, 2)}</code></pre>
@@ -260,6 +270,8 @@
 									{/each}
 								</ul>
 							</dd>
+							<dt>Event ID with relay hints</dt>
+							<dd><code>{getEncode(event, getSeenOn(event.id, false))}</code></dd>
 						</dl>
 					</details>
 				</div>
