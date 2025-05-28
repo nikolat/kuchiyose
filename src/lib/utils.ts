@@ -391,12 +391,17 @@ export const getTagsForContent = (
 		if (d.type === 'note') {
 			epMap.set(d.data, { id: d.data });
 		} else if (d.type === 'nevent') {
-			epMap.set(d.data.id, d.data);
+			if (!epMap.has(d.data.id) || d.data.relays !== undefined) {
+				epMap.set(d.data.id, d.data);
+			}
 			if (d.data.author !== undefined) {
 				ppMap.set(d.data.author, { pubkey: d.data.author });
 			}
 		} else if (d.type === 'naddr') {
-			apMap.set(getCoordinateFromAddressPointer(d.data), d.data);
+			const c = getCoordinateFromAddressPointer(d.data);
+			if (!apMap.has(c) || d.data.relays !== undefined) {
+				apMap.set(c, d.data);
+			}
 			ppMap.set(d.data.pubkey, { pubkey: d.data.pubkey });
 		}
 	}
@@ -413,9 +418,13 @@ export const getTagsForContent = (
 			continue;
 		}
 		if (d.type === 'npub') {
-			ppMap.set(d.data, { pubkey: d.data });
+			if (!ppMap.has(d.data)) {
+				ppMap.set(d.data, { pubkey: d.data });
+			}
 		} else if (d.type === 'nprofile') {
-			ppMap.set(d.data.pubkey, d.data);
+			if (!ppMap.has(d.data.pubkey) || d.data.relays !== undefined) {
+				ppMap.set(d.data.pubkey, d.data);
+			}
 		}
 	}
 	const matchesIteratorLink = content.matchAll(/https?:\/\/[\w!?/=+\-_~:;.,*&@#$%()[\]]+/g);
@@ -436,7 +445,7 @@ export const getTagsForContent = (
 			}
 		}
 		tags.push(qTag);
-		if (ev !== undefined) {
+		if (ev !== undefined && !ppMap.has(ev.pubkey)) {
 			ppMap.set(ev.pubkey, { pubkey: ev.pubkey });
 		}
 	}
@@ -450,7 +459,9 @@ export const getTagsForContent = (
 			qTag.push(recommendedRelayForQuote);
 		}
 		tags.push(qTag);
-		ppMap.set(ap.pubkey, { pubkey: ap.pubkey });
+		if (!ppMap.has(ap.pubkey)) {
+			ppMap.set(ap.pubkey, { pubkey: ap.pubkey });
+		}
 	}
 	for (const [p, pp] of ppMap) {
 		const pTag: string[] = ['p', p];
