@@ -268,8 +268,6 @@
 	}
 	button.category-add {
 		margin-top: 7px;
-	}
-	button.category-add {
 		height: 24px;
 	}
 	button.category-add > svg {
