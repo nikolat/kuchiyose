@@ -144,6 +144,7 @@
 			{eventsReaction}
 			{eventsEmojiSet}
 			{eventsQuoted}
+			isSingleEntryPage={false}
 		/>
 	</div>
 </section>

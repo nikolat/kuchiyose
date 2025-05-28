@@ -11,8 +11,7 @@
 		loginPubkey,
 		profileMap,
 		eventsReaction,
-		eventsEmojiSet,
-		isEmojiPickerOpened = $bindable()
+		eventsEmojiSet
 	}: {
 		sendReaction: (content?: string, emojiurl?: string) => Promise<void>;
 		sendDeletion: (targetEvent: NostrEvent) => Promise<void>;
@@ -20,7 +19,6 @@
 		profileMap: Map<string, ProfileContent>;
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
-		isEmojiPickerOpened?: boolean;
 	} = $props();
 
 	const reactions: NostrEvent[] = $derived(
@@ -43,12 +41,9 @@
 			emojiStr: string,
 			emojiUrl: string | undefined
 		): Promise<void> => {
-			isEmojiPickerOpened = false;
 			await sendReaction(emojiStr, emojiUrl);
 		};
-		isEmojiPickerOpened = true;
 		await getEmoji(emojiPickerContainer, getEmojiMap(eventsEmojiSet), true, callbackEmojiSelect);
-		isEmojiPickerOpened = false;
 	};
 </script>
 

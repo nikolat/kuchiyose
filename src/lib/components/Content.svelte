@@ -20,7 +20,8 @@
 		profileMap,
 		eventsReaction,
 		eventsEmojiSet,
-		eventsQuoted
+		eventsQuoted,
+		isSingleEntryPage
 	}: {
 		content: string;
 		eventsComment: NostrEvent[];
@@ -36,6 +37,7 @@
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
 		eventsQuoted: NostrEvent[];
+		isSingleEntryPage: boolean;
 	} = $props();
 
 	type Token =
@@ -195,6 +197,8 @@
 					{eventsReaction}
 					{eventsEmojiSet}
 					{eventsQuoted}
+					{isSingleEntryPage}
+					isQuote={true}
 				/>
 			{:else}
 				{@const enc = ct.encoded}

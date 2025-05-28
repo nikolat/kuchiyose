@@ -46,6 +46,9 @@
 		isMutedHashtagPage: boolean;
 	} = $props();
 
+	const isSingleEntryPage: boolean = $derived(
+		up.currentAddressPointer !== undefined || up.currentEventPointer !== undefined
+	);
 	const webBookmarkMap: Map<string, NostrEvent[]> = $derived(getWebBookmarkMap(eventsWebBookmark));
 
 	let isOpenEdit: boolean = $state(false);
@@ -251,6 +254,7 @@
 				{eventsReaction}
 				{eventsEmojiSet}
 				{eventsQuoted}
+				{isSingleEntryPage}
 			/>
 		{:else}
 			{@const enc = nip19.neventEncode(up.currentEventPointer)}
@@ -278,6 +282,7 @@
 				{eventsReaction}
 				{eventsEmojiSet}
 				{eventsQuoted}
+				{isSingleEntryPage}
 			/>
 		{:else}
 			{@const enc = nip19.naddrEncode(up.currentAddressPointer)}
@@ -343,6 +348,7 @@
 							{eventsReaction}
 							{eventsEmojiSet}
 							{eventsQuoted}
+							{isSingleEntryPage}
 						/>
 					{/each}
 				</dd>
