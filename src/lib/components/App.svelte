@@ -409,7 +409,7 @@
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
 	eventsComment={getEventsFiltered(eventsComment)}
 	{eventsEmojiSet}
-	{eventsQuoted}
+	eventsQuoted={getEventsFiltered(eventsQuoted)}
 	isMutedPubkeyPage={mutedPubkeys.includes(up.currentProfilePointer?.pubkey ?? '')}
 	isMutedHashtagPage={mutedHashtags.includes(up.hashtag ?? '')}
 />
