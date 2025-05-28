@@ -252,6 +252,36 @@
 				{eventsEmojiSet}
 				{eventsQuoted}
 			/>
+		{:else}
+			{@const enc = nip19.neventEncode(up.currentEventPointer)}
+			<a href={`/${enc}`}>{`nostr:${enc}`}</a>
+		{/if}
+	{:else if up.currentAddressPointer !== undefined && up.currentAddressPointer.kind !== 39701}
+		{@const event = rc?.getReplaceableEvent(
+			up.currentAddressPointer.kind,
+			up.currentAddressPointer.pubkey,
+			up.currentAddressPointer.identifier
+		)}
+		{#if event !== undefined}
+			<Entry
+				{event}
+				{eventsComment}
+				level={0}
+				{idReferenced}
+				{getSeenOn}
+				{fork}
+				{sendComment}
+				{sendReaction}
+				{sendDeletion}
+				{loginPubkey}
+				{profileMap}
+				{eventsReaction}
+				{eventsEmojiSet}
+				{eventsQuoted}
+			/>
+		{:else}
+			{@const enc = nip19.naddrEncode(up.currentAddressPointer)}
+			<a href={`/${enc}`}>{`nostr:${enc}`}</a>
 		{/if}
 	{:else if !up.isError}
 		<CreateEntry
