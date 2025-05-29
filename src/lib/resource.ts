@@ -13,7 +13,6 @@ import {
 	createTie,
 	createUniq,
 	latestEach,
-	now,
 	type EventPacket,
 	type LazyFilter,
 	type MergeFilter,
@@ -36,7 +35,8 @@ import {
 	getInboxes,
 	getTagValue,
 	isValidProfile,
-	parseCoordinate
+	parseCoordinate,
+	unixNow
 } from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
 import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
@@ -496,17 +496,18 @@ export class RelayConnector {
 		const filter: LazyFilter = {
 			kinds: [0],
 			authors: [pubkey],
-			until: now()
+			until: unixNow()
 		};
 		this.#rxReqB0.emit(filter);
 	};
 
 	#fetchDeletion = (event: NostrEvent) => {
-		this.#rxReqB5.emit({ kinds: [5], '#e': [event.id], until: now() });
+		this.#rxReqB5.emit({ kinds: [5], '#e': [event.id], until: unixNow() });
 	};
 
 	#fetchReaction = (event: NostrEvent) => {
 		let filter: LazyFilter;
+		const until = unixNow();
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
 			const ap: nip19.AddressPointer = {
 				...event,
@@ -516,20 +517,21 @@ export class RelayConnector {
 				kinds: [7],
 				'#a': [getCoordinateFromAddressPointer(ap)],
 				limit: this.#limitReaction,
-				until: now()
+				until
 			};
 		} else {
-			filter = { kinds: [7], '#e': [event.id], limit: this.#limitReaction, until: now() };
+			filter = { kinds: [7], '#e': [event.id], limit: this.#limitReaction, until };
 		}
 		this.#rxReqB7.emit(filter);
 	};
 
 	#fetchWebReaction = (url: string) => {
-		this.#rxReqB17.emit({ kinds: [17], '#r': [url], limit: this.#limitReaction, until: now() });
+		this.#rxReqB17.emit({ kinds: [17], '#r': [url], limit: this.#limitReaction, until: unixNow() });
 	};
 
 	#fetchComment = (event: NostrEvent) => {
 		let filter: LazyFilter;
+		const until = unixNow();
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
 			const ap: nip19.AddressPointer = {
 				...event,
@@ -539,10 +541,10 @@ export class RelayConnector {
 				kinds: [1111],
 				'#A': [getCoordinateFromAddressPointer(ap)],
 				limit: this.#limitComment,
-				until: now()
+				until
 			};
 		} else {
-			filter = { kinds: [1111], '#E': [event.id], limit: this.#limitComment, until: now() };
+			filter = { kinds: [1111], '#E': [event.id], limit: this.#limitComment, until };
 		}
 		this.#rxReqB1111.emit(filter);
 	};
@@ -553,7 +555,7 @@ export class RelayConnector {
 		relaysToExclude: string[],
 		onlyLastOne: boolean = false
 	) => {
-		const until = now();
+		const until = unixNow();
 		if (['e', 'q'].includes(tagNameToGet)) {
 			let eTags = event.tags.filter((tag) => tag.length >= 3 && tag[0] === tagNameToGet);
 			const eTagLast = eTags.at(-1);
@@ -661,7 +663,7 @@ export class RelayConnector {
 		const oPk = getPubkeysForFilter([event]);
 		const { pubkeys } = oPk;
 		const pubkeysFilterd = pubkeys.filter((pubkey) => !this.#eventStore.hasReplaceable(0, pubkey));
-		const until = now();
+		const until = unixNow();
 		const relays = Array.from(
 			new Set<string>([
 				...(this.#getRelays('read').length > 0 ? this.#getRelays('read') : defaultRelays),
@@ -699,7 +701,7 @@ export class RelayConnector {
 		const filter: LazyFilter = {
 			kinds: [10002],
 			authors: [pubkey],
-			until: now()
+			until: unixNow()
 		};
 		this.#rxReqB10002.emit(filter);
 	};
@@ -708,7 +710,7 @@ export class RelayConnector {
 		const filter: LazyFilter = {
 			kinds: [10002],
 			authors: pubkeys,
-			until: now()
+			until: unixNow()
 		};
 		const options = { relays: indexerRelays };
 		const rxReqBRpCustom = createRxBackwardReq();
@@ -731,7 +733,7 @@ export class RelayConnector {
 		this.#rxReqBRp.emit({
 			kinds: [10000, 10030],
 			authors: [pubkey],
-			until: now()
+			until: unixNow()
 		});
 	};
 
@@ -743,9 +745,10 @@ export class RelayConnector {
 	) => {
 		const { currentAddressPointer, currentProfilePointer, currentEventPointer, hashtag, path } =
 			params;
+		const now = unixNow();
 		const filterB: LazyFilter = {
 			kinds: [39701],
-			until: unitl ?? now(),
+			until: unitl ?? now,
 			limit: unitl === undefined ? 10 : 11
 		};
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('read'));
@@ -822,13 +825,25 @@ export class RelayConnector {
 		};
 		delete filterF.until;
 		delete filterF.limit;
-		filterF.since = now() + 1;
+		const since = now + 1;
+		filterF.since = since;
 		const filtersF: LazyFilter[] = [filterF];
+		filtersF.push(
+			{
+				kinds: [17],
+				since
+			},
+			{
+				kinds: [7],
+				'#k': ['1111', '39701'],
+				since
+			}
+		);
 		if (loginPubkey !== undefined) {
 			filtersF.push({
-				kinds: [0, 5, 7, 17, 1111, 10002, 10030, 39701],
+				kinds: [0, 5, 7, 1111, 10002, 10030, 39701],
 				authors: [loginPubkey],
-				since: now() + 1
+				since
 			});
 		}
 		this.#rxReqF.emit(filtersF);
@@ -840,6 +855,7 @@ export class RelayConnector {
 			return;
 		}
 		const filters: LazyFilter[] = [];
+		const until = unixNow();
 		for (const aTag of aTags) {
 			let ap: nip19.AddressPointer;
 			try {
@@ -859,7 +875,7 @@ export class RelayConnector {
 				const filter: LazyFilter = {
 					kinds: [ap.kind],
 					authors: [ap.pubkey],
-					until: now()
+					until
 				};
 				if (isAddressableKind(ap.kind)) {
 					filter['#d'] = [ap.identifier];
@@ -950,7 +966,7 @@ export class RelayConnector {
 			kind,
 			tags,
 			content,
-			created_at: now()
+			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		this.#sendEvent(eventToSend);
@@ -986,7 +1002,7 @@ export class RelayConnector {
 			kind: eventMuteList.kind,
 			tags,
 			content,
-			created_at: now()
+			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		this.#sendEvent(eventToSend);
@@ -1018,7 +1034,7 @@ export class RelayConnector {
 			kind,
 			tags,
 			content,
-			created_at: now()
+			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		this.#sendEvent(eventToSend);
@@ -1056,7 +1072,7 @@ export class RelayConnector {
 			kind: eventMuteList.kind,
 			tags,
 			content,
-			created_at: now()
+			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		this.#sendEvent(eventToSend);
@@ -1118,7 +1134,7 @@ export class RelayConnector {
 			kind,
 			tags,
 			content,
-			created_at: now()
+			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
@@ -1181,7 +1197,7 @@ export class RelayConnector {
 			kind,
 			tags,
 			content,
-			created_at: now()
+			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		if (!isValidEmoji(eventToSend)) {
@@ -1216,7 +1232,7 @@ export class RelayConnector {
 			kind: 5,
 			tags,
 			content: '',
-			created_at: now()
+			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
