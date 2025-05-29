@@ -556,8 +556,9 @@ export class RelayConnector {
 		const until = now();
 		if (['e', 'q'].includes(tagNameToGet)) {
 			let eTags = event.tags.filter((tag) => tag.length >= 3 && tag[0] === tagNameToGet);
-			if (onlyLastOne) {
-				eTags = [eTags.at(-1)].filter((tag) => tag !== undefined);
+			const eTagLast = eTags.at(-1);
+			if (onlyLastOne && eTagLast !== undefined) {
+				eTags = [eTagLast];
 			}
 			for (const eTag of eTags) {
 				const id = eTag[1];
@@ -587,8 +588,9 @@ export class RelayConnector {
 		}
 		if (['a', 'q'].includes(tagNameToGet)) {
 			let aTags = event.tags.filter((tag) => tag.length >= 3 && tag[0] === tagNameToGet);
-			if (onlyLastOne) {
-				aTags = [aTags.at(-1)].filter((tag) => tag !== undefined);
+			const aTagLast = aTags.at(-1);
+			if (onlyLastOne && aTagLast !== undefined) {
+				aTags = [aTagLast];
 			}
 			for (const aTag of aTags) {
 				let ap: nip19.AddressPointer;
