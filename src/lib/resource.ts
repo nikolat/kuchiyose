@@ -151,7 +151,7 @@ export class RelayConnector {
 	#defineSubscription = () => {
 		const getRpId = ({ event }: { event: NostrEvent }) => `${event.kind}:${event.pubkey}`;
 		const getAdId = ({ event }: { event: NostrEvent }) =>
-			`${event.kind}:${event.pubkey}:${getTagValue(event, 'd') ?? ''}`;
+			getCoordinateFromAddressPointer(getAddressPointerForEvent(event));
 		const next = this.#next;
 		const complete = this.#complete;
 		const bt: OperatorFunction<ReqPacket, ReqPacket[]> = bufferTime(this.#secBufferTime);
@@ -533,7 +533,10 @@ export class RelayConnector {
 	#fetchReaction = (event: NostrEvent) => {
 		let filter: LazyFilter;
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
-			const ap: nip19.AddressPointer = getAddressPointerForEvent(event);
+			const ap: nip19.AddressPointer = {
+				...event,
+				identifier: isAddressableKind(event.kind) ? (getTagValue(event, 'd') ?? '') : ''
+			};
 			filter = {
 				kinds: [7],
 				'#a': [getCoordinateFromAddressPointer(ap)],
@@ -553,7 +556,10 @@ export class RelayConnector {
 	#fetchComment = (event: NostrEvent) => {
 		let filter: LazyFilter;
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
-			const ap: nip19.AddressPointer = getAddressPointerForEvent(event);
+			const ap: nip19.AddressPointer = {
+				...event,
+				identifier: isAddressableKind(event.kind) ? (getTagValue(event, 'd') ?? '') : ''
+			};
 			filter = {
 				kinds: [1111],
 				'#A': [getCoordinateFromAddressPointer(ap)],
@@ -819,8 +825,8 @@ export class RelayConnector {
 				.use(rxReqBAdCustom)
 				.pipe(
 					this.#tie,
-					latestEach(
-						({ event }) => `${event.kind}:${event.pubkey}:${getTagValue(event, 'd') ?? ''}`
+					latestEach(({ event }) =>
+						getCoordinateFromAddressPointer(getAddressPointerForEvent(event))
 					),
 					completeOnTimeout(this.#secOnCompleteTimeout)
 				)
@@ -1110,8 +1116,11 @@ export class RelayConnector {
 			tags.push(['e', targetEvent.id, relayHintEvent, targetEvent.pubkey]);
 			tags.push(['k', String(targetEvent.kind)]);
 		} else if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
-			const d = getTagValue(targetEvent, 'd') ?? '';
-			const a = `${targetEvent.kind}:${targetEvent.pubkey}:${d}`;
+			const ap: nip19.AddressPointer = {
+				...targetEvent,
+				identifier: isAddressableKind(targetEvent.kind) ? (getTagValue(targetEvent, 'd') ?? '') : ''
+			};
+			const a: string = getCoordinateFromAddressPointer(ap);
 			tags.push(['A', a, relayHintEvent]);
 			tags.push(['K', String(targetEvent.kind)]);
 			tags.push(['P', targetEvent.pubkey, relayHintAuthor]);
@@ -1144,13 +1153,12 @@ export class RelayConnector {
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
 		if (isEnabledOutboxModel) {
-			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(
-				10002,
-				targetEvent.pubkey
-			);
-			if (event10002 !== undefined) {
-				for (const relayUrl of getInboxes(event10002)) {
-					relaySet.add(relayUrl);
+			for (const pubkey of tags.filter((tag) => ['p', 'P'].includes(tag[0])).map((tag) => tag[1])) {
+				const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
+				if (event10002 !== undefined) {
+					for (const relayUrl of getInboxes(event10002)) {
+						relaySet.add(relayUrl);
+					}
 				}
 			}
 		}
@@ -1173,21 +1181,22 @@ export class RelayConnector {
 		if (typeof target !== 'string') {
 			targetEvent = target;
 			kind = 7;
-			const recommendedRelayForTargetEvent: string =
-				this.getSeenOn(targetEvent.id, true).at(0) ?? '';
-			const recommendedRelayForAuthor: string =
+			const relayHintEvent: string = this.getSeenOn(targetEvent.id, true).at(0) ?? '';
+			const relayHintAuthor: string =
 				this.getSeenOn(this.getReplaceableEvent(0, targetEvent.pubkey)?.id ?? '', true).at(0) ?? '';
 			if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
-				const d = getTagValue(targetEvent, 'd') ?? '';
-				tags.push([
-					'a',
-					`${targetEvent.kind}:${targetEvent.pubkey}:${d}`,
-					recommendedRelayForTargetEvent
-				]);
+				const ap: nip19.AddressPointer = {
+					...targetEvent,
+					identifier: isAddressableKind(targetEvent.kind)
+						? (getTagValue(targetEvent, 'd') ?? '')
+						: ''
+				};
+				const a: string = getCoordinateFromAddressPointer(ap);
+				tags.push(['a', a, relayHintEvent]);
 			}
 			tags.push(
-				['e', targetEvent.id, recommendedRelayForTargetEvent, targetEvent.pubkey],
-				['p', targetEvent.pubkey, recommendedRelayForAuthor],
+				['e', targetEvent.id, relayHintEvent, targetEvent.pubkey],
+				['p', targetEvent.pubkey, relayHintAuthor],
 				['k', String(targetEvent.kind)]
 			);
 		} else {

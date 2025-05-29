@@ -1,5 +1,6 @@
 import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
 import type { Filter } from 'nostr-tools/filter';
+import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
 import { normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
 import {
@@ -21,13 +22,15 @@ export const kindsForParse: number[] = [1, 42, 1111, 30023, 39701];
 export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] => {
 	const eventMap: Map<string, NostrEvent> = new Map<string, NostrEvent>();
 	for (const ev of events) {
+		if (!(isAddressableKind(ev.kind) || isReplaceableKind(ev.kind))) {
+			continue;
+		}
 		const ap: nip19.AddressPointer = {
-			kind: ev.kind,
-			pubkey: ev.pubkey,
-			identifier: getTagValue(ev, 'd') ?? ''
+			...ev,
+			identifier: isAddressableKind(ev.kind) ? (getTagValue(ev, 'd') ?? '') : ''
 		};
-		const s = getCoordinateFromAddressPointer(ap);
-		const event = eventMap.get(s);
+		const s: string = getCoordinateFromAddressPointer(ap);
+		const event: NostrEvent | undefined = eventMap.get(s);
 		if (event === undefined || ev.created_at > event.created_at) {
 			eventMap.set(s, ev);
 		}
@@ -143,9 +146,12 @@ const getEventsReactionToTheEvent = (
 ): NostrEvent[] => {
 	return eventsReaction.filter((ev) => {
 		const a = getTagValue(ev, 'a');
-		if (a !== undefined) {
-			const d = getTagValue(event, 'd') ?? '';
-			return a === `${event.kind}:${event.pubkey}:${d}`;
+		if (a !== undefined && (isAddressableKind(event.kind) || isReplaceableKind(event.kind))) {
+			const ap: nip19.AddressPointer = {
+				...event,
+				identifier: isAddressableKind(event.kind) ? (getTagValue(event, 'd') ?? '') : ''
+			};
+			return a === getCoordinateFromAddressPointer(ap);
 		} else {
 			return (
 				ev.tags
@@ -384,9 +390,7 @@ export const getTagsForContent = (
 		let d;
 		try {
 			d = nip19.decode(match[3]);
-		} catch (error) {
-			console.warn(error);
-			console.info(content);
+		} catch (_error) {
 			continue;
 		}
 		if (d.type === 'note') {
@@ -413,9 +417,7 @@ export const getTagsForContent = (
 		let d;
 		try {
 			d = nip19.decode(match[3]);
-		} catch (error) {
-			console.warn(error);
-			console.info(content);
+		} catch (_error) {
 			continue;
 		}
 		if (d.type === 'npub') {
