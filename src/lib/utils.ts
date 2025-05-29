@@ -3,6 +3,7 @@ import type { Filter } from 'nostr-tools/filter';
 import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
 import { normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
+import type { LazyFilter } from 'rx-nostr';
 import {
 	getCoordinateFromAddressPointer,
 	getProfileContent,
@@ -495,6 +496,33 @@ export const getTagsForContent = (
 		tags.push(['emoji', shortcode, url]);
 	}
 	return tags;
+};
+
+export const mergeFilterForAddressableEvents = (filters: LazyFilter[]): Filter[] => {
+	const kinds: Set<number> = new Set<number>(filters.map((f) => f.kinds ?? []).flat());
+	const newFilters: Filter[] = [];
+	for (const kind of kinds) {
+		const filterMap: Map<string, Set<string>> = new Map<string, Set<string>>();
+		for (const filter of filters.filter((f) => f.kinds?.includes(kind))) {
+			const author: string = filter.authors?.at(0) ?? '';
+			const dTags: string[] = filter['#d'] ?? [];
+			if (filterMap.has(author)) {
+				for (const dTag of dTags) {
+					filterMap.set(author, filterMap.get(author)!.add(dTag));
+				}
+			} else {
+				filterMap.set(author, new Set<string>(dTags));
+			}
+		}
+		for (const [author, dTagSet] of filterMap) {
+			const filter: Filter = { kinds: [kind], authors: [author] };
+			if (isAddressableKind(kind)) {
+				filter['#d'] = Array.from(dTagSet);
+			}
+			newFilters.push(filter);
+		}
+	}
+	return newFilters;
 };
 
 const inputCount = (input: string): number => {

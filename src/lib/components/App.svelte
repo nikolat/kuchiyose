@@ -20,6 +20,7 @@
 	} from 'applesauce-core/helpers';
 	import type { Subscription } from 'rxjs';
 	import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
+	import { isAddressableKind } from 'nostr-tools/kinds';
 	import type { Filter } from 'nostr-tools/filter';
 	import * as nip19 from 'nostr-tools/nip19';
 	import {
@@ -27,7 +28,8 @@
 		getEventsFilteredByMute,
 		getMuteList,
 		getTitleFromWebbookmarks,
-		getWebBookmarkMap
+		getWebBookmarkMap,
+		mergeFilterForAddressableEvents
 	} from '$lib/utils';
 	import Page from '$lib/components/Page.svelte';
 
@@ -118,9 +120,25 @@
 			case 10030:
 			case 30030: {
 				if (loginPubkey !== undefined) {
-					eventsEmojiSet = getEventsAddressableLatest(
-						rc.getEventsByFilter([{ kinds: [10030], authors: [loginPubkey] }, { kinds: [30030] }])
-					);
+					const ev10030 = rc.getReplaceableEvent(10030, loginPubkey);
+					if (ev10030 !== undefined) {
+						const aTags: string[][] = ev10030.tags.filter(
+							(tag) => tag.length >= 2 && tag[0] === 'a'
+						);
+						const aps: nip19.AddressPointer[] = aTags.map((aTag) =>
+							getAddressPointerFromATag(aTag)
+						);
+						const filters: Filter[] = mergeFilterForAddressableEvents(
+							aps
+								.filter((ap) => isAddressableKind(ap.kind))
+								.map((ap) => {
+									return { kinds: [ap.kind], authors: [ap.pubkey], '#d': [ap.identifier] };
+								})
+						);
+						eventsEmojiSet = getEventsAddressableLatest(
+							rc.getEventsByFilter(filters).concat(ev10030)
+						);
+					}
 				}
 				break;
 			}
