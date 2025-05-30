@@ -4,7 +4,14 @@
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import { isAddressableKind, isRegularKind, isReplaceableKind } from 'nostr-tools/kinds';
 	import * as nip19 from 'nostr-tools/nip19';
-	import { getTagValue, type ProfileContent } from 'applesauce-core/helpers';
+	import {
+		encodeDecodeResult,
+		getAddressPointerForEvent,
+		getCoordinateFromAddressPointer,
+		getPointerForEvent,
+		getTagValue,
+		type ProfileContent
+	} from 'applesauce-core/helpers';
 	import Content from '$lib/components/Content.svelte';
 	import AddStar from '$lib/components/AddStar.svelte';
 	import Entry from '$lib/components/Entry.svelte';
@@ -49,7 +56,6 @@
 	let isCommentFormVisible: boolean = $state(false);
 	let editComment: string = $state('');
 
-	const identifier = $derived(getTagValue(event, 'd') ?? '');
 	const hashtags = $derived(
 		new Set<string>(
 			event.tags
@@ -58,38 +64,21 @@
 		)
 	);
 	const prof = $derived(profileMap.get(event.pubkey));
-	const naddr = $derived(
-		nip19.naddrEncode({
-			identifier,
-			pubkey: event.pubkey,
-			kind: event.kind,
-			relays: getSeenOn(event.id, true)
-		})
-	);
-	const nevent = $derived(
-		nip19.neventEncode({
-			id: event.id,
-			relays: getSeenOn(event.id, true),
-			author: event.pubkey,
-			kind: event.kind
-		})
-	);
-	const linkStr = $derived(isRegularKind(event.kind) ? nevent : naddr);
-	const getEncode = (event: NostrEvent, relays?: string[]): string => {
-		const d = getTagValue(event, 'd') ?? '';
-		return isReplaceableKind(event.kind) || isAddressableKind(event.kind)
-			? nip19.naddrEncode({ identifier: d, pubkey: event.pubkey, kind: event.kind, relays })
-			: nip19.neventEncode({ ...event, author: event.pubkey, relays });
-	};
-	const commentsToTheEvent = $derived(
-		isRegularKind(event.kind)
-			? eventsComment.filter((ev) => getTagValue(ev, 'e') === event.id)
-			: eventsComment.filter(
-					(ev) =>
-						getTagValue(ev, 'a') ===
-						`${event.kind}:${event.pubkey}:${getTagValue(event, 'd') ?? ''}`
-				)
-	);
+	const commentsToTheEvent = $derived.by(() => {
+		let filter: (ev: NostrEvent) => boolean;
+		if (isRegularKind(event.kind)) {
+			filter = (ev: NostrEvent) => getTagValue(ev, 'e') === event.id;
+		} else if (isReplaceableKind(event.kind)) {
+			const ap: nip19.AddressPointer = { identifier: '', ...event };
+			filter = (ev: NostrEvent) => getTagValue(ev, 'a') === getCoordinateFromAddressPointer(ap);
+		} else if (isAddressableKind(event.kind)) {
+			const ap: nip19.AddressPointer = getAddressPointerForEvent(event);
+			filter = (ev: NostrEvent) => getTagValue(ev, 'a') === getCoordinateFromAddressPointer(ap);
+		} else {
+			return [];
+		}
+		return eventsComment.filter(filter);
+	});
 	const classNames: string[] = $derived.by(() => {
 		const classNames: string[] = ['tree'];
 		if (level > 0) {
@@ -111,6 +100,9 @@
 		}
 		return classNames;
 	});
+
+	const getEncode = (event: NostrEvent, relays?: string[]) =>
+		encodeDecodeResult(getPointerForEvent(event, relays));
 </script>
 
 <div class={classNames.join(' ')}>
@@ -151,7 +143,7 @@
 				</span>
 			</div>
 			<div class="menu">
-				<a href="/{linkStr}">
+				<a href="/{getEncode(event, getSeenOn(event.id, true))}">
 					<time datetime={new Date(1000 * event.created_at).toISOString()} class="created_at"
 						>{getDateTimeString(event.created_at)}</time
 					>
