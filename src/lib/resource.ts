@@ -363,6 +363,10 @@ export class RelayConnector {
 	subscribeEventStore = (callback: (kind: number, event?: NostrEvent) => void): Subscription => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
+				case 0: {
+					this.#fetchEventsQuoted(event);
+					break;
+				}
 				case 1: {
 					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 						this.#fetchProfile(event.pubkey);
