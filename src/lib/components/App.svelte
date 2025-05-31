@@ -15,7 +15,6 @@
 		getAddressPointerFromATag,
 		getProfileContent,
 		getTagValue,
-		unixNow,
 		type ProfileContent
 	} from 'applesauce-core/helpers';
 	import type { Subscription } from 'rxjs';
