@@ -452,16 +452,16 @@ export const getTagsForContent = (
 		const ev: NostrEvent | undefined = getEventsByFilter({ ids: [id] }).at(0);
 		const recommendedRelayForQuote: string | undefined =
 			getSeenOn(id, true).at(0) ?? ep.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
+		const pubkey: string | undefined = ev?.pubkey ?? ep.author;
 		if (recommendedRelayForQuote !== undefined) {
 			qTag.push(recommendedRelayForQuote);
-			const pubkeyForQuote: string | undefined = ev?.pubkey;
-			if (pubkeyForQuote !== undefined) {
-				qTag.push(pubkeyForQuote);
+			if (pubkey !== undefined) {
+				qTag.push(pubkey);
 			}
 		}
 		tags.push(qTag);
-		if (ev !== undefined && !ppMap.has(ev.pubkey)) {
-			ppMap.set(ev.pubkey, { pubkey: ev.pubkey });
+		if (pubkey !== undefined && !ppMap.has(pubkey)) {
+			ppMap.set(pubkey, { pubkey });
 		}
 	}
 	for (const [a, ap] of apMap) {
