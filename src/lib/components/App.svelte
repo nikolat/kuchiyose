@@ -316,8 +316,8 @@
 			if (!isScrolledBottom && !isLoading) {
 				isScrolledBottom = true;
 				isLoading = true;
-				const lastUntilNext = timelineSliced.at(-1)?.created_at ?? unixNow();
-				if (lastUntil === lastUntilNext) {
+				const lastUntilNext: number | undefined = timelineSliced.at(-1)?.created_at;
+				if (lastUntilNext === undefined || lastUntil === lastUntilNext) {
 					return;
 				}
 				lastUntil = lastUntilNext;
