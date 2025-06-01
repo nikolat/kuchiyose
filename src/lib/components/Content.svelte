@@ -31,7 +31,11 @@
 		idReferenced: string | undefined;
 		getSeenOn: (id: string, excludeWs: boolean) => string[];
 		fork: (event: NostrEvent) => void;
-		sendComment: (content: string, targetEventToReply: NostrEvent) => Promise<void>;
+		sendComment: (
+			content: string,
+			targetEventToReply: NostrEvent,
+			contentWarning: string | boolean
+		) => Promise<void>;
 		sendReaction: (event: NostrEvent, content?: string, emojiurl?: string) => Promise<void>;
 		sendDeletion: (event: NostrEvent) => Promise<void>;
 		loginPubkey: string | undefined;

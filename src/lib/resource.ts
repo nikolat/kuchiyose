@@ -1085,7 +1085,8 @@ export class RelayConnector {
 	sendComment = async (
 		content: string,
 		targetEvent: NostrEvent,
-		eventsEmojiSet: NostrEvent[]
+		eventsEmojiSet: NostrEvent[],
+		contentWarning: string | boolean
 	): Promise<void> => {
 		if (window.nostr === undefined) {
 			return;
@@ -1134,6 +1135,13 @@ export class RelayConnector {
 			tags.push(tag);
 		}
 		tags.push(pTag);
+		if (contentWarning !== false) {
+			if (contentWarning === true) {
+				tags.push(['content-warning']);
+			} else {
+				tags.push(['content-warning', contentWarning]);
+			}
+		}
 		const eventTemplate: EventTemplate = {
 			kind,
 			tags,

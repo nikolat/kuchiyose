@@ -147,11 +147,15 @@
 		await rc.signAndSendEvent({ kind, tags, content, created_at });
 	};
 
-	const sendComment = async (content: string, targetEventToReply: NostrEvent): Promise<void> => {
+	const sendComment = async (
+		content: string,
+		targetEventToReply: NostrEvent,
+		contentWarning: string | boolean
+	): Promise<void> => {
 		if (rc === undefined) {
 			return;
 		}
-		await rc.sendComment(content, targetEventToReply, eventsEmojiSet);
+		await rc.sendComment(content, targetEventToReply, eventsEmojiSet, contentWarning);
 	};
 
 	const sendReaction = async (
