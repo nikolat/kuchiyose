@@ -245,7 +245,7 @@
 	{#if !up.isError}
 		<details class="settings">
 			<summary>
-				<span class="show-settings">
+				<span class="show-settings" title="Settings">
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 						<path
 							fill-rule="evenodd"
@@ -279,7 +279,15 @@
 		</details>
 		<span class="login-user">
 			{#if loginPubkey === undefined}
-				<img src="/apple-touch-icon.png" alt="KUCHIYOSE's favicon" class="login-user" />
+				<button
+					type="button"
+					class="login"
+					onclick={() => {
+						document.dispatchEvent(new CustomEvent('nlLaunch', { detail: '' }));
+					}}
+				>
+					<img src="/apple-touch-icon.png" alt="KUCHIYOSE's favicon" class="login-user" />
+				</button>
 			{:else}
 				<a href="/{nip19.npubEncode(loginPubkey)}">
 					<img
@@ -463,6 +471,15 @@
 		align-content: center;
 	}
 	img.login-user {
+		width: 48px;
+		height: 48px;
+		border-radius: 10%;
+	}
+	button.login {
+		border: none;
+		outline: none;
+		margin: 0;
+		padding: 0;
 		width: 48px;
 		height: 48px;
 		border-radius: 10%;

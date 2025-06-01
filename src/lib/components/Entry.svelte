@@ -204,6 +204,8 @@
 					{#if getContentWarning(event)}
 						<div class="toggle-content-warning">
 							<button
+								type="button"
+								class="toggle-content-warning"
 								onclick={() => {
 									isContentWarningVisible = !isContentWarningVisible;
 								}}>{isContentWarningVisible ? 'Hide' : 'Show'} Content</button
@@ -366,6 +368,7 @@
 					<div class="emoji-picker-container" bind:this={emojiPickerContainer}></div>
 					<button
 						type="button"
+						class="send-comment"
 						disabled={loginPubkey === undefined || editComment.length === 0}
 						onclick={async () => {
 							let cw: string | boolean;
@@ -476,7 +479,7 @@
 		border-radius: 3px;
 		background-color: rgba(255, 255, 127, 0.1);
 	}
-	.toggle-content-warning {
+	div.toggle-content-warning {
 		padding: 5px;
 	}
 	.hashtag {
