@@ -39,6 +39,7 @@
 	} = $props();
 
 	let loginPubkey: string | undefined = $state();
+	let isEnabledUseClientTag: boolean = $state(false);
 	let rc: RelayConnector | undefined = $derived(getRelayConnector());
 	let sub: Subscription | undefined;
 	let eventsWebBookmark: NostrEvent[] = $state([]);
@@ -253,12 +254,16 @@
 		}
 	};
 
-	preferences.subscribe((value: { loginPubkey: string | undefined }) => {
-		loginPubkey = value.loginPubkey;
-	});
+	preferences.subscribe(
+		(value: { loginPubkey: string | undefined; isEnabledUseClientTag: boolean }) => {
+			loginPubkey = value.loginPubkey;
+			isEnabledUseClientTag = value.isEnabledUseClientTag;
+		}
+	);
 	const saveLocalStorage = () => {
 		preferences.set({
-			loginPubkey
+			loginPubkey,
+			isEnabledUseClientTag
 		});
 	};
 
@@ -420,6 +425,8 @@
 	{up}
 	{rc}
 	{loginPubkey}
+	bind:isEnabledUseClientTag
+	{saveLocalStorage}
 	{profileMap}
 	{eventsProfile}
 	eventsWebBookmark={eventsWebBookmarkToShow}

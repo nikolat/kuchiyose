@@ -44,12 +44,7 @@ import type { RelayRecord } from 'nostr-tools/relay';
 import type { Filter } from 'nostr-tools/filter';
 import { normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
-import {
-	defaultReactionToAdd,
-	defaultRelays,
-	isEnabledOutboxModel,
-	indexerRelays
-} from '$lib/config';
+import { defaultRelays, isEnabledOutboxModel, indexerRelays } from '$lib/config';
 import {
 	getIdsForFilter,
 	getPubkeysForFilter,
@@ -1086,7 +1081,8 @@ export class RelayConnector {
 		content: string,
 		targetEvent: NostrEvent,
 		eventsEmojiSet: NostrEvent[],
-		contentWarning: string | boolean
+		contentWarning: string | boolean,
+		clientTag: string[] | undefined
 	): Promise<void> => {
 		if (window.nostr === undefined) {
 			return;
@@ -1142,6 +1138,9 @@ export class RelayConnector {
 				tags.push(['content-warning', contentWarning]);
 			}
 		}
+		if (clientTag !== undefined) {
+			tags.push(clientTag);
+		}
 		const eventTemplate: EventTemplate = {
 			kind,
 			tags,
@@ -1166,8 +1165,9 @@ export class RelayConnector {
 
 	sendReaction = async (
 		target: NostrEvent | string,
-		content: string = defaultReactionToAdd,
-		emojiurl?: string
+		content: string,
+		emojiurl: string | undefined,
+		clientTag: string[] | undefined
 	): Promise<void> => {
 		if (window.nostr === undefined) {
 			return;
@@ -1204,6 +1204,9 @@ export class RelayConnector {
 		}
 		if (emojiurl !== undefined && URL.canParse(emojiurl)) {
 			tags.push(['emoji', content.replaceAll(':', ''), emojiurl]);
+		}
+		if (clientTag !== undefined) {
+			tags.push(clientTag);
 		}
 		const eventTemplate: EventTemplate = {
 			kind,

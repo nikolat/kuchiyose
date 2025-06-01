@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getRoboHashURL, linkGitHub, sitename } from '$lib/config';
+	import {
+		clientTag,
+		defaultReactionToAdd,
+		getRoboHashURL,
+		linkGitHub,
+		sitename
+	} from '$lib/config';
 	import type { RelayConnector, UrlParams } from '$lib/resource';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import * as nip19 from 'nostr-tools/nip19';
@@ -23,10 +29,12 @@
 	import AddStar from '$lib/components/AddStar.svelte';
 	import Entry from '$lib/components/Entry.svelte';
 
-	const {
+	let {
 		up,
 		rc,
 		loginPubkey,
+		isEnabledUseClientTag = $bindable(),
+		saveLocalStorage,
 		profileMap,
 		eventsProfile,
 		eventsWebBookmark,
@@ -41,6 +49,8 @@
 		up: UrlParams;
 		rc: RelayConnector | undefined;
 		loginPubkey: string | undefined;
+		saveLocalStorage: () => void;
+		isEnabledUseClientTag: boolean;
 		profileMap: Map<string, ProfileContent>;
 		eventsProfile: NostrEvent[];
 		eventsWebBookmark: NostrEvent[];
@@ -134,6 +144,8 @@
 		editTag = '';
 		editTags = [];
 		editContent = '';
+		contentWarningReason = '';
+		isContentWarningEnabled = false;
 		isOpenEdit = false;
 		for (const tag of getTagsForContent(
 			content,
@@ -143,6 +155,9 @@
 			rc.getReplaceableEvent
 		)) {
 			tags.push(tag);
+		}
+		if (isEnabledUseClientTag) {
+			tags.push(clientTag);
 		}
 		await rc.signAndSendEvent({ kind, tags, content, created_at });
 	};
@@ -155,7 +170,13 @@
 		if (rc === undefined) {
 			return;
 		}
-		await rc.sendComment(content, targetEventToReply, eventsEmojiSet, contentWarning);
+		await rc.sendComment(
+			content,
+			targetEventToReply,
+			eventsEmojiSet,
+			contentWarning,
+			isEnabledUseClientTag ? clientTag : undefined
+		);
 	};
 
 	const sendReaction = async (
@@ -166,7 +187,12 @@
 		if (rc === undefined) {
 			return;
 		}
-		await rc.sendReaction(target, content, emojiurl);
+		await rc.sendReaction(
+			target,
+			content ?? defaultReactionToAdd,
+			emojiurl,
+			isEnabledUseClientTag ? clientTag : undefined
+		);
 	};
 
 	const sendReactionToUrl = (url: string) => (content?: string, emojiurl?: string) =>
@@ -214,17 +240,34 @@
 
 <header>
 	<h1><a href="/">{sitename}</a></h1>
-	{#if !up.isError}
-		<span class="setting">
-			{#if loginPubkey !== undefined}
-				<a href="/{nip19.npubEncode(loginPubkey)}">
-					<img
-						src={profileMap.get(loginPubkey)?.picture ?? getRoboHashURL(loginPubkey)}
-						alt="your avatar"
-						class="login-user"
-					/>
-				</a>
-			{/if}
+	{#if !up.isError && loginPubkey !== undefined}
+		<details class="settings">
+			<summary>
+				<span class="show-settings">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path
+							fill-rule="evenodd"
+							d="M20.8733438,18.6798456 L18.6561681,20.8970213 L15.8183182,20.1064695 L15.006735,20.4411839 L13.5498403,22.99899 L10.4152664,22.99899 L8.96643872,20.4324639 L8.15567513,20.0925211 L5.31808752,20.8732969 L3.1019687,18.6571781 L3.89252047,15.8193282 L3.557737,15.0075774 L1,13.5496234 L1,10.4151434 L3.56757573,8.96634421 L3.90747891,8.15567513 L3.12670306,5.31808752 L5.34198234,3.10280823 L8.17984769,3.89446381 L8.99071892,3.56004309 L10.4454387,1 L13.5808166,1 L15.0296158,3.56757573 L15.8402849,3.90747891 L18.6774046,3.12683179 L20.8961418,5.34235339 L20.1054595,8.18067182 L20.4399569,8.99172892 L23,10.4464487 L23,13.5818266 L20.4326665,15.0304891 L20.0924686,15.8429951 L20.8733438,18.6798456 Z M17.9808573,15.7077573 L18.8526582,13.6256062 L21,12.4139314 L21,11.6103133 L18.8534478,10.3905557 L17.9941264,8.30695569 L18.6558226,5.93165934 L18.0869626,5.36362372 L15.7044076,6.01919516 L13.6244596,5.14709956 L12.4129214,3 L11.6093033,3 L10.3895457,5.1465522 L8.30575983,6.00595029 L5.93001038,5.34320732 L5.36375245,5.90946526 L6.01919516,8.29155242 L5.14709956,10.3715004 L3,11.5830386 L3,12.3875547 L5.14481829,13.610138 L6.00385363,15.6930443 L5.34202685,18.0688091 L5.90946526,18.6362476 L8.29155242,17.9808048 L10.3714059,18.8528608 L11.5829156,20.99899 L12.3873378,20.99899 L13.6089604,18.8542408 L15.6920343,17.9951364 L18.0677992,18.6569631 L18.6362007,18.0885616 L17.9808573,15.7077573 Z M12,16 C9.790861,16 8,14.209139 8,12 C8,9.790861 9.790861,8 12,8 C14.209139,8 16,9.790861 16,12 C16,14.209139 14.209139,16 12,16 Z M12,14 C13.1045695,14 14,13.1045695 14,12 C14,10.8954305 13.1045695,10 12,10 C10.8954305,10 10,10.8954305 10,12 C10,13.1045695 10.8954305,14 12,14 Z"
+						/>
+					</svg>
+				</span>
+			</summary>
+			<input
+				id="client-tag"
+				type="checkbox"
+				bind:checked={isEnabledUseClientTag}
+				onchange={saveLocalStorage}
+			/>
+			<label for="client-tag">add client tag</label>
+		</details>
+		<span class="login-user">
+			<a href="/{nip19.npubEncode(loginPubkey)}">
+				<img
+					src={profileMap.get(loginPubkey)?.picture ?? getRoboHashURL(loginPubkey)}
+					alt="your avatar"
+					class="login-user"
+				/>
+			</a>
 		</span>
 	{/if}
 </header>
@@ -393,14 +436,35 @@
 	header {
 		display: flex;
 		justify-content: space-between;
+		position: relative;
 	}
-	.setting {
+	span.login-user {
 		align-content: center;
 	}
-	.login-user {
+	img.login-user {
 		width: 48px;
 		height: 48px;
 		border-radius: 10%;
+	}
+	details.settings {
+		position: absolute;
+		right: 60px;
+		top: 5px;
+	}
+	details.settings > summary {
+		width: 100%;
+		height: 16px;
+		line-height: 1em;
+		text-align: right;
+		list-style-type: none;
+	}
+	details.settings > summary > span > svg {
+		width: 16px;
+		height: 16px;
+		fill: var(--text-bright);
+	}
+	#client-tag {
+		margin-top: 6px;
 	}
 	.url > dt {
 		border-radius: 5px;

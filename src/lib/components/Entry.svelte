@@ -378,11 +378,12 @@
 							} else {
 								cw = false;
 							}
-							await sendComment(editComment, event, cw);
+							const content = editComment;
 							editComment = '';
 							isContentWarningEnabled = !!cwInit;
 							contentWarningReason = typeof cwInit === 'string' ? cwInit : '';
 							isCommentFormVisible = false;
+							await sendComment(content, event, cw);
 						}}>Submit</button
 					>
 				</div>
