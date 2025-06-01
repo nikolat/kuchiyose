@@ -134,6 +134,7 @@
 					{:else}
 						<Content
 							content={event.content}
+							tags={event.tags}
 							{eventsComment}
 							{level}
 							{idReferenced}

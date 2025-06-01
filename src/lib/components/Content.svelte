@@ -8,6 +8,7 @@
 
 	const {
 		content,
+		tags,
 		eventsComment,
 		level,
 		idReferenced,
@@ -24,6 +25,7 @@
 		isSingleEntryPage
 	}: {
 		content: string;
+		tags: string[][];
 		eventsComment: NostrEvent[];
 		level: number;
 		idReferenced: string | undefined;
@@ -86,7 +88,7 @@
 				url: string;
 		  };
 
-	const getExpandTagsList = (content: string, eventsEmojiSet: NostrEvent[]) => {
+	const getExpandTagsList = (content: string, tags: string[][]) => {
 		const regMatchArray = [
 			'https?://[\\w!?/=+\\-_~:;.,*&@#$%()[\\]]+',
 			'nostr:npub1\\w{58}',
@@ -96,7 +98,7 @@
 			'nostr:naddr1\\w+'
 		];
 		const emojiUrlMap: Map<string, string> = new Map<string, string>();
-		for (const tag of eventsEmojiSet.map((ev) => ev.tags).flat()) {
+		for (const tag of tags) {
 			if (tag.length >= 3 && tag[0] === 'emoji' && /\w+/.test(tag[1]) && URL.canParse(tag[2])) {
 				emojiUrlMap.set(`:${tag[1]}:`, tag[2]);
 			}
@@ -168,7 +170,7 @@
 		}
 	};
 
-	const ats = $derived(getExpandTagsList(content, eventsEmojiSet));
+	const ats = $derived(getExpandTagsList(content, tags));
 </script>
 
 {#each ats.children as ct, i (i)}

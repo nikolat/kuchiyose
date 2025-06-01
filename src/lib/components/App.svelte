@@ -421,6 +421,7 @@
 	{rc}
 	{loginPubkey}
 	{profileMap}
+	{eventsProfile}
 	eventsWebBookmark={eventsWebBookmarkToShow}
 	eventsReaction={getEventsFiltered(eventsReaction)}
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}

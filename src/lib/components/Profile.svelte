@@ -3,12 +3,12 @@
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import * as nip05 from 'nostr-tools/nip05';
 	import * as nip19 from 'nostr-tools/nip19';
-	import type { ProfileContent } from 'applesauce-core/helpers';
+	import { getProfileContent, type ProfileContent } from 'applesauce-core/helpers';
 	import Content from '$lib/components/Content.svelte';
 
 	const {
 		pubkey,
-		profile,
+		event,
 		isLoggedIn,
 		isMutedPubkeyPage,
 		mutePubkey,
@@ -28,7 +28,7 @@
 		eventsQuoted
 	}: {
 		pubkey: string;
-		profile: ProfileContent | undefined;
+		event: NostrEvent | undefined;
 		isLoggedIn: boolean;
 		isMutedPubkeyPage: boolean;
 		mutePubkey: () => Promise<void>;
@@ -48,6 +48,10 @@
 		eventsQuoted: NostrEvent[];
 	} = $props();
 
+	const tags: string[][] = $derived(event?.tags ?? []);
+	const profile: ProfileContent | undefined = $derived(
+		event === undefined ? undefined : getProfileContent(event)
+	);
 	const nip05string = $derived(profile?.nip05);
 	const banner = $derived(
 		profile?.banner !== undefined && URL.canParse(profile.banner) ? profile.banner : undefined
@@ -131,6 +135,7 @@
 	<div class="about">
 		<Content
 			content={about ?? ''}
+			{tags}
 			{eventsComment}
 			level={level + 1}
 			{idReferenced}

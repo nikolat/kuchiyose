@@ -28,6 +28,7 @@
 		rc,
 		loginPubkey,
 		profileMap,
+		eventsProfile,
 		eventsWebBookmark,
 		eventsReaction,
 		eventsWebReaction,
@@ -41,6 +42,7 @@
 		rc: RelayConnector | undefined;
 		loginPubkey: string | undefined;
 		profileMap: Map<string, ProfileContent>;
+		eventsProfile: NostrEvent[];
 		eventsWebBookmark: NostrEvent[];
 		eventsReaction: NostrEvent[];
 		eventsWebReaction: NostrEvent[];
@@ -227,9 +229,10 @@
 		<h2>{page.status} {page.error?.message ?? ''}</h2>
 	{:else if up.currentProfilePointer !== undefined}
 		{@const pubkey = up.currentProfilePointer.pubkey}
+		{@const event = eventsProfile.find((ev) => ev.pubkey === pubkey)}
 		<Profile
 			{pubkey}
-			profile={profileMap.get(pubkey)}
+			{event}
 			isLoggedIn={loginPubkey !== undefined}
 			{isMutedPubkeyPage}
 			mutePubkey={() => mutePubkey(pubkey)}
