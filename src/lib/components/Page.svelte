@@ -4,7 +4,12 @@
 	import type { RelayConnector, UrlParams } from '$lib/resource';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import * as nip19 from 'nostr-tools/nip19';
-	import { getTagValue, unixNow, type ProfileContent } from 'applesauce-core/helpers';
+	import {
+		getContentWarning,
+		getTagValue,
+		unixNow,
+		type ProfileContent
+	} from 'applesauce-core/helpers';
 	import {
 		getAllTagsMap,
 		getEventsReactionToTheTarget,
@@ -56,8 +61,10 @@
 	let editTitleTag: string = $state('');
 	let editTag: string = $state('');
 	let editTags: string[] = $state([]);
-	let editTagInput: HTMLInputElement | undefined = $state();
 	let editContent: string = $state('');
+	let editContentTextArea: HTMLTextAreaElement | undefined = $state();
+	let isContentWarningEnabled: boolean = $state(false);
+	let contentWarningReason: string = $state('');
 
 	const mutePubkey = async (pubkey: string): Promise<void> => {
 		if (rc === undefined || loginPubkey === undefined) {
@@ -113,11 +120,19 @@
 		if (editTitleTag.length > 0) {
 			tags.push(['title', editTitleTag]);
 		}
+		if (isContentWarningEnabled) {
+			const cwTag: string[] = ['content-warning'];
+			if (contentWarningReason.length > 0) {
+				cwTag.push(contentWarningReason);
+			}
+			tags.push(cwTag);
+		}
 		editDTag = '';
 		editTitleTag = '';
 		editTag = '';
 		editTags = [];
 		editContent = '';
+		isOpenEdit = false;
 		for (const tag of getTagsForContent(
 			content,
 			eventsEmojiSet,
@@ -163,15 +178,22 @@
 	const getSeenOn = (id: string, excludeWs: boolean) => rc?.getSeenOn(id, excludeWs) ?? [];
 
 	const fork = (webbookmark: NostrEvent): void => {
-		const identifier = getTagValue(webbookmark, 'd') ?? '';
-		const title = getTagValue(webbookmark, 'title') ?? '';
-		const hashtags = Array.from(
+		const identifier: string = getTagValue(webbookmark, 'd') ?? '';
+		const title: string = getTagValue(webbookmark, 'title') ?? '';
+		const cw: string | boolean = getContentWarning(webbookmark);
+		const hashtags: string[] = Array.from(
 			new Set<string>(
 				webbookmark.tags
 					.filter((tag) => tag.length >= 2 && tag[0] === 't')
 					.map((tag) => tag[1].toLowerCase())
 			)
 		);
+		if (cw !== false) {
+			isContentWarningEnabled = true;
+			if (cw !== true) {
+				contentWarningReason = cw;
+			}
+		}
 		editDTag = identifier;
 		editTitleTag = title;
 		editTag = '';
@@ -179,7 +201,7 @@
 		editContent = webbookmark.content;
 		isOpenEdit = true;
 		setTimeout(() => {
-			editTagInput?.focus();
+			editContentTextArea?.focus();
 		}, 10);
 	};
 </script>
@@ -295,8 +317,10 @@
 			bind:editTitleTag
 			bind:editTag
 			bind:editTags
-			bind:editTagInput
 			bind:editContent
+			bind:editContentTextArea
+			bind:isContentWarningEnabled
+			bind:contentWarningReason
 			{loginPubkey}
 			{eventsEmojiSet}
 			{sendWebBookmark}

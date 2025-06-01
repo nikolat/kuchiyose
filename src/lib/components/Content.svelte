@@ -79,9 +79,14 @@
 					  };
 				encoded: string;
 				value: string;
+		  }
+		| {
+				type: 'emoji';
+				code: string;
+				url: string;
 		  };
 
-	const getExpandTagsList = (content: string) => {
+	const getExpandTagsList = (content: string, eventsEmojiSet: NostrEvent[]) => {
 		const regMatchArray = [
 			'https?://[\\w!?/=+\\-_~:;.,*&@#$%()[\\]]+',
 			'nostr:npub1\\w{58}',
@@ -90,6 +95,15 @@
 			'nostr:nevent1\\w+',
 			'nostr:naddr1\\w+'
 		];
+		const emojiUrlMap: Map<string, string> = new Map<string, string>();
+		for (const tag of eventsEmojiSet.map((ev) => ev.tags).flat()) {
+			if (tag.length >= 3 && tag[0] === 'emoji' && /\w+/.test(tag[1]) && URL.canParse(tag[2])) {
+				emojiUrlMap.set(`:${tag[1]}:`, tag[2]);
+			}
+		}
+		if (emojiUrlMap.size > 0) {
+			regMatchArray.push(Array.from(emojiUrlMap.keys()).join('|'));
+		}
 		const regMatch = new RegExp(regMatchArray.map((v) => `(${v})`).join('|'), 'g');
 		const regSplit = new RegExp(regMatchArray.join('|'));
 
@@ -105,6 +119,7 @@
 		for (const m of matchesIterator) {
 			const mLink = m.at(1);
 			const mMention = m.at(2) ?? m.at(3) ?? m.at(4) ?? m.at(5) ?? m.at(6);
+			const shortcode = m.at(7);
 			const mMentionDecoded =
 				mMention === undefined ? null : nip19decode(mMention.replace(/nostr:/, ''));
 			if (mLink !== undefined && /^https?:\/\/\S+/.test(mLink) && URL.canParse(mLink)) {
@@ -119,6 +134,12 @@
 					decoded: mMentionDecoded,
 					encoded: mMention.replace(/nostr:/, ''),
 					value: mMention
+				});
+			} else if (shortcode !== undefined) {
+				children.push({
+					type: 'emoji',
+					code: shortcode,
+					url: emojiUrlMap.get(shortcode)!
 				});
 			} else {
 				children.push({
@@ -147,7 +168,7 @@
 		}
 	};
 
-	const ats = $derived(getExpandTagsList(content));
+	const ats = $derived(getExpandTagsList(content, eventsEmojiSet));
 </script>
 
 {#each ats.children as ct, i (i)}
@@ -205,6 +226,8 @@
 				<a href={`/${enc}`}>{`nostr:${enc}`}</a>
 			{/if}
 		{/if}
+	{:else if ct.type === 'emoji'}
+		<img src={ct.url} alt={ct.code} title={ct.code} class="emoji" />
 	{:else if ct.type === 'text'}
 		{ct.value}
 	{/if}
@@ -215,5 +238,9 @@
 		width: 16px;
 		height: 16px;
 		border-radius: 10%;
+	}
+	.emoji {
+		height: 1.5em;
+		vertical-align: top;
 	}
 </style>

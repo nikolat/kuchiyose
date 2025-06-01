@@ -7,6 +7,7 @@
 	import {
 		encodeDecodeResult,
 		getAddressPointerForEvent,
+		getContentWarning,
 		getCoordinateFromAddressPointer,
 		getPointerForEvent,
 		getTagValue,
@@ -54,6 +55,7 @@
 
 	let isDetailsVisible: boolean = $state(false);
 	let isCommentFormVisible: boolean = $state(false);
+	let isContentWarningVisible: boolean = $state(false);
 	let editComment: string = $state('');
 
 	const hashtags = $derived(
@@ -64,6 +66,7 @@
 		)
 	);
 	const prof = $derived(profileMap.get(event.pubkey));
+	const contentWarning: string | boolean = $derived(getContentWarning(event));
 	const commentsToTheEvent = $derived.by(() => {
 		let filter: (ev: NostrEvent) => boolean;
 		if (isRegularKind(event.kind)) {
@@ -114,33 +117,49 @@
 		</div>
 		<div class="contents">
 			<div class="note">
-				<a class="name" href="/{nip19.npubEncode(event.pubkey)}"
-					>@{prof?.name ?? `${nip19.npubEncode(event.pubkey).slice(0, 15)}...`}</a
-				><span class="hashtags">
-					{#each hashtags as hashtag (hashtag)}
-						<a href="/t/{encodeURI(hashtag)}" class="hashtag">#{hashtag}</a>
-					{/each}
-				</span>
-				<br />
-				<span class="content">
-					<Content
-						content={event.content}
-						{eventsComment}
-						{level}
-						{idReferenced}
-						{getSeenOn}
-						{fork}
-						{sendComment}
-						{sendReaction}
-						{sendDeletion}
-						{loginPubkey}
-						{profileMap}
-						{eventsReaction}
-						{eventsEmojiSet}
-						{eventsQuoted}
-						{isSingleEntryPage}
-					/>
-				</span>
+				<div class="name">
+					<a class="name" href="/{nip19.npubEncode(event.pubkey)}"
+						>@{prof?.name ?? `${nip19.npubEncode(event.pubkey).slice(0, 15)}...`}</a
+					><span class="hashtags">
+						{#each hashtags as hashtag (hashtag)}
+							<a href="/t/{encodeURI(hashtag)}" class="hashtag">#{hashtag}</a>
+						{/each}
+					</span>
+				</div>
+				<div class="content">
+					{#if contentWarning && !isContentWarningVisible}
+						<div class="content-warning">
+							{contentWarning === true ? '⚠️Content Warning⚠️' : `⚠️${contentWarning}`}
+						</div>
+					{:else}
+						<Content
+							content={event.content}
+							{eventsComment}
+							{level}
+							{idReferenced}
+							{getSeenOn}
+							{fork}
+							{sendComment}
+							{sendReaction}
+							{sendDeletion}
+							{loginPubkey}
+							{profileMap}
+							{eventsReaction}
+							{eventsEmojiSet}
+							{eventsQuoted}
+							{isSingleEntryPage}
+						/>
+					{/if}
+					{#if getContentWarning(event)}
+						<div class="toggle-content-warning">
+							<button
+								onclick={() => {
+									isContentWarningVisible = !isContentWarningVisible;
+								}}>{isContentWarningVisible ? 'Hide' : 'Show'} Content</button
+							>
+						</div>
+					{/if}
+				</div>
 			</div>
 			<div class="menu">
 				<a href="/{getEncode(event, getSeenOn(event.id, true))}">
@@ -335,6 +354,13 @@
 	}
 	.note {
 		white-space: pre-line;
+	}
+	.content-warning {
+		border-radius: 3px;
+		background-color: rgba(255, 255, 127, 0.1);
+	}
+	.toggle-content-warning {
+		padding: 5px;
 	}
 	.hashtag {
 		margin-left: 0.5em;
