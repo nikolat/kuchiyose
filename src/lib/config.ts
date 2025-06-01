@@ -12,6 +12,7 @@ export const indexerRelays = [
 	'wss://purplepag.es/',
 	'wss://indexer.coracle.social/'
 ];
+export const profileRelays = ['wss://directory.yabu.me/'];
 export const limitDepth = 5;
 export const expansionThreshold = 5;
 export const defaultReactionToShow = '⭐';

@@ -45,7 +45,7 @@ import type { RelayRecord } from 'nostr-tools/relay';
 import type { Filter } from 'nostr-tools/filter';
 import { normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
-import { defaultRelays, indexerRelays } from '$lib/config';
+import { defaultRelays, indexerRelays, profileRelays } from '$lib/config';
 import {
 	getIdsForFilter,
 	getPubkeysForFilter,
@@ -499,6 +499,11 @@ export class RelayConnector {
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
 		if (event10002 !== undefined) {
 			for (const relayUrl of getInboxes(event10002)) {
+				relaySet.add(relayUrl);
+			}
+		}
+		if (relaySet.size === 0) {
+			for (const relayUrl of [...this.#getRelays('read'), ...profileRelays]) {
 				relaySet.add(relayUrl);
 			}
 		}
