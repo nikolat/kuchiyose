@@ -1228,6 +1228,9 @@ export class RelayConnector {
 		if (window.nostr === undefined) {
 			return;
 		}
+		if ([5, 62].includes(targetEvent.kind)) {
+			throw new TypeError(`cannot delete kind:${targetEvent.kind} event`);
+		}
 		const tags = [
 			['e', targetEvent.id],
 			['k', String(targetEvent.kind)]

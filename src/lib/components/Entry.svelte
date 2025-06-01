@@ -220,7 +220,7 @@
 							</button>
 						</span>
 					{/if}
-					{#if loginPubkey === event.pubkey}
+					{#if loginPubkey === event.pubkey && ![5, 62].includes(event.kind)}
 						<span class="event-delete">
 							<button
 								type="button"
