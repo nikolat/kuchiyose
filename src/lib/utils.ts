@@ -6,6 +6,7 @@ import * as nip19 from 'nostr-tools/nip19';
 import type { LazyFilter } from 'rx-nostr';
 import {
 	getCoordinateFromAddressPointer,
+	getOutboxes,
 	getProfileContent,
 	getTagValue
 } from 'applesauce-core/helpers';
@@ -66,9 +67,6 @@ export const getWebBookmarkMap = (eventsWebBookmark: NostrEvent[]) => {
 	const map = new Map<string, NostrEvent[]>();
 	for (const ev of eventsWebBookmark) {
 		const d = getTagValue(ev, 'd') ?? '';
-		if (!isValidWebBookmark(d, ev)) {
-			continue;
-		}
 		const url = `https://${d}`;
 		const events = map.get(url);
 		if (events === undefined) {
@@ -675,4 +673,74 @@ const dtformat = new Intl.DateTimeFormat('ja-jp', {
 
 export const getDateTimeString = (created_at: number): string => {
 	return dtformat.format(new Date(created_at * 1000)).replaceAll('/', '-');
+};
+
+export const getReadRelaysWithOutboxModel = (
+	pubkeys: string[],
+	getReplaceable: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined,
+	relaysToRead: string[]
+): string[] => {
+	const relayUserMap: Map<string, Set<string>> = new Map<string, Set<string>>();
+	for (const pubkey of pubkeys) {
+		const event: NostrEvent | undefined = getReplaceable(10002, pubkey);
+		if (event === undefined) {
+			continue;
+		}
+		const relays = getOutboxes(event).filter((relay) => relay.startsWith('wss://'));
+		for (const relayUrl of relays) {
+			const users: Set<string> = relayUserMap.get(relayUrl) ?? new Set<string>();
+			users.add(pubkey);
+			relayUserMap.set(relayUrl, users);
+		}
+	}
+	const requiredRelays: string[] = getRequiredRelays(relayUserMap, relaysToRead);
+	const relaySet = new Set<string>();
+	for (const relayUrl of [...relaysToRead, ...requiredRelays]) {
+		relaySet.add(relayUrl);
+	}
+	return Array.from(relaySet);
+};
+
+const getRequiredRelays = (
+	relayUserMap: Map<string, Set<string>>,
+	relaysUsed: string[]
+): string[] => {
+	const relayUserMapArray: [string, string[]][] = [];
+	for (const [relayUrl, users] of relayUserMap) {
+		relayUserMapArray.push([relayUrl, Array.from(users)]);
+	}
+	const compareFn = (a: [string, string[]], b: [string, string[]]) => {
+		return b[1].length - a[1].length;
+	};
+	relayUserMapArray.sort(compareFn);
+	const relaysAll: string[] = relayUserMapArray.map((a) => a[0]);
+	const relaySet: Set<string> = new Set<string>();
+	const allPubkeySet: Set<string> = new Set<string>(relayUserMapArray.map((e) => e[1]).flat());
+	const relayUserMapCloned: Map<string, Set<string>> = new Map<string, Set<string>>();
+	for (const up of relayUserMapArray) {
+		relayUserMapCloned.set(up[0], new Set<string>(up[1]));
+	}
+	for (const relay of relaysUsed) {
+		const users: Set<string> = relayUserMapCloned.get(relay) ?? new Set<string>();
+		for (const p of users) {
+			allPubkeySet.delete(p);
+		}
+	}
+	for (const relay of relaysAll.filter((r) => !relaysUsed.includes(r))) {
+		if (allPubkeySet.size === 0) {
+			break;
+		}
+		const users: Set<string> = relayUserMapCloned.get(relay) ?? new Set<string>();
+		if (Array.from(users).some((p) => allPubkeySet.has(p))) {
+			relaySet.add(relay);
+			relayUserMapCloned.set(
+				relay,
+				new Set<string>(Array.from(users).filter((p) => allPubkeySet.has(p)))
+			);
+			for (const p of users) {
+				allPubkeySet.delete(p);
+			}
+		}
+	}
+	return Array.from(relaySet);
 };

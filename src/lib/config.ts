@@ -13,7 +13,6 @@ export const indexerRelays = [
 	'wss://indexer.coracle.social/'
 ];
 export const limitDepth = 5;
-export const isEnabledOutboxModel = true;
 export const expansionThreshold = 5;
 export const defaultReactionToShow = '⭐';
 export const defaultReactionToAdd = '+';

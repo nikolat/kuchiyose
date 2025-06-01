@@ -174,6 +174,15 @@
 					filter.kinds = [ap.kind];
 					filter.authors = [ap.pubkey];
 					filter['#d'] = [ap.identifier];
+				} else if (loginPubkey !== undefined) {
+					const pubkeys =
+						rc
+							.getReplaceableEvent(3, loginPubkey)
+							?.tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')
+							.map((tag) => tag[1]) ?? [];
+					if (pubkeys.length > 0) {
+						filter.authors = pubkeys;
+					}
 				}
 				if (up.hashtag !== undefined) {
 					filter['#t'] = [up.hashtag];
@@ -231,7 +240,6 @@
 			for (const k of [0, 7, 17, 10000, 10030, 30030, 39701]) {
 				callback(k);
 			}
-			rc.setRelays();
 		}
 		const pubkey: string | undefined =
 			up.currentProfilePointer?.pubkey ??
@@ -240,15 +248,34 @@
 		if (pubkey !== undefined) {
 			pubkeySet.add(pubkey);
 		}
-		if (pubkeySet.size > 0) {
-			rc.fetchKind10002(Array.from(pubkeySet), () => {
-				if (rc === undefined) {
-					return;
+		fetchKind10002AndFollowees(rc, loginPubkey, Array.from(pubkeySet));
+	};
+
+	const fetchKind10002AndFollowees = (
+		rc: RelayConnector,
+		loginPubkey: string | undefined,
+		pubkeys: string[]
+	) => {
+		if (pubkeys.length > 0) {
+			rc.fetchKind10002(pubkeys, () => {
+				if (loginPubkey !== undefined && rc.getReplaceableEvent(3, loginPubkey) === undefined) {
+					rc.fetchUserSettings(loginPubkey, () => {
+						const pubkeysSecond =
+							rc
+								.getReplaceableEvent(3, loginPubkey)
+								?.tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')
+								.map((tag) => tag[1]) ?? [];
+						if (pubkeysSecond.length > 0) {
+							rc.fetchKind10002(pubkeysSecond, () => {
+								rc.fetchWebBookmark(up, loginPubkey);
+							});
+						} else {
+							rc.fetchWebBookmark(up, loginPubkey);
+						}
+					});
+				} else {
+					rc.fetchWebBookmark(up, loginPubkey);
 				}
-				if (loginPubkey !== undefined) {
-					rc.fetchUserSettings(loginPubkey);
-				}
-				rc.fetchWebBookmark(up, loginPubkey);
 			});
 		} else {
 			rc.fetchWebBookmark(up, loginPubkey);

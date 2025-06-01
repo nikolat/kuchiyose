@@ -19,6 +19,7 @@ import {
 	type ReqPacket,
 	type RxNostr,
 	type RxNostrSendOptions,
+	type RxNostrUseOptions,
 	type RxReq,
 	type RxReqEmittable,
 	type RxReqOverable,
@@ -44,10 +45,11 @@ import type { RelayRecord } from 'nostr-tools/relay';
 import type { Filter } from 'nostr-tools/filter';
 import { normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
-import { defaultRelays, isEnabledOutboxModel, indexerRelays } from '$lib/config';
+import { defaultRelays, indexerRelays } from '$lib/config';
 import {
 	getIdsForFilter,
 	getPubkeysForFilter,
+	getReadRelaysWithOutboxModel,
 	getTagsForContent,
 	isValidEmoji,
 	isValidWebBookmark,
@@ -331,6 +333,11 @@ export class RelayConnector {
 				};
 				this.#sendEvent(event, options);
 			}
+		} else if (event.kind === 39701) {
+			const d = getTagValue(event, 'd') ?? '';
+			if (!isValidWebBookmark(d, event)) {
+				return;
+			}
 		}
 		this.#eventStore.add(event);
 	};
@@ -405,27 +412,18 @@ export class RelayConnector {
 					this.#fetchEventsQuoted(event);
 					break;
 				}
-				case 10002: {
-					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
-						this.#fetchProfile(event.pubkey);
-					}
-					break;
-				}
 				case 10030: {
 					this.#fetchEventsByATags(event, 'a');
 					break;
 				}
 				case 39701: {
-					const d = getTagValue(event, 'd') ?? '';
-					if (!isValidWebBookmark(d, event)) {
-						return;
-					}
 					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 						this.#fetchProfile(event.pubkey);
 					}
 					if (!this.#eventStore.hasReplaceable(10002, event.pubkey)) {
 						this.#fetchRelayList(event.pubkey);
 					}
+					const d = getTagValue(event, 'd') ?? '';
 					const filter = { kinds: [39701], '#d': [d] };
 					if (this.#eventStore.getAll(filter).size === 1) {
 						this.#rxReqB39701Url.emit(filter);
@@ -497,7 +495,17 @@ export class RelayConnector {
 			authors: [pubkey],
 			until: unixNow()
 		};
-		this.#rxReqB0.emit(filter);
+		const relaySet = new Set<string>();
+		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
+		if (event10002 !== undefined) {
+			for (const relayUrl of getInboxes(event10002)) {
+				relaySet.add(relayUrl);
+			}
+		}
+		const options = {
+			relays: Array.from(relaySet)
+		};
+		this.#rxReqB0.emit(filter, options);
 	};
 
 	#fetchDeletion = (event: NostrEvent) => {
@@ -712,6 +720,26 @@ export class RelayConnector {
 			until: unixNow()
 		};
 		const options = { relays: indexerRelays };
+		this.#fetchRpCustom(filter, completeCustom, options);
+	};
+
+	fetchUserSettings = (pubkey: string, completeCustom: () => void) => {
+		const filter: LazyFilter = {
+			kinds: [0, 3, 10000, 10030],
+			authors: [pubkey],
+			until: unixNow()
+		};
+		const options = {
+			relays: Array.from(new Set<string>([...this.#getRelays('read'), ...this.#getRelays('write')]))
+		};
+		this.#fetchRpCustom(filter, completeCustom, options);
+	};
+
+	#fetchRpCustom = (
+		filter: LazyFilter,
+		completeCustom: () => void,
+		options?: Partial<RxNostrUseOptions>
+	) => {
 		const rxReqBRpCustom = createRxBackwardReq();
 		this.#rxNostr
 			.use(rxReqBRpCustom, options)
@@ -726,14 +754,6 @@ export class RelayConnector {
 			});
 		rxReqBRpCustom.emit(filter);
 		rxReqBRpCustom.over();
-	};
-
-	fetchUserSettings = (pubkey: string) => {
-		this.#rxReqBRp.emit({
-			kinds: [10000, 10030],
-			authors: [pubkey],
-			until: unixNow()
-		});
 	};
 
 	fetchWebBookmark = (
@@ -751,11 +771,6 @@ export class RelayConnector {
 			limit: unitl === undefined ? 10 : 11
 		};
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('read'));
-		if (relaySet.size === 0) {
-			for (const relay of defaultRelays) {
-				relaySet.add(relay);
-			}
-		}
 		if (currentAddressPointer !== undefined) {
 			filterB.kinds = [currentAddressPointer.kind];
 			filterB.authors = [currentAddressPointer.pubkey];
@@ -779,6 +794,14 @@ export class RelayConnector {
 			for (const relay of currentEventPointer.relays ?? []) {
 				relaySet.add(normalizeURL(relay));
 			}
+		} else if (loginPubkey !== undefined) {
+			const pubkeys =
+				this.getReplaceableEvent(3, loginPubkey)
+					?.tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')
+					.map((tag) => tag[1]) ?? [];
+			if (pubkeys.length > 0) {
+				filterB.authors = pubkeys;
+			}
 		}
 		if (hashtag !== undefined) {
 			filterB['#t'] = [hashtag];
@@ -786,15 +809,31 @@ export class RelayConnector {
 		if (path !== undefined) {
 			filterB['#d'] = [path];
 		}
-		if (filterB.authors !== undefined && isEnabledOutboxModel) {
-			for (const pubkey of filterB.authors) {
-				const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
-				if (event10002 === undefined) {
-					continue;
-				}
-				for (const relayUrl of getInboxes(event10002)) {
+		if (filterB.authors !== undefined) {
+			if (filterB.authors.length >= 2) {
+				const relays = getReadRelaysWithOutboxModel(
+					filterB.authors,
+					this.getReplaceableEvent,
+					this.#getRelays('read')
+				);
+				for (const relayUrl of relays) {
 					relaySet.add(relayUrl);
 				}
+			} else {
+				for (const pubkey of filterB.authors) {
+					const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
+					if (event10002 === undefined) {
+						continue;
+					}
+					for (const relayUrl of getInboxes(event10002)) {
+						relaySet.add(relayUrl);
+					}
+				}
+			}
+		}
+		if (relaySet.size === 0) {
+			for (const relay of defaultRelays) {
+				relaySet.add(relay);
 			}
 		}
 		const options: { relays: string[] } = { relays: Array.from(relaySet) };
@@ -1149,13 +1188,11 @@ export class RelayConnector {
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
-		if (isEnabledOutboxModel) {
-			for (const pubkey of tags.filter((tag) => ['p', 'P'].includes(tag[0])).map((tag) => tag[1])) {
-				const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
-				if (event10002 !== undefined) {
-					for (const relayUrl of getInboxes(event10002)) {
-						relaySet.add(relayUrl);
-					}
+		for (const pubkey of tags.filter((tag) => ['p', 'P'].includes(tag[0])).map((tag) => tag[1])) {
+			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
+			if (event10002 !== undefined) {
+				for (const relayUrl of getInboxes(event10002)) {
+					relaySet.add(relayUrl);
 				}
 			}
 		}
@@ -1220,7 +1257,7 @@ export class RelayConnector {
 			return;
 		}
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
-		if (isEnabledOutboxModel && targetEvent !== undefined) {
+		if (targetEvent !== undefined) {
 			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(
 				10002,
 				targetEvent.pubkey
@@ -1254,18 +1291,16 @@ export class RelayConnector {
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
-		if (isEnabledOutboxModel) {
-			const mentionedPubkeys: string[] = targetEvent.tags
-				.filter((tag) => tag.length >= 2 && tag[0] === 'p')
-				.map((tag) => tag[1]);
-			for (const pubkey of mentionedPubkeys) {
-				const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
-				if (event10002 === undefined) {
-					continue;
-				}
-				for (const relayUrl of getInboxes(event10002)) {
-					relaySet.add(relayUrl);
-				}
+		const mentionedPubkeys: string[] = targetEvent.tags
+			.filter((tag) => tag.length >= 2 && tag[0] === 'p')
+			.map((tag) => tag[1]);
+		for (const pubkey of mentionedPubkeys) {
+			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
+			if (event10002 === undefined) {
+				continue;
+			}
+			for (const relayUrl of getInboxes(event10002)) {
+				relaySet.add(relayUrl);
 			}
 		}
 		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
