@@ -498,7 +498,9 @@ export class RelayConnector {
 		const relaySet = new Set<string>();
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
 		if (event10002 !== undefined) {
-			for (const relayUrl of getInboxes(event10002)) {
+			for (const relayUrl of getInboxes(event10002)
+				.filter((r) => r.startsWith('wss://'))
+				.slice(0, 3)) {
 				relaySet.add(relayUrl);
 			}
 		}
