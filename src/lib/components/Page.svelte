@@ -512,6 +512,9 @@
 		position: relative;
 		margin-top: 1em;
 	}
+	.url > dd {
+		margin-inline-start: 0;
+	}
 	.favicon {
 		width: 16px;
 		height: 16px;
