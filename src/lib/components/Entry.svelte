@@ -380,6 +380,9 @@
 							}
 							await sendComment(editComment, event, cw);
 							editComment = '';
+							isContentWarningEnabled = !!cwInit;
+							contentWarningReason = typeof cwInit === 'string' ? cwInit : '';
+							isCommentFormVisible = false;
 						}}>Submit</button
 					>
 				</div>
