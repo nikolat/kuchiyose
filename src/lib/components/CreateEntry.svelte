@@ -286,6 +286,9 @@
 	.content > span {
 		margin-right: 20px;
 	}
+	.emoji-picker-container {
+		margin-left: -40px;
+	}
 	button.svg {
 		border: none;
 		outline: none;

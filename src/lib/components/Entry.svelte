@@ -487,6 +487,8 @@
 	}
 	.menu {
 		margin-top: 2px;
+		margin-left: -60px;
+		padding-left: 60px;
 		position: relative;
 	}
 	.command {
