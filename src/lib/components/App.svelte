@@ -40,6 +40,7 @@
 
 	let loginPubkey: string | undefined = $state();
 	let isEnabledUseClientTag: boolean = $state(false);
+	let isEnabledUseDarkMode: boolean = $state(false);
 	let rc: RelayConnector | undefined = $derived(getRelayConnector());
 	let sub: Subscription | undefined;
 	let eventsWebBookmark: NostrEvent[] = $state([]);
@@ -254,15 +255,10 @@
 		}
 	};
 
-	preferences.subscribe(
-		(value: { loginPubkey: string | undefined; isEnabledUseClientTag: boolean }) => {
-			loginPubkey = value.loginPubkey;
-			isEnabledUseClientTag = value.isEnabledUseClientTag;
-		}
-	);
 	const saveLocalStorage = () => {
 		preferences.set({
 			loginPubkey,
+			isEnabledUseDarkMode,
 			isEnabledUseClientTag
 		});
 	};
@@ -334,6 +330,17 @@
 	};
 
 	onMount(async () => {
+		preferences.subscribe(
+			(value: {
+				loginPubkey: string | undefined;
+				isEnabledUseDarkMode: boolean;
+				isEnabledUseClientTag: boolean;
+			}) => {
+				loginPubkey = value.loginPubkey;
+				isEnabledUseDarkMode = value.isEnabledUseDarkMode;
+				isEnabledUseClientTag = value.isEnabledUseClientTag;
+			}
+		);
 		if (up.isError) {
 			return;
 		}
@@ -407,6 +414,9 @@
 				? getAllBookmarksEachUrl(filteredTimeline, up.hashtag)
 				: filteredTimeline
 	);
+	const cssUrl: string = $derived(
+		`https://cdn.jsdelivr.net/npm/water.css@2/out/${isEnabledUseDarkMode ? 'dark' : 'light'}.css`
+	);
 </script>
 
 <svelte:head>
@@ -417,7 +427,7 @@
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 	<link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
 	<link rel="manifest" href="/manifest.json" />
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css" />
+	<link rel="stylesheet" href={cssUrl} />
 	<title>{title}</title>
 </svelte:head>
 
@@ -425,6 +435,7 @@
 	{up}
 	{rc}
 	{loginPubkey}
+	bind:isEnabledUseDarkMode
 	bind:isEnabledUseClientTag
 	{saveLocalStorage}
 	{profileMap}

@@ -33,6 +33,7 @@
 		up,
 		rc,
 		loginPubkey,
+		isEnabledUseDarkMode = $bindable(),
 		isEnabledUseClientTag = $bindable(),
 		saveLocalStorage,
 		profileMap,
@@ -49,8 +50,9 @@
 		up: UrlParams;
 		rc: RelayConnector | undefined;
 		loginPubkey: string | undefined;
-		saveLocalStorage: () => void;
+		isEnabledUseDarkMode: boolean;
 		isEnabledUseClientTag: boolean;
+		saveLocalStorage: () => void;
 		profileMap: Map<string, ProfileContent>;
 		eventsProfile: NostrEvent[];
 		eventsWebBookmark: NostrEvent[];
@@ -240,7 +242,7 @@
 
 <header>
 	<h1><a href="/">{sitename}</a></h1>
-	{#if !up.isError && loginPubkey !== undefined}
+	{#if !up.isError}
 		<details class="settings">
 			<summary>
 				<span class="show-settings">
@@ -252,22 +254,41 @@
 					</svg>
 				</span>
 			</summary>
-			<input
-				id="client-tag"
-				type="checkbox"
-				bind:checked={isEnabledUseClientTag}
-				onchange={saveLocalStorage}
-			/>
-			<label for="client-tag">add client tag</label>
+			<ul>
+				<li>
+					<input
+						id="dark-mode"
+						type="checkbox"
+						bind:checked={isEnabledUseDarkMode}
+						onchange={saveLocalStorage}
+					/>
+					<label for="dark-mode">use dark mode</label>
+				</li>
+				{#if loginPubkey !== undefined}
+					<li>
+						<input
+							id="client-tag"
+							type="checkbox"
+							bind:checked={isEnabledUseClientTag}
+							onchange={saveLocalStorage}
+						/>
+						<label for="client-tag">add client tag</label>
+					</li>
+				{/if}
+			</ul>
 		</details>
 		<span class="login-user">
-			<a href="/{nip19.npubEncode(loginPubkey)}">
-				<img
-					src={profileMap.get(loginPubkey)?.picture ?? getRoboHashURL(loginPubkey)}
-					alt="your avatar"
-					class="login-user"
-				/>
-			</a>
+			{#if loginPubkey === undefined}
+				<img src="/apple-touch-icon.png" alt="KUCHIYOSE's favicon" class="login-user" />
+			{:else}
+				<a href="/{nip19.npubEncode(loginPubkey)}">
+					<img
+						src={profileMap.get(loginPubkey)?.picture ?? getRoboHashURL(loginPubkey)}
+						alt="your avatar"
+						class="login-user"
+					/>
+				</a>
+			{/if}
 		</span>
 	{/if}
 </header>
@@ -463,8 +484,9 @@
 		height: 16px;
 		fill: var(--text-bright);
 	}
-	#client-tag {
-		margin-top: 6px;
+	details.settings ul {
+		list-style: none;
+		padding-left: 0;
 	}
 	.url > dt {
 		border-radius: 5px;
@@ -484,7 +506,7 @@
 	}
 	.bookmark-count {
 		display: inline-block;
-		color: pink;
+		color: var(--highlight);
 		text-shadow: 0 0 2px white;
 	}
 	.hashtag:not(:first-child) {
