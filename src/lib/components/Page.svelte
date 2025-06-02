@@ -338,7 +338,7 @@
 		/>
 	{/if}
 	{#if up.currentEventPointer !== undefined && up.currentEventPointer.kind !== 1111}
-		{@const event = rc?.getEventsByFilter({ ids: [up.currentEventPointer.id] }).at(0)}
+		{@const event = eventsQuoted.find((ev) => ev.id === up.currentEventPointer?.id)}
 		{#if event !== undefined}
 			<Entry
 				{event}
