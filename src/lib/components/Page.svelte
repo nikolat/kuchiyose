@@ -9,6 +9,7 @@
 	} from '$lib/config';
 	import type { RelayConnector, UrlParams } from '$lib/resource';
 	import type { NostrEvent } from 'nostr-tools/pure';
+	import { isReplaceableKind } from 'nostr-tools/kinds';
 	import * as nip19 from 'nostr-tools/nip19';
 	import {
 		getContentWarning,
@@ -362,10 +363,12 @@
 			<a href={`/${enc}`}>{`nostr:${enc}`}</a>
 		{/if}
 	{:else if up.currentAddressPointer !== undefined && up.currentAddressPointer.kind !== 39701}
-		{@const event = rc?.getReplaceableEvent(
-			up.currentAddressPointer.kind,
-			up.currentAddressPointer.pubkey,
-			up.currentAddressPointer.identifier
+		{@const event = eventsQuoted.find(
+			(ev) =>
+				ev.kind === up.currentAddressPointer?.kind &&
+				ev.pubkey === up.currentAddressPointer.pubkey &&
+				(isReplaceableKind(up.currentAddressPointer.kind) ||
+					getTagValue(ev, 'd') === up.currentAddressPointer.identifier)
 		)}
 		{#if event !== undefined}
 			<Entry

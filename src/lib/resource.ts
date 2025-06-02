@@ -88,6 +88,7 @@ export class RelayConnector {
 	#rxReqB39701Url: ReqB;
 	#rxReqBIdQ: ReqB;
 	#rxReqBRp: ReqB;
+	#rxReqBRpQ: ReqB;
 	#rxReqBAd: ReqB;
 	#rxReqBAdQ: ReqB;
 	#rxReqF: ReqF;
@@ -125,6 +126,7 @@ export class RelayConnector {
 		this.#rxReqB39701Url = createRxBackwardReq();
 		this.#rxReqBIdQ = createRxBackwardReq();
 		this.#rxReqBRp = createRxBackwardReq();
+		this.#rxReqBRpQ = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqBAdQ = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
@@ -195,6 +197,10 @@ export class RelayConnector {
 		});
 		this.#rxNostr.use(this.#rxReqBRp).pipe(this.#tie, latestEach(getRpId)).subscribe({
 			next,
+			complete
+		});
+		this.#rxNostr.use(this.#rxReqBRpQ).pipe(this.#tie, latestEach(getRpId)).subscribe({
+			next: this.#nextCallbackQuote,
 			complete
 		});
 		this.#rxNostr.use(this.#rxReqBAd).pipe(this.#tie, latestEach(getAdId)).subscribe({
@@ -781,7 +787,9 @@ export class RelayConnector {
 		if (currentAddressPointer !== undefined) {
 			filterB.kinds = [currentAddressPointer.kind];
 			filterB.authors = [currentAddressPointer.pubkey];
-			filterB['#d'] = [currentAddressPointer.identifier];
+			if (isAddressableKind(currentAddressPointer.kind)) {
+				filterB['#d'] = [currentAddressPointer.identifier];
+			}
 			for (const relay of currentAddressPointer.relays ?? []) {
 				relaySet.add(normalizeURL(relay));
 			}
@@ -866,11 +874,31 @@ export class RelayConnector {
 			return; //追加読み込みはここで終了
 		} else {
 			if (filterB.kinds?.every((kind) => isAddressableKind(kind))) {
-				this.#rxReqBAd.emit(filterB, options);
+				if (currentAddressPointer === undefined) {
+					this.#rxReqBAd.emit(filterB, options);
+				} else {
+					this.#rxReqBAdQ.emit(filterB, options);
+					if (!this.#eventStore.hasReplaceable(0, currentAddressPointer.pubkey)) {
+						this.#fetchProfile(currentAddressPointer.pubkey);
+					}
+				}
 			} else if (filterB.kinds?.every((kind) => isReplaceableKind(kind))) {
-				this.#rxReqBRp.emit(filterB, options);
+				this.#rxReqBRpQ.emit(filterB, options);
+				if (
+					currentAddressPointer !== undefined &&
+					!this.#eventStore.hasReplaceable(0, currentAddressPointer.pubkey)
+				) {
+					this.#fetchProfile(currentAddressPointer.pubkey);
+				}
+				console.log(filterB, options);
 			} else if (filterB.ids !== undefined) {
 				this.#rxReqBIdQ.emit(filterB, options);
+				if (
+					currentEventPointer?.author !== undefined &&
+					!this.#eventStore.hasReplaceable(0, currentEventPointer.author)
+				) {
+					this.#fetchProfile(currentEventPointer.author);
+				}
 			} else {
 				console.warn(filterB);
 				throw new TypeError('unexpected filter');
