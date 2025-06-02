@@ -17,6 +17,7 @@ import {
 	type LazyFilter,
 	type MergeFilter,
 	type ReqPacket,
+	type RetryConfig,
 	type RxNostr,
 	type RxNostrSendOptions,
 	type RxNostrUseOptions,
@@ -111,10 +112,16 @@ export class RelayConnector {
 	#limitComment = 100;
 
 	constructor(useAuth: boolean, callbackQuote: (event: NostrEvent) => void) {
+		const retry: RetryConfig = {
+			strategy: 'exponential',
+			maxCount: 3,
+			initialDelay: 1000,
+			polite: true
+		};
 		if (useAuth) {
-			this.#rxNostr = createRxNostr({ verifier, authenticator: 'auto' });
+			this.#rxNostr = createRxNostr({ verifier, retry, authenticator: 'auto' });
 		} else {
-			this.#rxNostr = createRxNostr({ verifier });
+			this.#rxNostr = createRxNostr({ verifier, retry });
 		}
 		this.#eventStore = new EventStore();
 		this.#rxReqB0 = createRxBackwardReq();
