@@ -4,8 +4,10 @@
 	import { page } from '$app/state';
 	import { RelayConnector, type UrlParams } from '$lib/resource';
 	import {
+		getDeadRelays,
 		getEventsQuoted,
 		getRelayConnector,
+		setDeadRelays,
 		setEventsQuoted,
 		setRelayConnector
 	} from '$lib/resource.svelte';
@@ -18,9 +20,11 @@
 		type ProfileContent
 	} from 'applesauce-core/helpers';
 	import type { Subscription } from 'rxjs';
+	import type { ConnectionStatePacket } from 'rx-nostr';
 	import { sortEvents, type NostrEvent } from 'nostr-tools/pure';
 	import { isAddressableKind } from 'nostr-tools/kinds';
 	import type { Filter } from 'nostr-tools/filter';
+	import { normalizeURL } from 'nostr-tools/utils';
 	import * as nip19 from 'nostr-tools/nip19';
 	import {
 		getEventsAddressableLatest,
@@ -41,6 +45,7 @@
 	let loginPubkey: string | undefined = $state();
 	let isEnabledUseClientTag: boolean = $state(false);
 	let isEnabledUseDarkMode: boolean = $state(false);
+	let deadRelays: string[] = $derived(getDeadRelays());
 	let rc: RelayConnector | undefined = $derived(getRelayConnector());
 	let sub: Subscription | undefined;
 	let eventsWebBookmark: NostrEvent[] = $state([]);
@@ -205,6 +210,23 @@
 		}
 	};
 
+	const callbackConnectionState = (packet: ConnectionStatePacket) => {
+		const relay: string = normalizeURL(packet.from);
+		if (['error', 'rejected'].includes(packet.state)) {
+			if (!deadRelays.includes(relay)) {
+				deadRelays.push(relay);
+				rc?.setDeadRelays(deadRelays);
+				setDeadRelays(deadRelays);
+			}
+		} else {
+			if (deadRelays.includes(relay)) {
+				deadRelays = deadRelays.filter((r) => r !== relay);
+				rc?.setDeadRelays(deadRelays);
+				setDeadRelays(deadRelays);
+			}
+		}
+	};
+
 	const clearCache = () => {
 		eventsWebBookmark = [];
 		eventsProfile = [];
@@ -229,7 +251,7 @@
 		const pubkeySet = new Set<string>();
 		if (rc === undefined) {
 			clearCache();
-			rc = new RelayConnector(loginPubkey !== undefined, callbackQuote);
+			rc = new RelayConnector(loginPubkey !== undefined, callbackConnectionState, callbackQuote);
 			setRelayConnector(rc);
 			sub = rc.subscribeEventStore(callback);
 			if (loginPubkey !== undefined) {

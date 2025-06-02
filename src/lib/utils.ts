@@ -678,7 +678,8 @@ export const getDateTimeString = (created_at: number): string => {
 export const getReadRelaysWithOutboxModel = (
 	pubkeys: string[],
 	getReplaceable: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined,
-	relaysToRead: string[]
+	relaysToRead: string[],
+	deadRelays: string[]
 ): string[] => {
 	const relayUserMap: Map<string, Set<string>> = new Map<string, Set<string>>();
 	for (const pubkey of pubkeys) {
@@ -686,7 +687,9 @@ export const getReadRelaysWithOutboxModel = (
 		if (event === undefined) {
 			continue;
 		}
-		const relays = getOutboxes(event).filter((relay) => relay.startsWith('wss://'));
+		const relays = getOutboxes(event).filter(
+			(relay) => relay.startsWith('wss://') && !deadRelays.includes(relay)
+		);
 		for (const relayUrl of relays) {
 			const users: Set<string> = relayUserMap.get(relayUrl) ?? new Set<string>();
 			users.add(pubkey);

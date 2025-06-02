@@ -13,6 +13,7 @@ import {
 	createTie,
 	createUniq,
 	latestEach,
+	type ConnectionStatePacket,
 	type EventPacket,
 	type LazyFilter,
 	type MergeFilter,
@@ -93,6 +94,7 @@ export class RelayConnector {
 	#rxReqBAd: ReqB;
 	#rxReqBAdQ: ReqB;
 	#rxReqF: ReqF;
+	#deadRelays: string[];
 	#eventsDeletion: NostrEvent[];
 	#callbackQuote: (event: NostrEvent) => void;
 	#tie: OperatorFunction<
@@ -111,7 +113,11 @@ export class RelayConnector {
 	#limitReaction = 100;
 	#limitComment = 100;
 
-	constructor(useAuth: boolean, callbackQuote: (event: NostrEvent) => void) {
+	constructor(
+		useAuth: boolean,
+		callbackConnectionState: (packet: ConnectionStatePacket) => void,
+		callbackQuote: (event: NostrEvent) => void
+	) {
 		const retry: RetryConfig = {
 			strategy: 'exponential',
 			maxCount: 3,
@@ -137,12 +143,14 @@ export class RelayConnector {
 		this.#rxReqBAd = createRxBackwardReq();
 		this.#rxReqBAdQ = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
+		this.#deadRelays = [];
 		this.#eventsDeletion = [];
 		this.#callbackQuote = callbackQuote;
 		[this.#tie, this.#seenOn] = createTie();
 		[this.#uniq, this.#eventIds] = createUniq((packet: EventPacket): string => packet.event.id);
 
 		this.#rxNostr.setDefaultRelays(defaultRelays);
+		this.#rxNostr.createConnectionStateObservable().subscribe(callbackConnectionState);
 		this.#defineSubscription();
 	}
 
@@ -153,6 +161,10 @@ export class RelayConnector {
 		for (const ev of this.#eventStore.getAll({ since: 0 })) {
 			this.#eventStore.database.removeEvent(ev);
 		}
+	};
+
+	setDeadRelays = (deadRelays: string[]): void => {
+		this.#deadRelays = deadRelays;
 	};
 
 	#defineSubscription = () => {
@@ -512,7 +524,7 @@ export class RelayConnector {
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
 		if (event10002 !== undefined) {
 			for (const relayUrl of getInboxes(event10002)
-				.filter((r) => r.startsWith('wss://'))
+				.filter((r) => r.startsWith('wss://') && !this.#deadRelays.includes(r))
 				.slice(0, 3)) {
 				relaySet.add(relayUrl);
 			}
@@ -606,7 +618,7 @@ export class RelayConnector {
 					continue;
 				}
 				const relay = normalizeURL(relayHint);
-				if (relaysToExclude.includes(relay)) {
+				if (relaysToExclude.includes(relay) || this.#deadRelays.includes(relay)) {
 					continue;
 				}
 				const options: { relays: string[] } = {
@@ -644,7 +656,7 @@ export class RelayConnector {
 					continue;
 				}
 				const relay = normalizeURL(relayHint);
-				if (relaysToExclude.includes(relay)) {
+				if (relaysToExclude.includes(relay) || this.#deadRelays.includes(relay)) {
 					continue;
 				}
 				const filter: LazyFilter = {
@@ -697,10 +709,8 @@ export class RelayConnector {
 				...oId.relays,
 				...oPk.relays
 			])
-		);
-		const options: { relays: string[] } = {
-			relays
-		};
+		).filter((relay) => !this.#deadRelays.includes(relay));
+		const options = relays.length > 0 ? { relays } : undefined;
 		if (idsFiltered.length > 0) {
 			this.#rxReqBIdQ.emit({ ids: idsFiltered, until }, options);
 		}
@@ -739,7 +749,8 @@ export class RelayConnector {
 			authors: pubkeys,
 			until: unixNow()
 		};
-		const options = { relays: indexerRelays };
+		const relays = indexerRelays.filter((relay) => !this.#deadRelays.includes(relay));
+		const options = relays.length > 0 ? { relays } : undefined;
 		this.#fetchRpCustom(filter, completeCustom, options);
 	};
 
@@ -749,9 +760,10 @@ export class RelayConnector {
 			authors: [pubkey],
 			until: unixNow()
 		};
-		const options = {
-			relays: Array.from(new Set<string>([...this.#getRelays('read'), ...this.#getRelays('write')]))
-		};
+		const relays = Array.from(
+			new Set<string>([...this.#getRelays('read'), ...this.#getRelays('write')])
+		).filter((relay) => !this.#deadRelays.includes(relay));
+		const options = relays.length > 0 ? { relays } : undefined;
 		this.#fetchRpCustom(filter, completeCustom, options);
 	};
 
@@ -838,7 +850,8 @@ export class RelayConnector {
 				const relays = getReadRelaysWithOutboxModel(
 					filterB.authors,
 					this.getReplaceableEvent,
-					this.#getRelays('read')
+					this.#getRelays('read'),
+					this.#deadRelays
 				);
 				for (const relayUrl of relays) {
 					relaySet.add(relayUrl);
@@ -860,7 +873,8 @@ export class RelayConnector {
 				relaySet.add(relay);
 			}
 		}
-		const options: { relays: string[] } = { relays: Array.from(relaySet) };
+		const relays = Array.from(relaySet).filter((relay) => !this.#deadRelays.includes(relay));
+		const options = relays.length > 0 ? { relays } : undefined;
 		if (completeCustom !== undefined) {
 			const rxReqBAdCustom = createRxBackwardReq();
 			this.#rxNostr
@@ -897,7 +911,6 @@ export class RelayConnector {
 				) {
 					this.#fetchProfile(currentAddressPointer.pubkey);
 				}
-				console.log(filterB, options);
 			} else if (filterB.ids !== undefined) {
 				this.#rxReqBIdQ.emit(filterB, options);
 				if (
@@ -996,9 +1009,10 @@ export class RelayConnector {
 		);
 		const relays: string[] = Array.from(
 			new Set<string>([...this.#getRelays('read'), ...relayHints])
-		);
+		).filter((relay) => !this.#deadRelays.includes(relay));
+		const options = relays.length > 0 ? { relays } : undefined;
 		for (const filters of sliceByNumber(mergedFilters, 10)) {
-			this.#rxReqBAd.emit(filters, { relays });
+			this.#rxReqBAd.emit(filters, options);
 		}
 	};
 
