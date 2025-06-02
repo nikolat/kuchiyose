@@ -40,7 +40,7 @@ import {
 	unixNow
 } from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
-import { isAddressableKind, isReplaceableKind } from 'nostr-tools/kinds';
+import { isAddressableKind, isRegularKind, isReplaceableKind } from 'nostr-tools/kinds';
 import type { RelayRecord } from 'nostr-tools/relay';
 import type { Filter } from 'nostr-tools/filter';
 import { normalizeURL } from 'nostr-tools/utils';
@@ -86,6 +86,7 @@ export class RelayConnector {
 	#rxReqB1111: ReqB;
 	#rxReqB10002: ReqB;
 	#rxReqB39701Url: ReqB;
+	#rxReqBId: ReqB;
 	#rxReqBIdQ: ReqB;
 	#rxReqBRp: ReqB;
 	#rxReqBAd: ReqB;
@@ -123,6 +124,7 @@ export class RelayConnector {
 		this.#rxReqB1111 = createRxBackwardReq();
 		this.#rxReqB10002 = createRxBackwardReq();
 		this.#rxReqB39701Url = createRxBackwardReq();
+		this.#rxReqBId = createRxBackwardReq();
 		this.#rxReqBIdQ = createRxBackwardReq();
 		this.#rxReqBRp = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
@@ -160,6 +162,7 @@ export class RelayConnector {
 		const batchedReq1111 = this.#rxReqB1111.pipe(bt, batch(this.#mergeFilter1111));
 		const batchedReq10002 = this.#rxReqB10002.pipe(bt, batch(this.#mergeFilterRp));
 		const batchedReq39701Url = this.#rxReqB39701Url.pipe(bt, batch(this.#mergeFilter39701Url));
+		const batchedReqId = this.#rxReqBId.pipe(bt, batch(this.#mergeFilterId));
 		const batchedReqIdQ = this.#rxReqBIdQ.pipe(bt, batch(this.#mergeFilterId));
 		this.#rxNostr.use(batchedReq0).pipe(this.#tie, latestEach(getRpId)).subscribe({
 			next,
@@ -186,6 +189,10 @@ export class RelayConnector {
 			complete
 		});
 		this.#rxNostr.use(batchedReq39701Url).pipe(this.#tie, latestEach(getAdId)).subscribe({
+			next,
+			complete
+		});
+		this.#rxNostr.use(batchedReqId).pipe(this.#tie, this.#uniq).subscribe({
 			next,
 			complete
 		});
@@ -794,6 +801,9 @@ export class RelayConnector {
 			if (currentEventPointer.kind !== undefined) {
 				filterB.kinds = [currentEventPointer.kind];
 			}
+			else {
+				delete filterB.kinds;
+			}
 			if (currentEventPointer.author !== undefined) {
 				filterB.authors = [currentEventPointer.author];
 			}
@@ -863,7 +873,19 @@ export class RelayConnector {
 			rxReqBAdCustom.over();
 			return; //追加読み込みはここで終了
 		} else {
-			this.#rxReqBAd.emit(filterB, options);
+			if (filterB.kinds?.every(kind => isAddressableKind(kind))) {
+				this.#rxReqBAd.emit(filterB, options);
+			}
+			else if (filterB.kinds?.every(kind => isReplaceableKind(kind))) {
+				this.#rxReqBRp.emit(filterB, options);
+			}
+			else if (filterB.ids !== undefined) {
+				this.#rxReqBId.emit(filterB, options);
+			}
+			else {
+				console.warn(filterB);
+				throw new TypeError('unexpected filter');
+			}
 		}
 		const filterF: LazyFilter = {
 			...filterB
