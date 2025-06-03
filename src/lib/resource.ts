@@ -353,10 +353,7 @@ export class RelayConnector {
 				this.#sendEvent(event, options);
 			}
 		} else if (event.kind === 39701) {
-			const d = getTagValue(event, 'd') ?? '';
-			if (!isValidWebBookmark(d, event)) {
-				return;
-			}
+			isValidWebBookmark(getTagValue(event, 'd') ?? '', event); //log only
 		}
 		this.#eventStore.add(event);
 	};

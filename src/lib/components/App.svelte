@@ -32,6 +32,7 @@
 		getMuteList,
 		getTitleFromWebbookmarks,
 		getWebBookmarkMap,
+		isValidWebBookmark,
 		mergeFilterForAddressableEvents
 	} from '$lib/utils';
 	import Page from '$lib/components/Page.svelte';
@@ -455,7 +456,9 @@
 		return rc.getEventsByFilter(filter);
 	};
 	const isRoot: boolean = $derived(Object.values(up).every((v) => v === undefined));
-	const filteredTimeline = $derived(getEventsFiltered(timelineSliced));
+	const filteredTimeline = $derived(
+		getEventsFiltered(timelineSliced).filter((ev) => isValidWebBookmark(getTagValue(ev, 'd') ?? ''))
+	);
 	const eventsWebBookmarkToShow = $derived(
 		isRoot
 			? getAllBookmarksEachUrl(filteredTimeline)
