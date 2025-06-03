@@ -125,6 +125,17 @@
 				}
 				break;
 			}
+			case 10006: {
+				if (loginPubkey !== undefined && event?.pubkey === loginPubkey) {
+					const eventBlockedRelay = rc.getReplaceableEvent(kind, loginPubkey);
+					const blockedRelays: string[] =
+						eventBlockedRelay?.tags
+							.filter((tag) => tag.length >= 2 && tag[0] === 'relay' && URL.canParse(tag[1]))
+							.map((tag) => normalizeURL(tag[1])) ?? [];
+					rc.setBlockedRelays(blockedRelays);
+				}
+				break;
+			}
 			case 10030:
 			case 30030: {
 				if (loginPubkey !== undefined) {
@@ -261,7 +272,7 @@
 			}
 		} else {
 			sub = rc.subscribeEventStore(callback);
-			for (const k of [0, 7, 17, 10000, 10030, 30030, 39701]) {
+			for (const k of [0, 7, 17, 10000, 10006, 10030, 30030, 39701]) {
 				callback(k);
 			}
 		}
