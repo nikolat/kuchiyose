@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { Unsubscriber } from 'svelte/store';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { RelayConnector, type UrlParams } from '$lib/resource';
@@ -379,7 +380,6 @@
 		}
 	};
 
-	type Unsubscriber = () => void;
 	let unsubscriber: Unsubscriber | undefined;
 	onMount(async () => {
 		if (up.isError) {
