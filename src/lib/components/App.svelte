@@ -379,8 +379,29 @@
 		}
 	};
 
+	type Unsubscriber = () => void;
+	let unsubscriber: Unsubscriber | undefined;
 	onMount(async () => {
-		preferences.subscribe(
+		if (up.isError) {
+			return;
+		}
+		if (document.querySelector('body > nl-banner') === null) {
+			const { init } = await import('nostr-login');
+			init({});
+		}
+	});
+	beforeNavigate(() => {
+		if (unsubscriber !== undefined) {
+			unsubscriber();
+		}
+		if (up.isError) {
+			return;
+		}
+		document.removeEventListener('nlAuth', nlAuth);
+		document.removeEventListener('scroll', handlerScroll);
+	});
+	afterNavigate(() => {
+		unsubscriber = preferences.subscribe(
 			(value: {
 				loginPubkey: string | undefined;
 				isEnabledUseDarkMode: boolean;
@@ -391,20 +412,6 @@
 				isEnabledUseClientTag = value.isEnabledUseClientTag;
 			}
 		);
-		if (up.isError) {
-			return;
-		}
-		const { init } = await import('nostr-login');
-		init({});
-	});
-	beforeNavigate(() => {
-		if (up.isError) {
-			return;
-		}
-		document.removeEventListener('nlAuth', nlAuth);
-		document.removeEventListener('scroll', handlerScroll);
-	});
-	afterNavigate(() => {
 		if (up.isError) {
 			return;
 		}
