@@ -978,7 +978,7 @@ export class RelayConnector {
 		);
 		if (loginPubkey !== undefined) {
 			filtersF.push({
-				kinds: [0, 5, 7, 1111, 10002, 10030, 39701],
+				kinds: [0, 3, 5, 7, 1111, 10000, 10002, 10006, 10030, 39701],
 				authors: [loginPubkey],
 				since
 			});
