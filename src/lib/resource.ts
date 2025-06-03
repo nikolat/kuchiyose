@@ -737,16 +737,20 @@ export class RelayConnector {
 		);
 		const oPk = getPubkeysForFilter([event]);
 		const { pubkeys } = oPk;
-		const pubkeysFilterd = pubkeys.filter((pubkey) => !this.#eventStore.hasReplaceable(0, pubkey));
-		const until = unixNow();
-		const relays = Array.from(
-			new Set<string>([
-				...(this.#getRelays('read').length > 0 ? this.#getRelays('read') : defaultRelays),
-				...oId.relays,
-				...oPk.relays
-			])
-		).filter((relay) => !this.#deadRelays.includes(relay));
+		const relaySet = new Set<string>([...oId.relays, ...oPk.relays]);
+		for (const pubkey of pubkeys) {
+			const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
+			if (event10002 !== undefined) {
+				for (const relay of getInboxes(event10002)) {
+					relaySet.add(relay);
+				}
+			}
+		}
+		const relays = Array.from(relaySet).filter(
+			(relay) => relay.startsWith('wss://') && !this.#deadRelays.includes(relay)
+		);
 		const options = relays.length > 0 ? { relays } : undefined;
+		const until = unixNow();
 		if (idsFiltered.length > 0) {
 			this.#rxReqBIdQ.emit({ ids: idsFiltered, until }, options);
 		}
@@ -763,6 +767,7 @@ export class RelayConnector {
 				this.#rxReqBAdQ.emit(f, options);
 			}
 		}
+		const pubkeysFilterd = pubkeys.filter((pubkey) => !this.#eventStore.hasReplaceable(0, pubkey));
 		if (pubkeysFilterd.length > 0) {
 			this.#rxReqB0.emit({ kinds: [0], authors: pubkeysFilterd, until }, options);
 		}
@@ -787,9 +792,7 @@ export class RelayConnector {
 			authors: [pubkey],
 			until: unixNow()
 		};
-		const relays = Array.from(
-			new Set<string>([...this.#getRelays('read'), ...this.#getRelays('write')])
-		).filter((relay) => !this.#deadRelays.includes(relay));
+		const relays = this.#getRelays('write').filter((relay) => !this.#deadRelays.includes(relay));
 		const options = relays.length > 0 ? { relays } : undefined;
 		this.#fetchRpCustom(filter, completeCustom, options);
 	};
@@ -829,7 +832,7 @@ export class RelayConnector {
 			until: unitl ?? now,
 			limit: unitl === undefined ? 10 : 11
 		};
-		const relaySet: Set<string> = new Set<string>(this.#getRelays('read'));
+		const relaySet: Set<string> = new Set<string>();
 		if (currentAddressPointer !== undefined) {
 			filterB.kinds = [currentAddressPointer.kind];
 			filterB.authors = [currentAddressPointer.pubkey];
@@ -877,7 +880,6 @@ export class RelayConnector {
 				const relays = getReadRelaysWithOutboxModel(
 					filterB.authors,
 					this.getReplaceableEvent,
-					this.#getRelays('read'),
 					this.#deadRelays
 				);
 				for (const relayUrl of relays) {
@@ -900,7 +902,9 @@ export class RelayConnector {
 				relaySet.add(relay);
 			}
 		}
-		const relays = Array.from(relaySet).filter((relay) => !this.#deadRelays.includes(relay));
+		const relays = Array.from(relaySet).filter(
+			(relay) => relay.startsWith('wss://') && !this.#deadRelays.includes(relay)
+		);
 		const options = relays.length > 0 ? { relays } : undefined;
 		if (completeCustom !== undefined) {
 			const rxReqBAdCustom = createRxBackwardReq();
@@ -1024,19 +1028,22 @@ export class RelayConnector {
 		const relayHints: string[] = Array.from(
 			new Set<string>(
 				event.tags
-					.filter(
-						(tag) =>
-							tag.length >= 3 &&
-							tag[0] === tagName &&
-							URL.canParse(tag[2]) &&
-							tag[2].startsWith('wss://')
-					)
+					.filter((tag) => tag.length >= 3 && tag[0] === tagName && URL.canParse(tag[2]))
 					.map((tag) => normalizeURL(tag[2]))
 			)
 		);
-		const relays: string[] = Array.from(
-			new Set<string>([...this.#getRelays('read'), ...relayHints])
-		).filter((relay) => !this.#deadRelays.includes(relay));
+		const relaySet = new Set<string>(relayHints);
+		for (const pubkey of new Set<string>(filters.map((f) => f.authors ?? []).flat())) {
+			const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
+			if (event10002 !== undefined) {
+				for (const relay of getInboxes(event10002)) {
+					relaySet.add(relay);
+				}
+			}
+		}
+		const relays = Array.from(relaySet).filter(
+			(relay) => relay.startsWith('wss://') && !this.#deadRelays.includes(relay)
+		);
 		const options = relays.length > 0 ? { relays } : undefined;
 		for (const filters of sliceByNumber(mergedFilters, 10)) {
 			this.#rxReqBAd.emit(filters, options);

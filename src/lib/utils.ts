@@ -678,7 +678,6 @@ export const getDateTimeString = (created_at: number): string => {
 export const getReadRelaysWithOutboxModel = (
 	pubkeys: string[],
 	getReplaceable: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined,
-	relaysToRead: string[],
 	deadRelays: string[]
 ): string[] => {
 	const relayUserMap: Map<string, Set<string>> = new Map<string, Set<string>>();
@@ -696,18 +695,10 @@ export const getReadRelaysWithOutboxModel = (
 			relayUserMap.set(relayUrl, users);
 		}
 	}
-	const requiredRelays: string[] = getRequiredRelays(relayUserMap, relaysToRead);
-	const relaySet = new Set<string>();
-	for (const relayUrl of [...relaysToRead, ...requiredRelays]) {
-		relaySet.add(relayUrl);
-	}
-	return Array.from(relaySet);
+	return getRequiredRelays(relayUserMap);
 };
 
-const getRequiredRelays = (
-	relayUserMap: Map<string, Set<string>>,
-	relaysUsed: string[]
-): string[] => {
+const getRequiredRelays = (relayUserMap: Map<string, Set<string>>): string[] => {
 	const relayUserMapArray: [string, string[]][] = [];
 	for (const [relayUrl, users] of relayUserMap) {
 		relayUserMapArray.push([relayUrl, Array.from(users)]);
@@ -723,13 +714,7 @@ const getRequiredRelays = (
 	for (const up of relayUserMapArray) {
 		relayUserMapCloned.set(up[0], new Set<string>(up[1]));
 	}
-	for (const relay of relaysUsed) {
-		const users: Set<string> = relayUserMapCloned.get(relay) ?? new Set<string>();
-		for (const p of users) {
-			allPubkeySet.delete(p);
-		}
-	}
-	for (const relay of relaysAll.filter((r) => !relaysUsed.includes(r))) {
+	for (const relay of relaysAll) {
 		if (allPubkeySet.size === 0) {
 			break;
 		}
