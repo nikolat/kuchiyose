@@ -575,7 +575,7 @@ export class RelayConnector {
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, event.pubkey);
 		if (event10002 !== undefined) {
 			const relays = getInboxes(event10002)
-				.filter((relay) => !this.#deadRelays.includes(relay))
+				.filter((relay) => relay.startsWith('wss://') && !this.#deadRelays.includes(relay))
 				.slice(0, 3);
 			options = relays.length > 0 ? { relays } : undefined;
 		}
@@ -590,9 +590,9 @@ export class RelayConnector {
 			until: unixNow()
 		};
 		const relays = this.#getRelays('write')
-			.filter((relay) => !this.#deadRelays.includes(relay))
+			.filter((relay) => relay.startsWith('wss://') && !this.#deadRelays.includes(relay))
 			.slice(0, 3);
-		const options: { relays: string[] } | undefined = relays.length > 0 ? { relays } : undefined;
+		const options = relays.length > 0 ? { relays } : undefined;
 		this.#rxReqB17.emit(filter, options);
 	};
 
@@ -617,7 +617,7 @@ export class RelayConnector {
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, event.pubkey);
 		if (event10002 !== undefined) {
 			const relays = getInboxes(event10002)
-				.filter((relay) => !this.#deadRelays.includes(relay))
+				.filter((relay) => relay.startsWith('wss://') && !this.#deadRelays.includes(relay))
 				.slice(0, 3);
 			options = relays.length > 0 ? { relays } : undefined;
 		}
@@ -792,7 +792,9 @@ export class RelayConnector {
 			authors: [pubkey],
 			until: unixNow()
 		};
-		const relays = this.#getRelays('write').filter((relay) => !this.#deadRelays.includes(relay));
+		const relays = this.#getRelays('write')
+			.filter((relay) => !this.#deadRelays.includes(relay))
+			.slice(0, 3);
 		const options = relays.length > 0 ? { relays } : undefined;
 		this.#fetchRpCustom(filter, completeCustom, options);
 	};
@@ -1297,7 +1299,9 @@ export class RelayConnector {
 				}
 			}
 		}
-		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
+		const relays = Array.from(relaySet);
+		const options: Partial<RxNostrSendOptions> | undefined =
+			relays.length > 0 ? { on: { relays } } : undefined;
 		this.#sendEvent(eventToSend, options);
 	};
 
@@ -1369,7 +1373,9 @@ export class RelayConnector {
 				}
 			}
 		}
-		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
+		const relays = Array.from(relaySet);
+		const options: Partial<RxNostrSendOptions> | undefined =
+			relays.length > 0 ? { on: { relays } } : undefined;
 		this.#sendEvent(eventToSend, options);
 	};
 
@@ -1404,7 +1410,9 @@ export class RelayConnector {
 				relaySet.add(relayUrl);
 			}
 		}
-		const options: Partial<RxNostrSendOptions> = { on: { relays: Array.from(relaySet) } };
+		const relays = Array.from(relaySet);
+		const options: Partial<RxNostrSendOptions> | undefined =
+			relays.length > 0 ? { on: { relays } } : undefined;
 		this.#sendEvent(eventToSend, options);
 	};
 
