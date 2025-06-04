@@ -384,6 +384,14 @@ export class RelayConnector {
 		return deletedEventIdSet;
 	};
 
+	setFetchListAfter0 = (pubkey: string, fetchAfter0: () => void): void => {
+		if (!this.#eventStore.hasReplaceable(0, pubkey)) {
+			this.fetchProfile(pubkey, fetchAfter0);
+		} else {
+			fetchAfter0();
+		}
+	};
+
 	setFetchListAfter10002 = (pubkey: string, fetchAfter10002: () => void): void => {
 		if (!this.#eventStore.hasReplaceable(10002, pubkey)) {
 			this.fetchKind10002([pubkey], fetchAfter10002);
@@ -395,10 +403,6 @@ export class RelayConnector {
 	subscribeEventStore = (callback: (kind: number, event?: NostrEvent) => void): Subscription => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
-				case 0: {
-					this.fetchEventsQuoted(event);
-					break;
-				}
 				case 5: {
 					this.#eventsDeletion = sortEvents(Array.from(this.#eventStore.getAll([{ kinds: [5] }])));
 					break;
@@ -504,13 +508,13 @@ export class RelayConnector {
 		}
 	};
 
-	fetchProfile = (pubkey: string) => {
+	fetchProfile = (pubkey: string, completeCustom?: () => void, relayHints?: string[]) => {
 		const filter: LazyFilter = {
 			kinds: [0],
 			authors: [pubkey],
 			until: unixNow()
 		};
-		const relaySet = new Set<string>();
+		const relaySet = new Set<string>(relayHints ?? []);
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
 		if (event10002 !== undefined) {
 			for (const relayUrl of getInboxes(event10002).filter(this.relayFilter).slice(0, 3)) {
@@ -524,7 +528,11 @@ export class RelayConnector {
 		}
 		const relays = Array.from(relaySet);
 		const options = relays.length > 0 ? { relays } : undefined;
-		this.#rxReqB0.emit(filter, options);
+		if (completeCustom === undefined) {
+			this.#rxReqB0.emit(filter, options);
+		} else {
+			this.#fetchRpCustom(filter, completeCustom, options);
+		}
 	};
 
 	fetchDeletion = (event: NostrEvent) => {
@@ -723,7 +731,7 @@ export class RelayConnector {
 		);
 		const oPk = getPubkeysForFilter([event]);
 		const { pubkeys } = oPk;
-		const relaySet = new Set<string>([...oId.relays, ...oPk.relays]);
+		const relaySet = new Set<string>(oId.relays);
 		for (const pubkey of pubkeys) {
 			const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
 			if (event10002 !== undefined) {
@@ -753,7 +761,14 @@ export class RelayConnector {
 		}
 		const pubkeysFilterd = pubkeys.filter((pubkey) => !this.#eventStore.hasReplaceable(0, pubkey));
 		if (pubkeysFilterd.length > 0) {
-			this.#rxReqB0.emit({ kinds: [0], authors: pubkeysFilterd, until }, options);
+			for (const pubkey of pubkeysFilterd) {
+				const fetchAfter10002 = () => {
+					if (!this.#eventStore.hasReplaceable(0, pubkey)) {
+						this.fetchProfile(pubkey, undefined, oPk.relays);
+					}
+				};
+				this.setFetchListAfter10002(pubkey, fetchAfter10002);
+			}
 		}
 		//リレーヒント付き引用による取得
 		this.#getEventsByIdWithRelayHint(event, 'q', relays, false);
@@ -910,11 +925,13 @@ export class RelayConnector {
 			if (filterB.kinds?.every((kind) => isAddressableKind(kind))) {
 				if (currentAddressPointer === undefined) {
 					this.#rxReqBAd.emit(filterB, options);
-					if (
-						currentProfilePointer !== undefined &&
-						!this.#eventStore.hasReplaceable(0, currentProfilePointer.pubkey)
-					) {
-						this.fetchProfile(currentProfilePointer.pubkey);
+					if (currentProfilePointer !== undefined) {
+						this.setFetchListAfter0(currentProfilePointer.pubkey, () => {
+							const event = this.getReplaceableEvent(0, currentProfilePointer.pubkey);
+							if (event !== undefined) {
+								this.fetchEventsQuoted(event);
+							}
+						});
 					}
 				} else {
 					this.#rxReqBAdQ.emit(filterB, options);
