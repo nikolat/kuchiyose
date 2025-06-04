@@ -38,7 +38,6 @@ import {
 	getInboxes,
 	getOutboxes,
 	getTagValue,
-	isValidProfile,
 	parseCoordinate,
 	unixNow
 } from 'applesauce-core/helpers';
@@ -316,11 +315,7 @@ export class RelayConnector {
 			return;
 		}
 		console.info('kind', event.kind);
-		if (event.kind === 0) {
-			if (!isValidProfile(event)) {
-				return;
-			}
-		} else if (event.kind === 5) {
+		if (event.kind === 5) {
 			const ids: string[] = getDeleteIds(event);
 			const aids: string[] = getDeleteCoordinates(event);
 			const relaysSeenOnSet = new Set<string>();
@@ -389,7 +384,7 @@ export class RelayConnector {
 		return deletedEventIdSet;
 	};
 
-	#setFetchListAfter10002 = (pubkey: string, fetchAfter10002: () => void): void => {
+	setFetchListAfter10002 = (pubkey: string, fetchAfter10002: () => void): void => {
 		if (!this.#eventStore.hasReplaceable(10002, pubkey)) {
 			this.fetchKind10002([pubkey], fetchAfter10002);
 		} else {
@@ -401,50 +396,35 @@ export class RelayConnector {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
 				case 0: {
-					this.#fetchEventsQuoted(event);
-					break;
-				}
-				case 1: {
-					const fetchAfter10002 = () => {
-						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
-							this.#fetchProfile(event.pubkey);
-						}
-						this.#fetchDeletion(event);
-						this.#fetchReaction(event);
-						this.#fetchEventsQuoted(event);
-					};
-					this.#setFetchListAfter10002(event.pubkey, fetchAfter10002);
+					this.fetchEventsQuoted(event);
 					break;
 				}
 				case 5: {
 					this.#eventsDeletion = sortEvents(Array.from(this.#eventStore.getAll([{ kinds: [5] }])));
 					break;
 				}
-				case 7: {
-					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
-						this.#fetchProfile(event.pubkey);
-					}
-					this.#fetchDeletion(event);
-					break;
-				}
+				case 7:
 				case 17: {
-					if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
-						this.#fetchProfile(event.pubkey);
-					}
-					this.#fetchDeletion(event);
+					const fetchAfter10002 = () => {
+						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
+							this.fetchProfile(event.pubkey);
+						}
+						this.fetchDeletion(event);
+					};
+					this.setFetchListAfter10002(event.pubkey, fetchAfter10002);
 					break;
 				}
 				case 1111: {
 					const fetchAfter10002 = () => {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
-							this.#fetchProfile(event.pubkey);
+							this.fetchProfile(event.pubkey);
 						}
-						this.#fetchDeletion(event);
-						this.#fetchReaction(event);
+						this.fetchDeletion(event);
+						this.fetchReaction(event);
 						this.#fetchEventsByATags(event, 'A');
-						this.#fetchEventsQuoted(event);
+						this.fetchEventsQuoted(event);
 					};
-					this.#setFetchListAfter10002(event.pubkey, fetchAfter10002);
+					this.setFetchListAfter10002(event.pubkey, fetchAfter10002);
 					break;
 				}
 				case 10030: {
@@ -454,20 +434,20 @@ export class RelayConnector {
 				case 39701: {
 					const fetchAfter10002 = () => {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
-							this.#fetchProfile(event.pubkey);
+							this.fetchProfile(event.pubkey);
 						}
 						const d = getTagValue(event, 'd') ?? '';
 						const filter = { kinds: [39701], '#d': [d] };
 						if (this.#eventStore.getAll(filter).size === 1) {
 							this.#rxReqB39701Url.emit(filter); //どこのリレーを指定するべきか…
 						}
-						this.#fetchDeletion(event);
-						this.#fetchReaction(event);
+						this.fetchDeletion(event);
+						this.fetchReaction(event);
 						this.#fetchWebReaction(`https://${d}`);
 						this.#fetchComment(event);
-						this.#fetchEventsQuoted(event);
+						this.fetchEventsQuoted(event);
 					};
-					this.#setFetchListAfter10002(event.pubkey, fetchAfter10002);
+					this.setFetchListAfter10002(event.pubkey, fetchAfter10002);
 					break;
 				}
 				default:
@@ -524,7 +504,7 @@ export class RelayConnector {
 		}
 	};
 
-	#fetchProfile = (pubkey: string) => {
+	fetchProfile = (pubkey: string) => {
 		const filter: LazyFilter = {
 			kinds: [0],
 			authors: [pubkey],
@@ -547,7 +527,7 @@ export class RelayConnector {
 		this.#rxReqB0.emit(filter, options);
 	};
 
-	#fetchDeletion = (event: NostrEvent) => {
+	fetchDeletion = (event: NostrEvent) => {
 		const filter: LazyFilter = { kinds: [5], '#e': [event.id], until: unixNow() };
 		let options: { relays: string[] } | undefined;
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, event.pubkey);
@@ -558,7 +538,7 @@ export class RelayConnector {
 		this.#rxReqB5.emit(filter, options);
 	};
 
-	#fetchReaction = (event: NostrEvent) => {
+	fetchReaction = (event: NostrEvent) => {
 		let filter: LazyFilter;
 		const until = unixNow();
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
@@ -717,7 +697,7 @@ export class RelayConnector {
 		}
 	};
 
-	#fetchEventsQuoted = (event: NostrEvent) => {
+	fetchEventsQuoted = (event: NostrEvent) => {
 		const oId = getIdsForFilter([event]);
 		const { ids, aps } = oId;
 		for (const id of ids) {
@@ -930,10 +910,16 @@ export class RelayConnector {
 			if (filterB.kinds?.every((kind) => isAddressableKind(kind))) {
 				if (currentAddressPointer === undefined) {
 					this.#rxReqBAd.emit(filterB, options);
+					if (
+						currentProfilePointer !== undefined &&
+						!this.#eventStore.hasReplaceable(0, currentProfilePointer.pubkey)
+					) {
+						this.fetchProfile(currentProfilePointer.pubkey);
+					}
 				} else {
 					this.#rxReqBAdQ.emit(filterB, options);
 					if (!this.#eventStore.hasReplaceable(0, currentAddressPointer.pubkey)) {
-						this.#fetchProfile(currentAddressPointer.pubkey);
+						this.fetchProfile(currentAddressPointer.pubkey);
 					}
 				}
 			} else if (filterB.kinds?.every((kind) => isReplaceableKind(kind))) {
@@ -942,7 +928,7 @@ export class RelayConnector {
 					currentAddressPointer !== undefined &&
 					!this.#eventStore.hasReplaceable(0, currentAddressPointer.pubkey)
 				) {
-					this.#fetchProfile(currentAddressPointer.pubkey);
+					this.fetchProfile(currentAddressPointer.pubkey);
 				}
 			} else if (filterB.ids !== undefined) {
 				this.#rxReqBIdQ.emit(filterB, options);
@@ -950,7 +936,7 @@ export class RelayConnector {
 					currentEventPointer?.author !== undefined &&
 					!this.#eventStore.hasReplaceable(0, currentEventPointer.author)
 				) {
-					this.#fetchProfile(currentEventPointer.author);
+					this.fetchProfile(currentEventPointer.author);
 				}
 			} else {
 				console.warn(filterB);

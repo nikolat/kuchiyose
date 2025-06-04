@@ -18,6 +18,7 @@
 		getAddressPointerFromATag,
 		getProfileContent,
 		getTagValue,
+		isValidProfile,
 		type ProfileContent
 	} from 'applesauce-core/helpers';
 	import type { Subscription } from 'rxjs';
@@ -85,7 +86,9 @@
 		}
 		switch (kind) {
 			case 0: {
-				eventsProfile = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [kind] }));
+				eventsProfile = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [kind] })).filter(
+					(ev) => isValidProfile(ev)
+				);
 				break;
 			}
 			case 5: {
@@ -220,7 +223,22 @@
 		if (!eventsQuoted.map((ev) => ev.id).includes(event.id)) {
 			eventsQuoted.push(event);
 			setEventsQuoted(eventsQuoted);
+			if (rc !== undefined) {
+				fetchQuotedUserData(rc, event);
+			}
 		}
+	};
+	const fetchQuotedUserData = (rc: RelayConnector, event: NostrEvent): void => {
+		rc.setFetchListAfter10002(event.pubkey, () => {
+			if (rc.getReplaceableEvent(0, event.pubkey) === undefined) {
+				rc.fetchProfile(event.pubkey);
+			}
+			rc.fetchDeletion(event);
+			rc.fetchReaction(event);
+			if (event.kind === 1) {
+				rc.fetchEventsQuoted(event);
+			}
+		});
 	};
 
 	const callbackConnectionState = (packet: ConnectionStatePacket) => {
@@ -444,7 +462,8 @@
 		} else if (up.currentProfilePointer !== undefined) {
 			const profile: ProfileContent | undefined = profileMap.get(up.currentProfilePointer.pubkey);
 			if (profile !== undefined) {
-				title = `${profile.name}'s bookmarks`;
+				const name = profile.name ?? nip19.npubEncode(up.currentProfilePointer.pubkey);
+				title = `${name.slice(0, 20)}'s bookmarks`;
 			}
 		} else if (up.hashtag !== undefined) {
 			title = `#${up.hashtag}`;
