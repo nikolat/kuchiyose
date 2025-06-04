@@ -1101,7 +1101,9 @@ export class RelayConnector {
 		for (const pTag of tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')) {
 			const event0 = this.getReplaceableEvent(0, pTag[1]);
 			if (event0 !== undefined) {
-				const relayHint = this.getSeenOn(event0.id, true).at(0);
+				const relayHint = this.getSeenOn(event0.id, true)
+					.filter((relay) => !profileRelays.includes(relay))
+					.at(0);
 				if (relayHint !== undefined) {
 					pTag[2] = relayHint;
 				}
@@ -1141,7 +1143,9 @@ export class RelayConnector {
 		for (const pTag of tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')) {
 			const event0 = this.getReplaceableEvent(0, pTag[1]);
 			if (event0 !== undefined) {
-				const relayHint = this.getSeenOn(event0.id, true).at(0);
+				const relayHint = this.getSeenOn(event0.id, true)
+					.filter((relay) => !profileRelays.includes(relay))
+					.at(0);
 				if (relayHint !== undefined) {
 					pTag[2] = relayHint;
 				}
