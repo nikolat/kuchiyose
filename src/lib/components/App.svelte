@@ -59,6 +59,10 @@
 	let eventsReaction: NostrEvent[] = $state([]);
 	let eventsWebReaction: NostrEvent[] = $state([]);
 	let eventsComment: NostrEvent[] = $state([]);
+	let eventFollowList: NostrEvent | undefined = $state();
+	const followingPubkeys: string[] = $derived(
+		eventFollowList?.tags.filter((tag) => tag.length >= 2 && tag[0]).map((tag) => tag[1]) ?? []
+	);
 	let eventMuteList: NostrEvent | undefined = $state();
 	let [mutedPubkeys, mutedIds, mutedWords, mutedHashtags]: [
 		string[],
@@ -89,6 +93,12 @@
 				eventsProfile = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [kind] })).filter(
 					(ev) => isValidProfile(ev)
 				);
+				break;
+			}
+			case 3: {
+				if (loginPubkey !== undefined && event?.pubkey === loginPubkey) {
+					eventFollowList = rc.getReplaceableEvent(kind, loginPubkey);
+				}
 				break;
 			}
 			case 5: {
@@ -535,6 +545,7 @@
 	eventsComment={getEventsFiltered(eventsComment)}
 	{eventsEmojiSet}
 	eventsQuoted={getEventsFiltered(eventsQuoted)}
+	isFollowingPubkeyPage={followingPubkeys.includes(up.currentProfilePointer?.pubkey ?? '')}
 	isMutedPubkeyPage={mutedPubkeys.includes(up.currentProfilePointer?.pubkey ?? '')}
 	isMutedHashtagPage={mutedHashtags.includes(up.hashtag ?? '')}
 />

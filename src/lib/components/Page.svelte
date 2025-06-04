@@ -45,6 +45,7 @@
 		eventsComment,
 		eventsEmojiSet,
 		eventsQuoted,
+		isFollowingPubkeyPage,
 		isMutedPubkeyPage,
 		isMutedHashtagPage
 	}: {
@@ -62,6 +63,7 @@
 		eventsComment: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
 		eventsQuoted: NostrEvent[];
+		isFollowingPubkeyPage: boolean;
 		isMutedPubkeyPage: boolean;
 		isMutedHashtagPage: boolean;
 	} = $props();
@@ -81,32 +83,56 @@
 	let isContentWarningEnabled: boolean = $state(false);
 	let contentWarningReason: string = $state('');
 
+	const followPubkey = async (pubkey: string): Promise<void> => {
+		if (rc === undefined || loginPubkey === undefined) {
+			return;
+		}
+		const eventFollowList: NostrEvent | undefined = rc.getReplaceableEvent(3, loginPubkey);
+		await rc.followPubkey(pubkey, eventFollowList);
+	};
+
+	const unfollowPubkey = async (pubkey: string): Promise<void> => {
+		if (rc === undefined || loginPubkey === undefined) {
+			return;
+		}
+		const eventFollowList: NostrEvent | undefined = rc.getReplaceableEvent(3, loginPubkey);
+		if (eventFollowList === undefined) {
+			console.error('kind:3 event does not exist');
+			return;
+		}
+		await rc.unfollowPubkey(pubkey, eventFollowList);
+	};
+
 	const mutePubkey = async (pubkey: string): Promise<void> => {
 		if (rc === undefined || loginPubkey === undefined) {
 			return;
 		}
-		await rc.mutePubkey(pubkey, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
+		const eventMuteList: NostrEvent | undefined = rc.getReplaceableEvent(10000, loginPubkey);
+		await rc.mutePubkey(pubkey, loginPubkey, eventMuteList);
 	};
 
 	const unmutePubkey = async (pubkey: string): Promise<void> => {
 		if (rc === undefined || loginPubkey === undefined) {
 			return;
 		}
-		await rc.unmutePubkey(pubkey, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
+		const eventMuteList: NostrEvent | undefined = rc.getReplaceableEvent(10000, loginPubkey);
+		await rc.unmutePubkey(pubkey, loginPubkey, eventMuteList);
 	};
 
 	const muteHashtag = async (hashtag: string): Promise<void> => {
 		if (rc === undefined || loginPubkey === undefined) {
 			return;
 		}
-		await rc.muteHashtag(hashtag, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
+		const eventMuteList: NostrEvent | undefined = rc.getReplaceableEvent(10000, loginPubkey);
+		await rc.muteHashtag(hashtag, loginPubkey, eventMuteList);
 	};
 
 	const unmuteHashtag = async (hashtag: string): Promise<void> => {
 		if (rc === undefined || loginPubkey === undefined) {
 			return;
 		}
-		await rc.unmuteHashtag(hashtag, loginPubkey, rc.getReplaceableEvent(10000, loginPubkey));
+		const eventMuteList: NostrEvent | undefined = rc.getReplaceableEvent(10000, loginPubkey);
+		await rc.unmuteHashtag(hashtag, loginPubkey, eventMuteList);
 	};
 
 	const getPublishedAt = (d: string): string | undefined => {
@@ -311,7 +337,10 @@
 			{pubkey}
 			{event}
 			isLoggedIn={loginPubkey !== undefined}
+			{isFollowingPubkeyPage}
 			{isMutedPubkeyPage}
+			followPubkey={() => followPubkey(pubkey)}
+			unfollowPubkey={() => unfollowPubkey(pubkey)}
 			mutePubkey={() => mutePubkey(pubkey)}
 			unmutePubkey={() => unmutePubkey(pubkey)}
 			{eventsComment}

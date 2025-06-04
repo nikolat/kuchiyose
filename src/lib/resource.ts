@@ -1082,6 +1082,84 @@ export class RelayConnector {
 		this.#sendEvent(eventToSend);
 	};
 
+	followPubkey = async (pubkey: string, eventFollowList: NostrEvent | undefined): Promise<void> => {
+		if (window.nostr === undefined) {
+			return;
+		}
+		const kind = 3;
+		let tags: string[][];
+		const content: string = eventFollowList?.content ?? '';
+		if (eventFollowList === undefined) {
+			tags = [['p', pubkey]];
+		} else if (
+			eventFollowList.tags.some((tag) => tag.length >= 2 && tag[0] === 'p' && tag[1] === pubkey)
+		) {
+			throw new Error('pubkey already exists');
+		} else {
+			tags = [...eventFollowList.tags, ['p', pubkey]];
+		}
+		for (const pTag of tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')) {
+			const event0 = this.getReplaceableEvent(0, pTag[1]);
+			if (event0 !== undefined) {
+				const relayHint = this.getSeenOn(event0.id, true).at(0);
+				if (relayHint !== undefined) {
+					pTag[2] = relayHint;
+				}
+			}
+			if (pTag[2] === '' && pTag.length === 3) {
+				delete pTag[2];
+			}
+		}
+		const eventTemplate: EventTemplate = {
+			kind,
+			tags,
+			content,
+			created_at: unixNow()
+		};
+		const eventToSend = await window.nostr.signEvent(eventTemplate);
+		this.#sendEvent(eventToSend);
+	};
+
+	unfollowPubkey = async (pubkey: string, eventFollowList: NostrEvent): Promise<void> => {
+		if (window.nostr === undefined) {
+			return;
+		}
+		const kind = eventFollowList.kind;
+		let tags: string[][];
+		const content: string = eventFollowList.content;
+		if (
+			eventFollowList.tags.some((tag) => tag.length >= 2 && tag[0] === 'p' && tag[1] === pubkey)
+		) {
+			tags = [
+				...eventFollowList.tags.filter(
+					(tag) => !(tag.length >= 2 && tag[0] === 'p' && tag[1] === pubkey)
+				)
+			];
+		} else {
+			throw new Error('pubkey does not exist');
+		}
+		for (const pTag of tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')) {
+			const event0 = this.getReplaceableEvent(0, pTag[1]);
+			if (event0 !== undefined) {
+				const relayHint = this.getSeenOn(event0.id, true).at(0);
+				if (relayHint !== undefined) {
+					pTag[2] = relayHint;
+				}
+			}
+			if (pTag[2] === '' && pTag.length === 3) {
+				delete pTag[2];
+			}
+		}
+		const eventTemplate: EventTemplate = {
+			kind,
+			tags,
+			content,
+			created_at: unixNow()
+		};
+		const eventToSend = await window.nostr.signEvent(eventTemplate);
+		this.#sendEvent(eventToSend);
+	};
+
 	mutePubkey = async (
 		pubkey: string,
 		loginPubkey: string,
