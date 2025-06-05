@@ -58,31 +58,7 @@
 		  }
 		| {
 				type: 'mention';
-				decoded:
-					| {
-							type: 'nevent';
-							data: nip19.EventPointer;
-					  }
-					| {
-							type: 'nprofile';
-							data: nip19.ProfilePointer;
-					  }
-					| {
-							type: 'naddr';
-							data: nip19.AddressPointer;
-					  }
-					| {
-							type: 'npub';
-							data: string;
-					  }
-					| {
-							type: 'nsec';
-							data: Uint8Array;
-					  }
-					| {
-							type: 'note';
-							data: string;
-					  };
+				decoded: nip19.DecodedResult;
 				encoded: string;
 				value: string;
 		  }
@@ -126,7 +102,7 @@
 			const mLink = m.at(1);
 			const mMention = m.at(2) ?? m.at(3) ?? m.at(4) ?? m.at(5) ?? m.at(6);
 			const shortcode = m.at(7);
-			const mMentionDecoded =
+			const mMentionDecoded: nip19.DecodedResult | null =
 				mMention === undefined ? null : nip19decode(mMention.replace(/nostr:/, ''));
 			if (mLink !== undefined && /^https?:\/\/\S+/.test(mLink) && URL.canParse(mLink)) {
 				children.push({
@@ -166,7 +142,7 @@
 		};
 	};
 
-	const nip19decode = (text: string) => {
+	const nip19decode = (text: string): nip19.DecodedResult | null => {
 		try {
 			return nip19.decode(text);
 		} catch (_error) {
