@@ -4,7 +4,8 @@
 		getDateTimeString,
 		getEmoji,
 		getEmojiMap,
-		getEventsReactionToTheTarget
+		getEventsReactionToTheTarget,
+		getName
 	} from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import { isAddressableKind, isRegularKind, isReplaceableKind } from 'nostr-tools/kinds';
@@ -37,6 +38,7 @@
 		eventsReaction,
 		eventsEmojiSet,
 		eventsQuoted,
+		eventFollowList,
 		isSingleEntryPage,
 		isQuote
 	}: {
@@ -58,6 +60,7 @@
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
 		eventsQuoted: NostrEvent[];
+		eventFollowList: NostrEvent | undefined;
 		isSingleEntryPage: boolean;
 		isQuote?: boolean;
 	} = $props();
@@ -169,7 +172,7 @@
 			<div class="note">
 				<div class="name">
 					<a class="name" href="/{nip19.npubEncode(event.pubkey)}"
-						>@{prof?.name ?? `${nip19.npubEncode(event.pubkey).slice(0, 15)}...`}</a
+						>{getName(event.pubkey, profileMap, eventFollowList)}</a
 					><span class="hashtags">
 						{#each hashtags as hashtag (hashtag)}
 							<a href="/t/{encodeURI(hashtag)}" class="hashtag">#{hashtag}</a>
@@ -198,6 +201,7 @@
 							{eventsReaction}
 							{eventsEmojiSet}
 							{eventsQuoted}
+							{eventFollowList}
 							{isSingleEntryPage}
 						/>
 					{/if}
@@ -437,6 +441,7 @@
 				{eventsReaction}
 				{eventsEmojiSet}
 				{eventsQuoted}
+				{eventFollowList}
 				{isSingleEntryPage}
 			/>
 		{/each}

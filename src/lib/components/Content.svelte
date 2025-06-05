@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getRoboHashURL, limitDepth } from '$lib/config';
-	import { urlLinkString } from '$lib/utils';
+	import { getName, urlLinkString } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import * as nip19 from 'nostr-tools/nip19';
 	import { getTagValue, type ProfileContent } from 'applesauce-core/helpers';
@@ -22,6 +22,7 @@
 		eventsReaction,
 		eventsEmojiSet,
 		eventsQuoted,
+		eventFollowList,
 		isSingleEntryPage
 	}: {
 		content: string;
@@ -43,6 +44,7 @@
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
 		eventsQuoted: NostrEvent[];
+		eventFollowList: NostrEvent | undefined;
 		isSingleEntryPage: boolean;
 	} = $props();
 
@@ -163,14 +165,14 @@
 			{@const hex = d.type === 'npub' ? d.data : d.type === 'nprofile' ? d.data.pubkey : ''}
 			{@const enc = ct.encoded}
 			{@const prof = profileMap.get(hex)}
-			{@const name = prof?.name ?? enc}
+			{@const nameToShow = getName(hex, profileMap, eventFollowList, false, true)}
 			<a href="/{enc}"
 				><img
 					src={prof?.picture ?? getRoboHashURL(hex)}
-					alt={name.slice(0, 20)}
-					title={name.slice(0, 20)}
+					alt={nameToShow}
+					title={nameToShow}
 					class="avatar"
-				/>{name.slice(0, 20)}</a
+				/>{nameToShow}</a
 			>
 		{:else if ['note', 'nevent', 'naddr'].includes(d.type)}
 			{@const event =
@@ -200,6 +202,7 @@
 					{eventsReaction}
 					{eventsEmojiSet}
 					{eventsQuoted}
+					{eventFollowList}
 					{isSingleEntryPage}
 					isQuote={true}
 				/>

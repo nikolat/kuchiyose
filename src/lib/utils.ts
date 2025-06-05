@@ -8,7 +8,8 @@ import {
 	getCoordinateFromAddressPointer,
 	getOutboxes,
 	getProfileContent,
-	getTagValue
+	getTagValue,
+	type ProfileContent
 } from 'applesauce-core/helpers';
 import data from '@emoji-mart/data';
 // @ts-expect-error なんもわからんかも
@@ -729,4 +730,40 @@ const getRequiredRelays = (relayUserMap: Map<string, Set<string>>): string[] => 
 		}
 	}
 	return Array.from(relaySet);
+};
+
+export const getName = (
+	pubkey: string,
+	profileMap: Map<string, ProfileContent>,
+	eventFollowList: NostrEvent | undefined,
+	isNameDisabled?: boolean,
+	excludeIcon?: boolean
+): string => {
+	const prof = profileMap.get(pubkey);
+	let name: string | undefined = prof?.name;
+	const display_name: string | undefined = prof?.display_name;
+	const petname: string | undefined = eventFollowList?.tags
+		.find((tag) => tag.length >= 4 && tag[0] === 'p' && tag[1] === pubkey)
+		?.at(3);
+	const namePrefix: string = excludeIcon ? '' : '@';
+	const petnamePrefix: string = excludeIcon ? '' : '📛';
+	let nameToShow: string | undefined;
+	if (isNameDisabled) {
+		name = undefined;
+	}
+	if (petname !== undefined && petname.length > 0) {
+		nameToShow = `${petnamePrefix}${petname}`;
+	} else if (name !== undefined && name.length > 0) {
+		nameToShow = `${namePrefix}${name}`;
+	} else if (display_name !== undefined && display_name.length > 0) {
+		nameToShow = display_name;
+	} else if (isNameDisabled) {
+		nameToShow = `${namePrefix}${nip19.npubEncode(pubkey)}`;
+	} else {
+		nameToShow = '';
+	}
+	if (nameToShow.length > 20) {
+		nameToShow = `${nameToShow.slice(0, 20)}...`;
+	}
+	return nameToShow;
 };

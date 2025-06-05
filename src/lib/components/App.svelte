@@ -32,6 +32,7 @@
 		getEventsAddressableLatest,
 		getEventsFilteredByMute,
 		getMuteList,
+		getName,
 		getTitleFromWebbookmarks,
 		getWebBookmarkMap,
 		isValidWebBookmark,
@@ -470,8 +471,8 @@
 		} else if (up.currentProfilePointer !== undefined) {
 			const profile: ProfileContent | undefined = profileMap.get(up.currentProfilePointer.pubkey);
 			if (profile !== undefined) {
-				const name = profile.name ?? nip19.npubEncode(up.currentProfilePointer.pubkey);
-				title = `${name.slice(0, 20)}'s bookmarks`;
+				const name = getName(up.currentProfilePointer.pubkey, profileMap, eventFollowList);
+				title = `${name}'s bookmarks`;
 			}
 		} else if (up.hashtag !== undefined) {
 			title = `#${up.hashtag}`;
@@ -543,6 +544,7 @@
 	eventsComment={getEventsFiltered(eventsComment)}
 	{eventsEmojiSet}
 	eventsQuoted={getEventsFiltered(eventsQuoted)}
+	{eventFollowList}
 	isFollowingPubkeyPage={followingPubkeys.includes(up.currentProfilePointer?.pubkey ?? '')}
 	isMutedPubkeyPage={mutedPubkeys.includes(up.currentProfilePointer?.pubkey ?? '')}
 	isMutedHashtagPage={mutedHashtags.includes(up.hashtag ?? '')}

@@ -45,6 +45,7 @@
 		eventsComment,
 		eventsEmojiSet,
 		eventsQuoted,
+		eventFollowList,
 		isFollowingPubkeyPage,
 		isMutedPubkeyPage,
 		isMutedHashtagPage
@@ -63,6 +64,7 @@
 		eventsComment: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
 		eventsQuoted: NostrEvent[];
+		eventFollowList: NostrEvent | undefined;
 		isFollowingPubkeyPage: boolean;
 		isMutedPubkeyPage: boolean;
 		isMutedHashtagPage: boolean;
@@ -356,6 +358,7 @@
 			{eventsReaction}
 			{eventsEmojiSet}
 			{eventsQuoted}
+			{eventFollowList}
 		/>
 	{:else if up.hashtag !== undefined}
 		{@const hashtag = up.hashtag}
@@ -385,6 +388,7 @@
 				{eventsReaction}
 				{eventsEmojiSet}
 				{eventsQuoted}
+				{eventFollowList}
 				{isSingleEntryPage}
 			/>
 		{:else}
@@ -415,6 +419,7 @@
 				{eventsReaction}
 				{eventsEmojiSet}
 				{eventsQuoted}
+				{eventFollowList}
 				{isSingleEntryPage}
 			/>
 		{:else}
@@ -483,6 +488,7 @@
 							{eventsReaction}
 							{eventsEmojiSet}
 							{eventsQuoted}
+							{eventFollowList}
 							{isSingleEntryPage}
 						/>
 					{/each}

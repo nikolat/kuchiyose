@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getRoboHashURL } from '$lib/config';
+	import { getName } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import * as nip05 from 'nostr-tools/nip05';
 	import * as nip19 from 'nostr-tools/nip19';
@@ -28,7 +29,8 @@
 		profileMap,
 		eventsReaction,
 		eventsEmojiSet,
-		eventsQuoted
+		eventsQuoted,
+		eventFollowList
 	}: {
 		pubkey: string;
 		event: NostrEvent | undefined;
@@ -56,6 +58,7 @@
 		eventsReaction: NostrEvent[];
 		eventsEmojiSet: NostrEvent[];
 		eventsQuoted: NostrEvent[];
+		eventFollowList: NostrEvent | undefined;
 	} = $props();
 
 	const tags: string[][] = $derived(event?.tags ?? []);
@@ -71,8 +74,8 @@
 			? profile.picture
 			: getRoboHashURL(pubkey)
 	);
-	const display_name = $derived(profile?.display_name);
-	const name = $derived(profile?.name ?? nip19.npubEncode(pubkey));
+	const name = $derived(profile?.name);
+	const nameToShow = $derived(getName(pubkey, profileMap, eventFollowList));
 	const website = $derived(
 		profile?.website !== undefined && URL.canParse(profile.website) ? profile.website : undefined
 	);
@@ -86,17 +89,17 @@
 		{/if}
 	</div>
 	<div class="picture">
-		<img src={picture} alt={name.slice(0, 20)} class="picture" />
+		<img src={picture} alt={nameToShow} class="picture" />
 	</div>
 	<h2 class="display_name">
-		{display_name ?? ''}
+		{getName(pubkey, profileMap, eventFollowList, true)}
 		{#if isLoggedIn}
 			{#if isFollowingPubkeyPage}
 				<button
 					type="button"
 					class="svg unfollow-pubkey"
-					title={`unfollow @${name.slice(0, 20)}`}
-					aria-label={`unfollow @${name.slice(0, 20)}`}
+					title={`unfollow ${nameToShow}`}
+					aria-label={`unfollow ${nameToShow}`}
 					onclick={unfollowPubkey}
 				>
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
@@ -110,8 +113,8 @@
 				<button
 					type="button"
 					class="svg follow-pubkey"
-					title={`follow @${name.slice(0, 20)}`}
-					aria-label={`follow @${name.slice(0, 20)}`}
+					title={`follow ${nameToShow}`}
+					aria-label={`follow ${nameToShow}`}
 					onclick={followPubkey}
 				>
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
@@ -126,8 +129,8 @@
 				<button
 					type="button"
 					class="svg unmute-pubkey"
-					title={`unmute @${name.slice(0, 20)}`}
-					aria-label={`unmute @${name.slice(0, 20)}`}
+					title={`unmute ${nameToShow}`}
+					aria-label={`unmute ${nameToShow}`}
 					onclick={unmutePubkey}
 				>
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
@@ -141,8 +144,8 @@
 				<button
 					type="button"
 					class="svg mute-pubkey"
-					title={`mute @${name.slice(0, 20)}`}
-					aria-label={`mute @${name.slice(0, 20)}`}
+					title={`mute ${nameToShow}`}
+					aria-label={`mute ${nameToShow}`}
 					onclick={mutePubkey}
 				>
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
@@ -155,7 +158,7 @@
 			{/if}
 		{/if}
 	</h2>
-	<div class="name">@{name}</div>
+	<div class="name">@{(name || nip19.npubEncode(pubkey)).slice(0, 20)}</div>
 	{#if nip05.isNip05(nip05string)}
 		{@const abbreviatedNip05 = nip05string.replace(/^_@/, '')}
 		<div class="nip05">
@@ -190,6 +193,7 @@
 			{eventsReaction}
 			{eventsEmojiSet}
 			{eventsQuoted}
+			{eventFollowList}
 			isSingleEntryPage={false}
 		/>
 	</div>
