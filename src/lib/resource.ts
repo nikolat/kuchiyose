@@ -517,7 +517,7 @@ export class RelayConnector {
 		const relaySet = new Set<string>(relayHints ?? []);
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
 		if (event10002 !== undefined) {
-			for (const relayUrl of getInboxes(event10002).filter(this.relayFilter).slice(0, 3)) {
+			for (const relayUrl of getOutboxes(event10002).filter(this.relayFilter).slice(0, 3)) {
 				relaySet.add(relayUrl);
 			}
 		}
@@ -890,7 +890,7 @@ export class RelayConnector {
 					if (event10002 === undefined) {
 						continue;
 					}
-					for (const relayUrl of getInboxes(event10002)) {
+					for (const relayUrl of getOutboxes(event10002)) {
 						relaySet.add(relayUrl);
 					}
 				}
