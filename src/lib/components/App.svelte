@@ -64,12 +64,10 @@
 		eventFollowList?.tags.filter((tag) => tag.length >= 2 && tag[0]).map((tag) => tag[1]) ?? []
 	);
 	let eventMuteList: NostrEvent | undefined = $state();
-	let [mutedPubkeys, mutedIds, mutedWords, mutedHashtags]: [
-		string[],
-		string[],
-		string[],
-		string[]
-	] = $state([[], [], [], []]);
+	let mutedPubkeys: string[] = $state([]);
+	let mutedIds: string[] = $state([]);
+	let mutedWords: string[] = $state([]);
+	let mutedHashtags: string[] = $state([]);
 	const getMuteListPromise: Promise<[string[], string[], string[], string[]]> = $derived(
 		getMuteList(eventMuteList, loginPubkey)
 	);
