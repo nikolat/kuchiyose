@@ -6,6 +6,7 @@ Nostr events of web bookmark.
 
 - [NIP-01: Basic protocol flow description](https://github.com/nostr-protocol/nips/blob/master/01.md)
 - [NIP-02: Follow List](https://github.com/nostr-protocol/nips/blob/master/02.md)
+- [NIP-05: Mapping Nostr keys to DNS-based internet identifiers](https://github.com/nostr-protocol/nips/blob/master/05.md)
 - [NIP-07: `window.nostr` capability for web browsers](https://github.com/nostr-protocol/nips/blob/master/07.md)
 - [NIP-09: Event Deletion Request](https://github.com/nostr-protocol/nips/blob/master/09.md)
 - [NIP-10: Text Notes and Threads](https://github.com/nostr-protocol/nips/blob/master/10.md)
