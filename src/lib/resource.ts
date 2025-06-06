@@ -1,6 +1,7 @@
 import {
 	bufferTime,
 	type MonoTypeOperatorFunction,
+	type Observable,
 	type OperatorFunction,
 	type Subscription
 } from 'rxjs';
@@ -17,6 +18,7 @@ import {
 	type EventPacket,
 	type LazyFilter,
 	type MergeFilter,
+	type OkPacketAgainstEvent,
 	type ReqPacket,
 	type RetryConfig,
 	type RxNostr,
@@ -1079,17 +1081,22 @@ export class RelayConnector {
 		return Array.from(s).map((url) => normalizeURL(url));
 	};
 
-	signAndSendEvent = async (eventTemplate: EventTemplate): Promise<void> => {
+	signAndSendEvent = async (
+		eventTemplate: EventTemplate
+	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		this.#sendEvent(eventToSend);
+		return this.#sendEventWithInboxRelays(eventToSend);
 	};
 
-	followPubkey = async (pubkey: string, eventFollowList: NostrEvent | undefined): Promise<void> => {
+	followPubkey = async (
+		pubkey: string,
+		eventFollowList: NostrEvent | undefined
+	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		const kind = 3;
 		let tags: string[][];
@@ -1124,12 +1131,15 @@ export class RelayConnector {
 			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		this.#sendEvent(eventToSend);
+		return this.#sendEventWithInboxRelays(eventToSend);
 	};
 
-	unfollowPubkey = async (pubkey: string, eventFollowList: NostrEvent): Promise<void> => {
+	unfollowPubkey = async (
+		pubkey: string,
+		eventFollowList: NostrEvent
+	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		const kind = eventFollowList.kind;
 		let tags: string[][];
@@ -1166,16 +1176,16 @@ export class RelayConnector {
 			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		this.#sendEvent(eventToSend);
+		return this.#sendEventWithInboxRelays(eventToSend);
 	};
 
 	mutePubkey = async (
 		pubkey: string,
 		loginPubkey: string,
 		eventMuteList: NostrEvent | undefined
-	): Promise<void> => {
+	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr?.nip04 === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		const kind = 10000;
 		let tags: string[][];
@@ -1198,20 +1208,19 @@ export class RelayConnector {
 			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		this.#sendEvent(eventToSend);
+		return this.#sendEventWithInboxRelays(eventToSend);
 	};
 
 	unmutePubkey = async (
 		pubkey: string,
 		loginPubkey: string,
 		eventMuteList: NostrEvent | undefined
-	): Promise<void> => {
+	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr?.nip04 === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		if (eventMuteList === undefined) {
-			console.warn('kind:10000 event does not exist');
-			return;
+			throw new Error('kind:10000 event does not exist');
 		}
 		const { tagList, contentList } = await splitNip51List(eventMuteList, loginPubkey);
 		const tags: string[][] = tagList.filter(
@@ -1234,16 +1243,16 @@ export class RelayConnector {
 			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		this.#sendEvent(eventToSend);
+		return this.#sendEventWithInboxRelays(eventToSend);
 	};
 
 	muteHashtag = async (
 		hashtag: string,
 		loginPubkey: string,
 		eventMuteList: NostrEvent | undefined
-	): Promise<void> => {
+	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr?.nip04 === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		const kind = 10000;
 		let tags: string[][];
@@ -1266,20 +1275,19 @@ export class RelayConnector {
 			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		this.#sendEvent(eventToSend);
+		return this.#sendEventWithInboxRelays(eventToSend);
 	};
 
 	unmuteHashtag = async (
 		hashtag: string,
 		loginPubkey: string,
 		eventMuteList: NostrEvent | undefined
-	): Promise<void> => {
+	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr?.nip04 === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		if (eventMuteList === undefined) {
-			console.warn('kind:10000 event does not exist');
-			return;
+			throw new Error('kind:10000 event does not exist');
 		}
 		const { tagList, contentList } = await splitNip51List(eventMuteList, loginPubkey);
 		const tags: string[][] = tagList.filter(
@@ -1304,7 +1312,7 @@ export class RelayConnector {
 			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		this.#sendEvent(eventToSend);
+		return this.#sendEventWithInboxRelays(eventToSend);
 	};
 
 	sendComment = async (
@@ -1313,9 +1321,9 @@ export class RelayConnector {
 		eventsEmojiSet: NostrEvent[],
 		contentWarning: string | boolean,
 		clientTag: string[] | undefined
-	): Promise<void> => {
+	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		const kind = 1111;
 		const tags: string[][] = [];
@@ -1378,19 +1386,7 @@ export class RelayConnector {
 			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
-		for (const pubkey of tags.filter((tag) => ['p', 'P'].includes(tag[0])).map((tag) => tag[1])) {
-			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
-			if (event10002 !== undefined) {
-				for (const relayUrl of getInboxes(event10002)) {
-					relaySet.add(relayUrl);
-				}
-			}
-		}
-		const relays = Array.from(relaySet);
-		const options: Partial<RxNostrSendOptions> | undefined =
-			relays.length > 0 ? { on: { relays } } : undefined;
-		this.#sendEvent(eventToSend, options);
+		return this.#sendEventWithInboxRelays(eventToSend);
 	};
 
 	sendReaction = async (
@@ -1398,9 +1394,9 @@ export class RelayConnector {
 		content: string,
 		emojiurl: string | undefined,
 		clientTag: string[] | undefined
-	): Promise<void> => {
+	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		let targetEvent: NostrEvent | undefined;
 		let targetUrl: string | undefined;
@@ -1446,30 +1442,14 @@ export class RelayConnector {
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
 		if (!isValidEmoji(eventToSend)) {
-			console.warn('emoji is invalid');
-			return;
+			throw new TypeError('emoji is invalid');
 		}
-		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
-		if (targetEvent !== undefined) {
-			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(
-				10002,
-				targetEvent.pubkey
-			);
-			if (event10002 !== undefined) {
-				for (const relayUrl of getInboxes(event10002)) {
-					relaySet.add(relayUrl);
-				}
-			}
-		}
-		const relays = Array.from(relaySet);
-		const options: Partial<RxNostrSendOptions> | undefined =
-			relays.length > 0 ? { on: { relays } } : undefined;
-		this.#sendEvent(eventToSend, options);
+		return this.#sendEventWithInboxRelays(eventToSend);
 	};
 
-	sendDeletion = async (targetEvent: NostrEvent): Promise<void> => {
+	sendDeletion = async (targetEvent: NostrEvent): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr === undefined) {
-			return;
+			throw new Error('window.nostr is undefined');
 		}
 		if ([5, 62].includes(targetEvent.kind)) {
 			throw new TypeError(`cannot delete kind:${targetEvent.kind} event`);
@@ -1485,9 +1465,13 @@ export class RelayConnector {
 			created_at: unixNow()
 		};
 		const eventToSend = await window.nostr.signEvent(eventTemplate);
-		const relaySet: Set<string> = new Set<string>(this.#getRelays('write'));
-		const mentionedPubkeys: string[] = targetEvent.tags
-			.filter((tag) => tag.length >= 2 && tag[0] === 'p')
+		return this.#sendEventWithInboxRelays(eventToSend, targetEvent);
+	};
+
+	#getInboxRelaysOfPTags = (event: NostrEvent): string[] => {
+		const relaySet: Set<string> = new Set<string>();
+		const mentionedPubkeys: string[] = event.tags
+			.filter((tag) => tag.length >= 2 && ['p', 'P'].includes(tag[0]))
 			.map((tag) => tag[1]);
 		for (const pubkey of mentionedPubkeys) {
 			const event10002: NostrEvent | undefined = this.#eventStore.getReplaceable(10002, pubkey);
@@ -1498,13 +1482,27 @@ export class RelayConnector {
 				relaySet.add(relayUrl);
 			}
 		}
+		return Array.from(relaySet);
+	};
+
+	#sendEventWithInboxRelays = (
+		eventToSend: NostrEvent,
+		targetEvent?: NostrEvent
+	): Observable<OkPacketAgainstEvent> => {
+		const relaySet: Set<string> = new Set<string>([
+			...this.#getRelays('write'),
+			...this.#getInboxRelaysOfPTags(targetEvent ?? eventToSend)
+		]);
 		const relays = Array.from(relaySet);
 		const options: Partial<RxNostrSendOptions> | undefined =
 			relays.length > 0 ? { on: { relays } } : undefined;
-		this.#sendEvent(eventToSend, options);
+		return this.#sendEvent(eventToSend, options);
 	};
 
-	#sendEvent = (eventToSend: NostrEvent, options?: Partial<RxNostrSendOptions>): void => {
-		this.#rxNostr.send(eventToSend, options);
+	#sendEvent = (
+		eventToSend: NostrEvent,
+		options?: Partial<RxNostrSendOptions>
+	): Observable<OkPacketAgainstEvent> => {
+		return this.#rxNostr.send(eventToSend, options);
 	};
 }
