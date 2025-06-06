@@ -179,6 +179,18 @@
 						{/each}
 					</span>
 				</div>
+				{#if event.kind === 39701 && isQuote}
+					{@const title = getTagValue(event, 'title')}
+					{@const url = `https://${getTagValue(event, 'd')}`}
+					<h3 class="title">
+						<img
+							src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(url)}`}
+							alt="favicon"
+							class="favicon"
+						/>
+						<a href={url} target="_blank" rel="noopener noreferrer">{title ?? url}</a>
+					</h3>
+				{/if}
 				<div class="content">
 					{#if contentWarning && !isContentWarningVisible}
 						<div class="content-warning">
@@ -489,6 +501,16 @@
 	}
 	.hashtag {
 		margin-left: 0.5em;
+	}
+	h3.title {
+		font-size: 1em;
+		margin-top: 0;
+		margin-bottom: 0;
+	}
+	.favicon {
+		width: 16px;
+		height: 16px;
+		border-radius: 10%;
 	}
 	.menu {
 		margin-top: 2px;
