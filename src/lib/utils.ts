@@ -41,23 +41,39 @@ export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] =
 	return sortEvents(Array.from(eventMap.values()));
 };
 
-export const isValidWebBookmark = (d: string, event?: NostrEvent): boolean => {
+export const isValidWebBookmark = (event: NostrEvent, enableLog: boolean = false): boolean => {
+	const d: string | undefined = getTagValue(event, 'd');
+	if (d === undefined) {
+		if (enableLog) {
+			console.warn('d-tag is undefined');
+			console.warn(event);
+		}
+		return false;
+	}
+	const isValid: boolean = isValidDTag(d, enableLog);
+	if (!isValid && enableLog) {
+		console.warn(event);
+	}
+	return isValid;
+};
+
+export const isValidDTag = (d: string, enableLog: boolean = false): boolean => {
 	if (!URL.canParse(`https://${d}`)) {
-		if (event !== undefined) {
-			console.warn(`d-tag: "${d}" is cannot parse as URL`, event);
+		if (enableLog) {
+			console.warn(`d-tag: "${d}" is cannot parse as URL`);
 		}
 		return false;
 	}
 	const url = new URL(`https://${d}`);
 	if (url.search !== '' || url.hash !== '' || d.endsWith('?') || d.endsWith('#')) {
-		if (event !== undefined) {
-			console.warn(`d-tag: "${d}" has query parameters`, event);
+		if (enableLog) {
+			console.warn(`d-tag: "${d}" has query parameters`);
 		}
 		return false;
 	}
 	if (url.href.replace(/^https?:\/\//, '') !== d) {
-		if (event !== undefined) {
-			console.warn(`d-tag: "${d}" should be "${url.href.replaceAll(/https?:?\/\//g, '')}"`, event);
+		if (enableLog) {
+			console.warn(`d-tag: "${d}" should be "${url.href.replaceAll(/https?:?\/\//g, '')}"`);
 		}
 		return false;
 	}

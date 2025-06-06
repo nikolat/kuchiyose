@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getEmoji, getEmojiMap, isValidWebBookmark } from '$lib/utils';
+	import { getEmoji, getEmojiMap, isValidDTag } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
 
 	let {
@@ -109,7 +109,7 @@
 		<dd class="d-tag">
 			https://<input
 				id="edit-url"
-				class={editDTag.length === 0 || isValidWebBookmark(editDTag) ? 'valid' : 'invalid'}
+				class={editDTag.length === 0 || isValidDTag(editDTag) ? 'valid' : 'invalid'}
 				type="text"
 				placeholder="example.com/"
 				disabled={loginPubkey === undefined}
@@ -249,7 +249,7 @@
 		<dd class="submit">
 			<button
 				type="button"
-				disabled={loginPubkey === undefined || !isValidWebBookmark(editDTag)}
+				disabled={loginPubkey === undefined || !isValidDTag(editDTag)}
 				onclick={sendWebBookmark}>Submit</button
 			>
 		</dd>

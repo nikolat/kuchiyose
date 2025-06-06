@@ -230,6 +230,20 @@
 
 	const callbackQuote = (event: NostrEvent): void => {
 		if (!eventsQuoted.map((ev) => ev.id).includes(event.id)) {
+			switch (event.kind) {
+				case 0:
+					if (!isValidProfile(event)) {
+						return;
+					}
+					break;
+				case 39701:
+					if (!isValidWebBookmark(event)) {
+						return;
+					}
+					break;
+				default:
+					break;
+			}
 			eventsQuoted.push(event);
 			setEventsQuoted(eventsQuoted);
 			if (rc !== undefined) {
@@ -503,7 +517,7 @@
 	};
 	const isRoot: boolean = $derived(Object.values(up).every((v) => v === undefined));
 	const filteredTimeline = $derived(
-		getEventsFiltered(timelineSliced).filter((ev) => isValidWebBookmark(getTagValue(ev, 'd') ?? ''))
+		getEventsFiltered(timelineSliced).filter((ev) => isValidWebBookmark(ev))
 	);
 	const eventsWebBookmarkToShow = $derived(
 		isRoot
