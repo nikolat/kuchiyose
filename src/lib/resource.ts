@@ -438,18 +438,23 @@ export class RelayConnector {
 					break;
 				}
 				case 39701: {
+					if (!isValidWebBookmark(event)) {
+						break;
+					}
 					const fetchAfter10002 = () => {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 							this.fetchProfile(event.pubkey);
 						}
 						const d = getTagValue(event, 'd') ?? '';
 						const filter = { kinds: [39701], '#d': [d] };
+						const relays = this.#getRelays('write').filter(this.#relayFilter).slice(0, 3); //どこのリレーを指定するべきか…
+						const options = relays.length > 0 ? { relays } : undefined;
 						if (this.#eventStore.getAll(filter).size === 1) {
-							this.#rxReqB39701Url.emit(filter); //どこのリレーを指定するべきか…
+							this.#rxReqB39701Url.emit(filter, options);
 						}
 						this.fetchDeletion(event);
 						this.fetchReaction(event);
-						this.#fetchWebReaction(`https://${d}`);
+						this.#fetchWebReaction(`https://${d}`, options);
 						this.#fetchComment(event);
 						this.fetchEventsQuoted(event);
 					};
@@ -574,15 +579,20 @@ export class RelayConnector {
 		this.#rxReqB7.emit(filter, options);
 	};
 
-	#fetchWebReaction = (url: string) => {
+	#fetchWebReaction = (
+		url: string,
+		options?:
+			| {
+					relays: string[];
+			  }
+			| undefined
+	) => {
 		const filter: LazyFilter = {
 			kinds: [17],
 			'#r': [url],
 			limit: this.#limitReaction,
 			until: unixNow()
 		};
-		const relays = this.#getRelays('write').filter(this.#relayFilter).slice(0, 3);
-		const options = relays.length > 0 ? { relays } : undefined;
 		this.#rxReqB17.emit(filter, options);
 	};
 
@@ -789,7 +799,7 @@ export class RelayConnector {
 
 	fetchUserSettings = (pubkey: string, completeCustom: () => void) => {
 		const filter: LazyFilter = {
-			kinds: [0, 3, 10000, 10006, 10030],
+			kinds: [0, 3, 10000, 10002, 10006, 10030],
 			authors: [pubkey],
 			until: unixNow()
 		};
@@ -892,7 +902,7 @@ export class RelayConnector {
 					if (event10002 === undefined) {
 						continue;
 					}
-					for (const relayUrl of getOutboxes(event10002)) {
+					for (const relayUrl of getOutboxes(event10002).filter(this.#relayFilter).slice(0, 3)) {
 						relaySet.add(relayUrl);
 					}
 				}
