@@ -9,8 +9,8 @@
 		editTitleTag = $bindable(),
 		editTag = $bindable(),
 		editTags = $bindable(),
-		editContent = $bindable(),
-		editContentTextArea = $bindable(),
+		editContentValue = $bindable(),
+		editContentElement = $bindable(),
 		isContentWarningEnabled = $bindable(),
 		contentWarningReason = $bindable(),
 		loginPubkey,
@@ -22,8 +22,8 @@
 		editTitleTag: string;
 		editTag: string;
 		editTags: string[];
-		editContent: string;
-		editContentTextArea: HTMLTextAreaElement | undefined;
+		editContentValue: string;
+		editContentElement: HTMLTextAreaElement | undefined;
 		isContentWarningEnabled: boolean;
 		contentWarningReason: string;
 		loginPubkey: string | undefined;
@@ -49,7 +49,7 @@
 					}
 					break;
 				case 'content':
-					editContent = v;
+					editContentValue = v;
 					break;
 				default:
 					break;
@@ -64,23 +64,23 @@
 	let editTagInput: HTMLInputElement | undefined = $state();
 	let emojiPickerContainer: HTMLElement | undefined = $state();
 	const insertText = (word: string, enableNewline: boolean = true): void => {
-		if (editContentTextArea === undefined) {
+		if (editContentElement === undefined) {
 			return;
 		}
-		let sentence = editContentTextArea.value;
+		let sentence = editContentElement.value;
 		const len = sentence.length;
-		const pos = editContentTextArea.selectionStart;
+		const pos = editContentElement.selectionStart;
 		const before = sentence.slice(0, pos);
 		const after = sentence.slice(pos, pos + len);
 		if (enableNewline && !(before.length === 0 || before.endsWith('\n'))) {
 			word = `\n${word}`;
 		}
 		sentence = before + word + after;
-		editContentTextArea.value = sentence;
-		editContentTextArea.focus();
-		editContentTextArea.selectionStart = pos + word.length;
-		editContentTextArea.selectionEnd = pos + word.length;
-		editContent = sentence;
+		editContentElement.value = sentence;
+		editContentElement.focus();
+		editContentElement.selectionStart = pos + word.length;
+		editContentElement.selectionEnd = pos + word.length;
+		editContentValue = sentence;
 	};
 	const callGetEmoji = () => {
 		if (emojiPickerContainer === undefined) {
@@ -204,8 +204,8 @@
 			<textarea
 				id="edit-comment"
 				disabled={loginPubkey === undefined}
-				bind:value={editContent}
-				bind:this={editContentTextArea}
+				bind:value={editContentValue}
+				bind:this={editContentElement}
 			></textarea>
 			<span class="add-cw">
 				<button

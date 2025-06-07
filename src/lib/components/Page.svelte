@@ -80,8 +80,8 @@
 	let editTitleTag: string = $state('');
 	let editTag: string = $state('');
 	let editTags: string[] = $state([]);
-	let editContent: string = $state('');
-	let editContentTextArea: HTMLTextAreaElement | undefined = $state();
+	let editContentValue: string = $state('');
+	let editContentElement: HTMLTextAreaElement | undefined = $state();
 	let isContentWarningEnabled: boolean = $state(false);
 	let contentWarningReason: string = $state('');
 
@@ -153,7 +153,7 @@
 			return;
 		}
 		const kind: number = 39701;
-		const content: string = editContent;
+		const content: string = editContentValue;
 		const created_at: number = unixNow();
 		const tags: string[][] = [
 			['d', editDTag],
@@ -174,7 +174,7 @@
 		editTitleTag = '';
 		editTag = '';
 		editTags = [];
-		editContent = '';
+		editContentValue = '';
 		contentWarningReason = '';
 		isContentWarningEnabled = false;
 		isOpenEdit = false;
@@ -261,10 +261,10 @@
 		editTitleTag = title;
 		editTag = '';
 		editTags = hashtags;
-		editContent = webbookmark.content;
+		editContentValue = webbookmark.content;
 		isOpenEdit = true;
 		setTimeout(() => {
-			editContentTextArea?.focus();
+			editContentElement?.focus();
 		}, 10);
 	};
 </script>
@@ -432,8 +432,8 @@
 			bind:editTitleTag
 			bind:editTag
 			bind:editTags
-			bind:editContent
-			bind:editContentTextArea
+			bind:editContentValue
+			bind:editContentElement
 			bind:isContentWarningEnabled
 			bind:contentWarningReason
 			{loginPubkey}
