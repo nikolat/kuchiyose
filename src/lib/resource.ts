@@ -114,6 +114,7 @@ export class RelayConnector {
 	#secBufferTime = 1000;
 	#limitReaction = 100;
 	#limitComment = 100;
+	#limitRelay = 5;
 
 	constructor(
 		useAuth: boolean,
@@ -447,7 +448,10 @@ export class RelayConnector {
 						}
 						const d = getTagValue(event, 'd') ?? '';
 						const filter = { kinds: [39701], '#d': [d] };
-						const relays = this.#getRelays('write').filter(this.#relayFilter).slice(0, 3); //どこのリレーを指定するべきか…
+						//どこのリレーを指定するべきか…
+						const relays = this.#getRelays('write')
+							.filter(this.#relayFilter)
+							.slice(0, this.#limitRelay);
 						const options = relays.length > 0 ? { relays } : undefined;
 						if (this.#eventStore.getAll(filter).size === 1) {
 							this.#rxReqB39701Url.emit(filter, options);
@@ -524,7 +528,8 @@ export class RelayConnector {
 		const relaySet = new Set<string>(relayHints ?? []);
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, pubkey);
 		if (event10002 !== undefined) {
-			for (const relayUrl of getOutboxes(event10002).filter(this.#relayFilter).slice(0, 3)) {
+			const relays = getOutboxes(event10002).filter(this.#relayFilter).slice(0, this.#limitRelay);
+			for (const relayUrl of relays) {
 				relaySet.add(relayUrl);
 			}
 		}
@@ -547,7 +552,7 @@ export class RelayConnector {
 		let options: { relays: string[] } | undefined;
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, event.pubkey);
 		if (event10002 !== undefined) {
-			const relays = getOutboxes(event10002).filter(this.#relayFilter).slice(0, 3);
+			const relays = getOutboxes(event10002).filter(this.#relayFilter).slice(0, this.#limitRelay);
 			options = relays.length > 0 ? { relays } : undefined;
 		}
 		this.#rxReqB5.emit(filter, options);
@@ -573,7 +578,7 @@ export class RelayConnector {
 		let options: { relays: string[] } | undefined;
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, event.pubkey);
 		if (event10002 !== undefined) {
-			const relays = getInboxes(event10002).filter(this.#relayFilter).slice(0, 3);
+			const relays = getInboxes(event10002).filter(this.#relayFilter).slice(0, this.#limitRelay);
 			options = relays.length > 0 ? { relays } : undefined;
 		}
 		this.#rxReqB7.emit(filter, options);
@@ -616,7 +621,7 @@ export class RelayConnector {
 		let options: { relays: string[] } | undefined;
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, event.pubkey);
 		if (event10002 !== undefined) {
-			const relays = getInboxes(event10002).filter(this.#relayFilter).slice(0, 3);
+			const relays = getInboxes(event10002).filter(this.#relayFilter).slice(0, this.#limitRelay);
 			options = relays.length > 0 ? { relays } : undefined;
 		}
 		this.#rxReqB1111.emit(filter, options);
@@ -803,7 +808,7 @@ export class RelayConnector {
 			authors: [pubkey],
 			until: unixNow()
 		};
-		const relays = this.#getRelays('write').filter(this.#relayFilter).slice(0, 3);
+		const relays = this.#getRelays('write').filter(this.#relayFilter).slice(0, this.#limitRelay);
 		const options = relays.length > 0 ? { relays } : undefined;
 		this.#fetchRpCustom(filter, completeCustom, options);
 	};
@@ -902,7 +907,10 @@ export class RelayConnector {
 					if (event10002 === undefined) {
 						continue;
 					}
-					for (const relayUrl of getOutboxes(event10002).filter(this.#relayFilter).slice(0, 3)) {
+					const relays = getOutboxes(event10002)
+						.filter(this.#relayFilter)
+						.slice(0, this.#limitRelay);
+					for (const relayUrl of relays) {
 						relaySet.add(relayUrl);
 					}
 				}
