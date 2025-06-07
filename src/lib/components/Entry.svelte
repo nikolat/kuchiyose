@@ -217,7 +217,7 @@
 							{isSingleEntryPage}
 						/>
 					{/if}
-					{#if getContentWarning(event)}
+					{#if contentWarning}
 						<div class="toggle-content-warning">
 							<button
 								type="button"
