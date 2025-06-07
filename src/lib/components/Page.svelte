@@ -346,7 +346,6 @@
 			mutePubkey={() => mutePubkey(pubkey)}
 			unmutePubkey={() => unmutePubkey(pubkey)}
 			{eventsComment}
-			level={0}
 			{idReferenced}
 			{getSeenOn}
 			{fork}

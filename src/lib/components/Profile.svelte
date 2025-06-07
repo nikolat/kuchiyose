@@ -18,7 +18,6 @@
 		mutePubkey,
 		unmutePubkey,
 		eventsComment,
-		level,
 		idReferenced,
 		getSeenOn,
 		fork,
@@ -42,7 +41,6 @@
 		mutePubkey: () => Promise<void>;
 		unmutePubkey: () => Promise<void>;
 		eventsComment: NostrEvent[];
-		level: number;
 		idReferenced: string | undefined;
 		getSeenOn: (id: string, excludeWs: boolean) => string[];
 		fork: (event: NostrEvent) => void;
@@ -181,7 +179,7 @@
 			content={about ?? ''}
 			{tags}
 			{eventsComment}
-			level={level + 1}
+			level={0}
 			{idReferenced}
 			{getSeenOn}
 			{fork}
