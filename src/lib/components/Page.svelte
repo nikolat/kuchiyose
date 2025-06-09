@@ -561,7 +561,7 @@
 	.url > dt {
 		border-radius: 5px;
 		padding: 5px;
-		background-color: rgba(0, 0, 0, 0.2);
+		background-color: var(--background);
 		position: relative;
 		margin-top: 1em;
 	}
