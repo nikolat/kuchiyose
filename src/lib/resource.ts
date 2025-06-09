@@ -56,7 +56,6 @@ import {
 	getReadRelaysWithOutboxModel,
 	getTagsForContent,
 	isValidEmoji,
-	isValidWebBookmark,
 	mergeFilterForAddressableEvents,
 	splitNip51List
 } from '$lib/utils';
@@ -361,8 +360,6 @@ export class RelayConnector {
 				};
 				this.#sendEvent(event, options);
 			}
-		} else if (event.kind === 39701) {
-			isValidWebBookmark(event, true); //log only
 		}
 		this.#eventStore.add(event);
 	};
@@ -439,9 +436,6 @@ export class RelayConnector {
 					break;
 				}
 				case 39701: {
-					if (!isValidWebBookmark(event)) {
-						break;
-					}
 					const fetchAfter10002 = () => {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 							this.fetchProfile(event.pubkey);

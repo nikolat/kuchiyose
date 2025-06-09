@@ -47,6 +47,7 @@
 	} = $props();
 
 	let loginPubkey: string | undefined = $state();
+	let isAllowedQueryString: boolean = $state(false);
 	let isEnabledUseClientTag: boolean = $state(false);
 	let isEnabledUseDarkMode: boolean = $state(false);
 	let deadRelays: string[] = $derived(getDeadRelays());
@@ -80,7 +81,13 @@
 	let eventsEmojiSet: NostrEvent[] = $state([]);
 	let eventsQuoted: NostrEvent[] = $derived(getEventsQuoted());
 	const getEventsFiltered = (events: NostrEvent[]) => {
-		return getEventsFilteredByMute(events, mutedPubkeys, mutedIds, mutedWords, mutedHashtags);
+		return getEventsFilteredByMute(
+			events,
+			mutedPubkeys,
+			mutedIds,
+			mutedWords,
+			mutedHashtags
+		).filter((ev) => ev.kind !== 39701 || isValidWebBookmark(ev, isAllowedQueryString, false));
 	};
 
 	const callback = (kind: number, event?: NostrEvent): void => {
@@ -236,11 +243,6 @@
 						return;
 					}
 					break;
-				case 39701:
-					if (!isValidWebBookmark(event)) {
-						return;
-					}
-					break;
 				default:
 					break;
 			}
@@ -361,6 +363,7 @@
 	const saveLocalStorage = () => {
 		preferences.set({
 			loginPubkey,
+			isAllowedQueryString,
 			isEnabledUseDarkMode,
 			isEnabledUseClientTag
 		});
@@ -456,10 +459,12 @@
 		unsubscriber = preferences.subscribe(
 			(value: {
 				loginPubkey: string | undefined;
+				isAllowedQueryString: boolean;
 				isEnabledUseDarkMode: boolean;
 				isEnabledUseClientTag: boolean;
 			}) => {
 				loginPubkey = value.loginPubkey;
+				isAllowedQueryString = value.isAllowedQueryString;
 				isEnabledUseDarkMode = value.isEnabledUseDarkMode;
 				isEnabledUseClientTag = value.isEnabledUseClientTag;
 			}
@@ -516,9 +521,7 @@
 		return rc.getEventsByFilter(filter);
 	};
 	const isRoot: boolean = $derived(Object.values(up).every((v) => v === undefined));
-	const filteredTimeline = $derived(
-		getEventsFiltered(timelineSliced).filter((ev) => isValidWebBookmark(ev))
-	);
+	const filteredTimeline = $derived(getEventsFiltered(timelineSliced));
 	const eventsWebBookmarkToShow = $derived(
 		isRoot
 			? getAllBookmarksEachUrl(filteredTimeline)
@@ -547,6 +550,7 @@
 	{up}
 	{rc}
 	{loginPubkey}
+	bind:isAllowedQueryString
 	bind:isEnabledUseDarkMode
 	bind:isEnabledUseClientTag
 	{saveLocalStorage}

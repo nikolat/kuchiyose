@@ -15,6 +15,7 @@
 		contentWarningReason = $bindable(),
 		loginPubkey,
 		eventsEmojiSet,
+		isAllowedQueryString,
 		sendWebBookmark
 	}: {
 		isOpenEdit: boolean;
@@ -28,6 +29,7 @@
 		contentWarningReason: string;
 		loginPubkey: string | undefined;
 		eventsEmojiSet: NostrEvent[];
+		isAllowedQueryString: boolean;
 		sendWebBookmark: () => Promise<void>;
 	} = $props();
 
@@ -109,7 +111,9 @@
 		<dd class="d-tag">
 			https://<input
 				id="edit-url"
-				class={editDTag.length === 0 || isValidDTag(editDTag) ? 'valid' : 'invalid'}
+				class={editDTag.length === 0 || isValidDTag(editDTag, isAllowedQueryString, false)
+					? 'valid'
+					: 'invalid'}
 				type="text"
 				placeholder="example.com/"
 				disabled={loginPubkey === undefined}
@@ -249,7 +253,7 @@
 		<dd class="submit">
 			<button
 				type="button"
-				disabled={loginPubkey === undefined || !isValidDTag(editDTag)}
+				disabled={loginPubkey === undefined || !isValidDTag(editDTag, isAllowedQueryString, false)}
 				onclick={sendWebBookmark}>Submit</button
 			>
 		</dd>

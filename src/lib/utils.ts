@@ -41,7 +41,11 @@ export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] =
 	return sortEvents(Array.from(eventMap.values()));
 };
 
-export const isValidWebBookmark = (event: NostrEvent, enableLog: boolean = false): boolean => {
+export const isValidWebBookmark = (
+	event: NostrEvent,
+	isAllowedQueryString: boolean,
+	enableLog: boolean
+): boolean => {
 	const d: string | undefined = getTagValue(event, 'd');
 	if (d === undefined) {
 		if (enableLog) {
@@ -50,14 +54,18 @@ export const isValidWebBookmark = (event: NostrEvent, enableLog: boolean = false
 		}
 		return false;
 	}
-	const isValid: boolean = isValidDTag(d, enableLog);
+	const isValid: boolean = isValidDTag(d, isAllowedQueryString, enableLog);
 	if (!isValid && enableLog) {
 		console.warn(event);
 	}
 	return isValid;
 };
 
-export const isValidDTag = (d: string, enableLog: boolean = false): boolean => {
+export const isValidDTag = (
+	d: string,
+	isAllowedQueryString: boolean,
+	enableLog: boolean
+): boolean => {
 	if (!URL.canParse(`https://${d}`)) {
 		if (enableLog) {
 			console.warn(`d-tag: "${d}" is cannot parse as URL`);
@@ -65,7 +73,10 @@ export const isValidDTag = (d: string, enableLog: boolean = false): boolean => {
 		return false;
 	}
 	const url = new URL(`https://${d}`);
-	if (url.search !== '' || url.hash !== '' || d.endsWith('?') || d.endsWith('#')) {
+	if (
+		!isAllowedQueryString &&
+		(url.search !== '' || url.hash !== '' || d.endsWith('?') || d.endsWith('#'))
+	) {
 		if (enableLog) {
 			console.warn(`d-tag: "${d}" has query parameters`);
 		}

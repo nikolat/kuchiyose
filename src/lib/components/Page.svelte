@@ -34,6 +34,7 @@
 		up,
 		rc,
 		loginPubkey,
+		isAllowedQueryString = $bindable(),
 		isEnabledUseDarkMode = $bindable(),
 		isEnabledUseClientTag = $bindable(),
 		saveLocalStorage,
@@ -53,6 +54,7 @@
 		up: UrlParams;
 		rc: RelayConnector | undefined;
 		loginPubkey: string | undefined;
+		isAllowedQueryString: boolean;
 		isEnabledUseDarkMode: boolean;
 		isEnabledUseClientTag: boolean;
 		saveLocalStorage: () => void;
@@ -293,6 +295,15 @@
 					/>
 					<label for="dark-mode">use dark mode</label>
 				</li>
+				<li>
+					<input
+						id="allow-querystring"
+						type="checkbox"
+						bind:checked={isAllowedQueryString}
+						onchange={saveLocalStorage}
+					/>
+					<label for="allow-querystring">allow querystring</label>
+				</li>
 				{#if loginPubkey !== undefined}
 					<li>
 						<input
@@ -441,6 +452,7 @@
 			bind:contentWarningReason
 			{loginPubkey}
 			{eventsEmojiSet}
+			{isAllowedQueryString}
 			{sendWebBookmark}
 		/>
 		<section class="tag-cloud">
