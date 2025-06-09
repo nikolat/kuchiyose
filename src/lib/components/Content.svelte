@@ -9,6 +9,7 @@
 	const {
 		content,
 		tags,
+		eventsWebBookmark,
 		eventsComment,
 		level,
 		idReferenced,
@@ -27,6 +28,7 @@
 	}: {
 		content: string;
 		tags: string[][];
+		eventsWebBookmark: NostrEvent[];
 		eventsComment: NostrEvent[];
 		level: number;
 		idReferenced: string | undefined;
@@ -144,6 +146,14 @@
 		};
 	};
 
+	const eventsAll: NostrEvent[] = $derived.by(() => {
+		const eventMap = new Map<string, NostrEvent>();
+		for (const ev of [...eventsWebBookmark, ...eventsComment, ...eventsQuoted]) {
+			eventMap.set(ev.id, ev);
+		}
+		return Array.from(eventMap.values());
+	});
+
 	const nip19decode = (text: string): nip19.DecodedResult | null => {
 		try {
 			return nip19.decode(text);
@@ -177,18 +187,19 @@
 		{:else if ['note', 'nevent', 'naddr'].includes(d.type)}
 			{@const event =
 				d.type === 'naddr'
-					? eventsQuoted.find(
+					? eventsAll.find(
 							(ev) =>
 								ev.kind === d.data.kind &&
 								ev.pubkey === d.data.pubkey &&
 								(getTagValue(ev, 'd') ?? '') === d.data.identifier
 						)
-					: eventsQuoted.find(
+					: eventsAll.find(
 							(ev) => ev.id === (d.type === 'note' ? d.data : d.type === 'nevent' ? d.data.id : '')
 						)}
 			{#if event !== undefined && level < limitDepth}
 				<Entry
 					{event}
+					{eventsWebBookmark}
 					{eventsComment}
 					level={level + 1}
 					{idReferenced}

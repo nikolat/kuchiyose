@@ -345,6 +345,7 @@
 			unfollowPubkey={() => unfollowPubkey(pubkey)}
 			mutePubkey={() => mutePubkey(pubkey)}
 			unmutePubkey={() => unmutePubkey(pubkey)}
+			{eventsWebBookmark}
 			{eventsComment}
 			{idReferenced}
 			{getSeenOn}
@@ -374,6 +375,7 @@
 		{#if event !== undefined}
 			<Entry
 				{event}
+				{eventsWebBookmark}
 				{eventsComment}
 				level={0}
 				{idReferenced}
@@ -405,6 +407,7 @@
 		{#if event !== undefined}
 			<Entry
 				{event}
+				{eventsWebBookmark}
 				{eventsComment}
 				level={0}
 				{idReferenced}
@@ -474,6 +477,7 @@
 					{#each webbookmarks as webbookmark (webbookmark.pubkey)}
 						<Entry
 							event={webbookmark}
+							{eventsWebBookmark}
 							{eventsComment}
 							level={0}
 							{idReferenced}
