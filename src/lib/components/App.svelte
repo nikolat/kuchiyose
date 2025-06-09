@@ -63,7 +63,8 @@
 	let eventsComment: NostrEvent[] = $state([]);
 	let eventFollowList: NostrEvent | undefined = $state();
 	const followingPubkeys: string[] = $derived(
-		eventFollowList?.tags.filter((tag) => tag.length >= 2 && tag[0]).map((tag) => tag[1]) ?? []
+		eventFollowList?.tags.filter((tag) => tag.length >= 2 && tag[0] === 'p').map((tag) => tag[1]) ??
+			[]
 	);
 	let eventMuteList: NostrEvent | undefined = $state();
 	let mutedPubkeys: string[] = $state([]);
