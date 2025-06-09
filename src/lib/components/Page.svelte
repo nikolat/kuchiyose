@@ -457,7 +457,7 @@
 		/>
 		<section class="tag-cloud">
 			{#each getAllTagsMap(eventsWebBookmark) as [t, n] (t)}
-				<a href="/t/{encodeURI(t)}" class="hashtag">#{t}</a>:{n}
+				<span><a href="/t/{encodeURI(t)}" class="hashtag">#{t}</a><span>({n})</span></span>
 			{/each}
 		</section>
 		<dl class="url">
@@ -576,6 +576,10 @@
 	span.url {
 		font-size: small;
 		color: var(--text-muted);
+	}
+	.tag-cloud > span {
+		margin-right: 0.5em;
+		white-space: nowrap;
 	}
 	.bookmark-count {
 		display: inline-block;
