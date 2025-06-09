@@ -441,15 +441,13 @@ export class RelayConnector {
 							this.fetchProfile(event.pubkey);
 						}
 						const d = getTagValue(event, 'd') ?? '';
-						const filter = { kinds: [39701], '#d': [d] };
+						const filter = { kinds: [39701], '#d': [d], until: unixNow() };
 						//どこのリレーを指定するべきか…
 						const relays = this.#getRelays('write')
 							.filter(this.#relayFilter)
 							.slice(0, this.#limitRelay);
 						const options = relays.length > 0 ? { relays } : undefined;
-						if (this.#eventStore.getAll(filter).size === 1) {
-							this.#rxReqB39701Url.emit(filter, options);
-						}
+						this.#rxReqB39701Url.emit(filter, options);
 						this.fetchDeletion(event);
 						this.fetchReaction(event);
 						this.#fetchWebReaction(`https://${d}`, options);
