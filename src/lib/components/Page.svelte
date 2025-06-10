@@ -527,6 +527,7 @@
 		width: 48px;
 		height: 48px;
 		border-radius: 10%;
+		object-fit: cover;
 	}
 	button.login {
 		border: none;
