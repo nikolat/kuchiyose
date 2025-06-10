@@ -585,7 +585,7 @@
 	.bookmark-count {
 		display: inline-block;
 		color: var(--highlight);
-		text-shadow: 0 0 2px white;
+		text-shadow: 0 0 5px var(--text-bright);
 	}
 	.hashtag:not(:first-child) {
 		margin-left: 0.5em;
