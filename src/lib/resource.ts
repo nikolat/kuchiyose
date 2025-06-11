@@ -160,8 +160,8 @@ export class RelayConnector {
 		this.#seenOn.clear();
 		this.#eventIds.clear();
 		this.#rxNostr.dispose();
-		for (const ev of this.#eventStore.getAll({ since: 0 })) {
-			this.#eventStore.database.removeEvent(ev);
+		for (const ev of this.#eventStore.getByFilters({ since: 0 })) {
+			this.#eventStore.database.remove(ev);
 		}
 	};
 
@@ -326,7 +326,7 @@ export class RelayConnector {
 					for (const relay of this.getSeenOn(id, true)) {
 						relaysSeenOnSet.add(relay);
 					}
-					this.#eventStore.database.removeEvent(id);
+					this.#eventStore.database.remove(id);
 				}
 			}
 			for (const aid of aids) {
@@ -342,12 +342,12 @@ export class RelayConnector {
 				if (ap.identifier.length > 0) {
 					filter['#d'] = [ap.identifier];
 				}
-				const evs: Set<NostrEvent> = this.#eventStore.getAll(filter);
+				const evs: Set<NostrEvent> = this.#eventStore.getByFilters(filter);
 				for (const ev of evs) {
 					for (const relay of this.getSeenOn(ev.id, true)) {
 						relaysSeenOnSet.add(relay);
 					}
-					this.#eventStore.database.removeEvent(ev.id);
+					this.#eventStore.database.remove(ev.id);
 				}
 			}
 			for (const relay of this.getSeenOn(event.id, true)) {
@@ -404,7 +404,7 @@ export class RelayConnector {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
 				case 5: {
-					this.#eventsDeletion = sortEvents(Array.from(this.#eventStore.getAll([{ kinds: [5] }])));
+					this.#eventsDeletion = sortEvents(Array.from(this.#eventStore.getByFilters([{ kinds: [5] }])));
 					break;
 				}
 				case 7:
@@ -1071,7 +1071,7 @@ export class RelayConnector {
 	};
 
 	getEventsByFilter = (filters: Filter | Filter[]): NostrEvent[] => {
-		return Array.from(this.#eventStore.getAll(filters));
+		return Array.from(this.#eventStore.getByFilters(filters));
 	};
 
 	getReplaceableEvent = (kind: number, pubkey: string, d?: string): NostrEvent | undefined => {
