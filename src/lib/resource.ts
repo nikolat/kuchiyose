@@ -404,7 +404,9 @@ export class RelayConnector {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			switch (event.kind) {
 				case 5: {
-					this.#eventsDeletion = sortEvents(Array.from(this.#eventStore.getByFilters([{ kinds: [5] }])));
+					this.#eventsDeletion = sortEvents(
+						Array.from(this.#eventStore.getByFilters([{ kinds: [5] }]))
+					);
 					break;
 				}
 				case 7:
