@@ -1367,7 +1367,7 @@ export class RelayConnector {
 			pTag.push(relayHintAuthor);
 			PTag.push(relayHintAuthor);
 		}
-		const kTag: string[] = ['K', String(targetEvent.kind)];
+		const kTag: string[] = ['k', String(targetEvent.kind)];
 		const KTag: string[] = ['K', String(targetEvent.kind)];
 		const eTag: string[] = ['e', targetEvent.id, relayHintEvent ?? '', targetEvent.pubkey];
 		const ETag: string[] = ['E', targetEvent.id, relayHintEvent ?? '', targetEvent.pubkey];
