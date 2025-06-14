@@ -1093,6 +1093,36 @@ export class RelayConnector {
 		return Array.from(s).map((url) => normalizeURL(url));
 	};
 
+	#getRelayHintEvent = (targetEvent: NostrEvent): string | undefined => {
+		let relayHintEvent: string | undefined;
+		const event10002 = this.getReplaceableEvent(10002, targetEvent.pubkey);
+		if (event10002 !== undefined) {
+			const outboxRelays = getOutboxes(event10002);
+			relayHintEvent = this.getSeenOn(targetEvent.id, true)
+				.filter(this.#relayFilter)
+				.filter((relay) => outboxRelays.includes(relay))
+				.at(0);
+		}
+		if (relayHintEvent === undefined) {
+			relayHintEvent = this.getSeenOn(targetEvent.id, true).filter(this.#relayFilter).at(0);
+		}
+		return relayHintEvent;
+	};
+
+	#getRelayHintAuhor = (pubkey: string): string | undefined => {
+		let relayHintAuthor: string | undefined;
+		const event0 = this.getReplaceableEvent(0, pubkey);
+		const event10002 = this.getReplaceableEvent(10002, pubkey);
+		if (event0 !== undefined && event10002 !== undefined) {
+			const outboxRelays = getOutboxes(event10002);
+			relayHintAuthor = this.getSeenOn(event0.id, true)
+				.filter(this.#relayFilter)
+				.filter((relay) => !profileRelays.includes(relay) && outboxRelays.includes(relay))
+				.at(0);
+		}
+		return relayHintAuthor;
+	};
+
 	signAndSendEvent = async (
 		eventTemplate: EventTemplate
 	): Promise<Observable<OkPacketAgainstEvent>> => {
@@ -1123,14 +1153,9 @@ export class RelayConnector {
 			tags = [...eventFollowList.tags, ['p', pubkey]];
 		}
 		for (const pTag of tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')) {
-			const event0 = this.getReplaceableEvent(0, pTag[1]);
-			if (event0 !== undefined) {
-				const relayHint = this.getSeenOn(event0.id, true)
-					.filter((relay) => !profileRelays.includes(relay))
-					.at(0);
-				if (relayHint !== undefined) {
-					pTag[2] = relayHint;
-				}
+			const relayHintAuthor = this.#getRelayHintAuhor(pTag[1]);
+			if (relayHintAuthor !== undefined) {
+				pTag[2] = relayHintAuthor;
 			}
 			if (pTag[2] === '' && pTag.length === 3) {
 				delete pTag[2];
@@ -1168,14 +1193,9 @@ export class RelayConnector {
 			throw new Error('pubkey does not exist');
 		}
 		for (const pTag of tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')) {
-			const event0 = this.getReplaceableEvent(0, pTag[1]);
-			if (event0 !== undefined) {
-				const relayHint = this.getSeenOn(event0.id, true)
-					.filter((relay) => !profileRelays.includes(relay))
-					.at(0);
-				if (relayHint !== undefined) {
-					pTag[2] = relayHint;
-				}
+			const relayHintAuthor = this.#getRelayHintAuhor(pTag[1]);
+			if (relayHintAuthor !== undefined) {
+				pTag[2] = relayHintAuthor;
 			}
 			if (pTag[2] === '' && pTag.length === 3) {
 				delete pTag[2];
@@ -1339,10 +1359,18 @@ export class RelayConnector {
 		}
 		const kind = 1111;
 		const tags: string[][] = [];
-		const relayHintEvent: string = this.getSeenOn(targetEvent.id, true).at(0) ?? '';
-		const relayHintAuthor: string =
-			this.getSeenOn(this.getReplaceableEvent(0, targetEvent.pubkey)?.id ?? '', true).at(0) ?? '';
-		const pTag = ['p', targetEvent.pubkey, relayHintAuthor];
+		const relayHintEvent: string | undefined = this.#getRelayHintEvent(targetEvent);
+		const relayHintAuthor: string | undefined = this.#getRelayHintAuhor(targetEvent.pubkey);
+		const pTag: string[] = ['p', targetEvent.pubkey];
+		const PTag: string[] = ['P', targetEvent.pubkey];
+		if (relayHintAuthor !== undefined) {
+			pTag.push(relayHintAuthor);
+			PTag.push(relayHintAuthor);
+		}
+		const kTag: string[] = ['K', String(targetEvent.kind)];
+		const KTag: string[] = ['K', String(targetEvent.kind)];
+		const eTag: string[] = ['e', targetEvent.id, relayHintEvent ?? '', targetEvent.pubkey];
+		const ETag: string[] = ['E', targetEvent.id, relayHintEvent ?? '', targetEvent.pubkey];
 		if (targetEvent.kind === 1111) {
 			const tagsCopied = targetEvent.tags.filter(
 				(tag) => tag.length >= 2 && ['A', 'E', 'I', 'K', 'P'].includes(tag[0])
@@ -1350,37 +1378,32 @@ export class RelayConnector {
 			for (const tag of tagsCopied) {
 				tags.push([...tag]);
 			}
-			tags.push(['e', targetEvent.id, relayHintEvent, targetEvent.pubkey]);
-			tags.push(['k', String(targetEvent.kind)]);
+			tags.push(eTag);
+			tags.push(kTag);
 		} else if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
 			const ap: nip19.AddressPointer = {
 				...targetEvent,
 				identifier: isAddressableKind(targetEvent.kind) ? (getTagValue(targetEvent, 'd') ?? '') : ''
 			};
 			const a: string = getCoordinateFromAddressPointer(ap);
-			tags.push(['A', a, relayHintEvent]);
-			tags.push(['K', String(targetEvent.kind)]);
-			tags.push(['P', targetEvent.pubkey, relayHintAuthor]);
-			tags.push(['a', a, relayHintEvent]);
-			tags.push(['e', targetEvent.id, relayHintEvent, targetEvent.pubkey]);
-			tags.push(['k', String(targetEvent.kind)]);
+			const aTag: string[] = ['a', a];
+			const ATag: string[] = ['A', a];
+			if (relayHintEvent !== undefined) {
+				aTag.push(relayHintEvent);
+				ATag.push(relayHintEvent);
+			}
+			tags.push(ATag, KTag, PTag, aTag, eTag, kTag);
 		} else {
-			tags.push(['E', targetEvent.id, relayHintEvent, targetEvent.pubkey]);
-			tags.push(['K', String(targetEvent.kind)]);
-			tags.push(['P', targetEvent.pubkey, relayHintAuthor]);
-			tags.push(['e', targetEvent.id, relayHintEvent, targetEvent.pubkey]);
-			tags.push(['k', String(targetEvent.kind)]);
+			tags.push(ETag, KTag, PTag, eTag, kTag);
 		}
-		for (const tag of getTagsForContent(
+		const tagsForContent: string[][] = getTagsForContent(
 			content,
 			eventsEmojiSet,
 			this.getSeenOn,
 			this.getEventsByFilter,
 			this.getReplaceableEvent
-		).filter((tag) => !(tag[0] === 'p' && tag[1] === targetEvent.pubkey))) {
-			tags.push(tag);
-		}
-		tags.push(pTag);
+		).filter((tag) => !(tag[0] === 'p' && tag[1] === targetEvent.pubkey));
+		tags.push(...tagsForContent, pTag);
 		if (contentWarning !== false) {
 			if (contentWarning === true) {
 				tags.push(['content-warning']);
@@ -1417,9 +1440,8 @@ export class RelayConnector {
 		if (typeof target !== 'string') {
 			targetEvent = target;
 			kind = 7;
-			const relayHintEvent: string = this.getSeenOn(targetEvent.id, true).at(0) ?? '';
-			const relayHintAuthor: string =
-				this.getSeenOn(this.getReplaceableEvent(0, targetEvent.pubkey)?.id ?? '', true).at(0) ?? '';
+			const relayHintEvent: string | undefined = this.#getRelayHintEvent(targetEvent);
+			const relayHintAuthor: string | undefined = this.#getRelayHintAuhor(targetEvent.pubkey);
 			if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
 				const ap: nip19.AddressPointer = {
 					...targetEvent,
@@ -1428,13 +1450,19 @@ export class RelayConnector {
 						: ''
 				};
 				const a: string = getCoordinateFromAddressPointer(ap);
-				tags.push(['a', a, relayHintEvent]);
+				const aTag: string[] = ['a', a];
+				if (relayHintEvent !== undefined) {
+					aTag.push(relayHintEvent);
+				}
+				tags.push(aTag);
 			}
-			tags.push(
-				['e', targetEvent.id, relayHintEvent, targetEvent.pubkey],
-				['p', targetEvent.pubkey, relayHintAuthor],
-				['k', String(targetEvent.kind)]
-			);
+			const eTag: string[] = ['e', targetEvent.id, relayHintEvent ?? '', targetEvent.pubkey];
+			const pTag: string[] = ['p', targetEvent.pubkey];
+			if (relayHintAuthor !== undefined) {
+				pTag.push(relayHintAuthor);
+			}
+			const kTag: string[] = ['k', String(targetEvent.kind)];
+			tags.push(eTag, pTag, kTag);
 		} else {
 			targetUrl = target;
 			kind = 17;
