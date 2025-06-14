@@ -183,7 +183,8 @@
 		for (const tag of getTagsForContent(
 			content,
 			eventsEmojiSet,
-			rc.getSeenOn,
+			rc.getRelayHintEvent,
+			rc.getRelayHintAuhor,
 			rc.getEventsByFilter,
 			rc.getReplaceableEvent
 		)) {

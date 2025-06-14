@@ -1093,32 +1093,49 @@ export class RelayConnector {
 		return Array.from(s).map((url) => normalizeURL(url));
 	};
 
-	#getRelayHintEvent = (targetEvent: NostrEvent): string | undefined => {
+	getRelayHintEvent = (targetEvent: NostrEvent, relays?: string[]): string | undefined => {
 		let relayHintEvent: string | undefined;
-		const event10002 = this.getReplaceableEvent(10002, targetEvent.pubkey);
-		if (event10002 !== undefined) {
-			const outboxRelays = getOutboxes(event10002);
-			relayHintEvent = this.getSeenOn(targetEvent.id, true)
-				.filter(this.#relayFilter)
-				.filter((relay) => outboxRelays.includes(relay))
-				.at(0);
+		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, targetEvent.pubkey);
+		const relaysSeenOn: string[] = this.getSeenOn(targetEvent.id, true).filter(this.#relayFilter);
+		const outboxRelays: string[] = event10002 === undefined ? [] : getOutboxes(event10002);
+		//取得済かつwriteリレーに含まれる
+		relayHintEvent = relaysSeenOn.filter((relay) => outboxRelays.includes(relay)).at(0);
+		//取得済
+		if (relayHintEvent === undefined && relaysSeenOn.length > 0) {
+			relayHintEvent = relaysSeenOn.at(0);
 		}
-		if (relayHintEvent === undefined) {
-			relayHintEvent = this.getSeenOn(targetEvent.id, true).filter(this.#relayFilter).at(0);
+		//エンコードに含まれるかつwriteリレーに含まれる
+		if (relayHintEvent === undefined && relays !== undefined) {
+			const relaysFiltered: string[] = relays
+				.map((relay) => normalizeURL(relay))
+				.filter(this.#relayFilter);
+			relayHintEvent = relaysFiltered.filter((relay) => outboxRelays.includes(relay)).at(0);
+			//エンコードに含まれる
+			if (relayHintEvent === undefined) {
+				relayHintEvent = relaysFiltered.at(0);
+			}
 		}
 		return relayHintEvent;
 	};
 
-	#getRelayHintAuhor = (pubkey: string): string | undefined => {
+	getRelayHintAuhor = (pubkey: string, relays?: string[]): string | undefined => {
 		let relayHintAuthor: string | undefined;
 		const event0 = this.getReplaceableEvent(0, pubkey);
 		const event10002 = this.getReplaceableEvent(10002, pubkey);
-		if (event0 !== undefined && event10002 !== undefined) {
-			const outboxRelays = getOutboxes(event10002);
+		const outboxRelays: string[] = event10002 === undefined ? [] : getOutboxes(event10002);
+		//kind0が取得済かつwriteリレーに含まれる
+		if (event0 !== undefined) {
 			relayHintAuthor = this.getSeenOn(event0.id, true)
 				.filter(this.#relayFilter)
 				.filter((relay) => !profileRelays.includes(relay) && outboxRelays.includes(relay))
 				.at(0);
+		}
+		//エンコードに含まれるかつwriteリレーに含まれる
+		if (relayHintAuthor === undefined && relays !== undefined) {
+			const relaysFiltered: string[] = relays
+				.map((relay) => normalizeURL(relay))
+				.filter(this.#relayFilter);
+			relayHintAuthor = relaysFiltered.filter((relay) => outboxRelays.includes(relay)).at(0);
 		}
 		return relayHintAuthor;
 	};
@@ -1153,7 +1170,7 @@ export class RelayConnector {
 			tags = [...eventFollowList.tags, ['p', pubkey]];
 		}
 		for (const pTag of tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')) {
-			const relayHintAuthor = this.#getRelayHintAuhor(pTag[1]);
+			const relayHintAuthor = this.getRelayHintAuhor(pTag[1]);
 			if (relayHintAuthor !== undefined) {
 				pTag[2] = relayHintAuthor;
 			}
@@ -1193,7 +1210,7 @@ export class RelayConnector {
 			throw new Error('pubkey does not exist');
 		}
 		for (const pTag of tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')) {
-			const relayHintAuthor = this.#getRelayHintAuhor(pTag[1]);
+			const relayHintAuthor = this.getRelayHintAuhor(pTag[1]);
 			if (relayHintAuthor !== undefined) {
 				pTag[2] = relayHintAuthor;
 			}
@@ -1359,8 +1376,8 @@ export class RelayConnector {
 		}
 		const kind = 1111;
 		const tags: string[][] = [];
-		const relayHintEvent: string | undefined = this.#getRelayHintEvent(targetEvent);
-		const relayHintAuthor: string | undefined = this.#getRelayHintAuhor(targetEvent.pubkey);
+		const relayHintEvent: string | undefined = this.getRelayHintEvent(targetEvent);
+		const relayHintAuthor: string | undefined = this.getRelayHintAuhor(targetEvent.pubkey);
 		const pTag: string[] = ['p', targetEvent.pubkey];
 		const PTag: string[] = ['P', targetEvent.pubkey];
 		if (relayHintAuthor !== undefined) {
@@ -1399,7 +1416,8 @@ export class RelayConnector {
 		const tagsForContent: string[][] = getTagsForContent(
 			content,
 			eventsEmojiSet,
-			this.getSeenOn,
+			this.getRelayHintEvent,
+			this.getRelayHintAuhor,
 			this.getEventsByFilter,
 			this.getReplaceableEvent
 		).filter((tag) => !(tag[0] === 'p' && tag[1] === targetEvent.pubkey));
@@ -1440,8 +1458,8 @@ export class RelayConnector {
 		if (typeof target !== 'string') {
 			targetEvent = target;
 			kind = 7;
-			const relayHintEvent: string | undefined = this.#getRelayHintEvent(targetEvent);
-			const relayHintAuthor: string | undefined = this.#getRelayHintAuhor(targetEvent.pubkey);
+			const relayHintEvent: string | undefined = this.getRelayHintEvent(targetEvent);
+			const relayHintAuthor: string | undefined = this.getRelayHintAuhor(targetEvent.pubkey);
 			if (isReplaceableKind(targetEvent.kind) || isAddressableKind(targetEvent.kind)) {
 				const ap: nip19.AddressPointer = {
 					...targetEvent,

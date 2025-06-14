@@ -402,7 +402,8 @@ export const getIdsForFilter = (
 export const getTagsForContent = (
 	content: string,
 	eventsEmojiSet: NostrEvent[],
-	getSeenOn: (id: string, excludeWs: boolean) => string[],
+	getRelayHintEvent: (targetEvent: NostrEvent, relays?: string[]) => string | undefined,
+	getRelayHintAuhor: (pubkey: string, relays?: string[]) => string | undefined,
 	getEventsByFilter: (filters: Filter | Filter[]) => NostrEvent[],
 	getReplaceableEvent: (kind: number, pubkey: string, d?: string) => NostrEvent | undefined
 ): string[][] => {
@@ -477,7 +478,7 @@ export const getTagsForContent = (
 		const qTag: string[] = ['q', id];
 		const ev: NostrEvent | undefined = getEventsByFilter({ ids: [id] }).at(0);
 		const recommendedRelayForQuote: string | undefined =
-			getSeenOn(id, true).at(0) ?? ep.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
+			ev === undefined ? undefined : getRelayHintEvent(ev, ep.relays);
 		const pubkey: string | undefined = ev?.pubkey ?? ep.author;
 		if (recommendedRelayForQuote !== undefined) {
 			qTag.push(recommendedRelayForQuote);
@@ -494,8 +495,7 @@ export const getTagsForContent = (
 		const qTag: string[] = ['q', a];
 		const ev: NostrEvent | undefined = getReplaceableEvent(ap.kind, ap.pubkey, ap.identifier);
 		const recommendedRelayForQuote: string | undefined =
-			getSeenOn(ev?.id ?? '', true).at(0) ??
-			ap.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
+			ev === undefined ? undefined : getRelayHintEvent(ev, ap.relays);
 		if (recommendedRelayForQuote !== undefined) {
 			qTag.push(recommendedRelayForQuote);
 		}
@@ -506,10 +506,7 @@ export const getTagsForContent = (
 	}
 	for (const [p, pp] of ppMap) {
 		const pTag: string[] = ['p', p];
-		const kind0: NostrEvent | undefined = getReplaceableEvent(0, p);
-		const recommendedRelayForPubkey: string | undefined =
-			getSeenOn(kind0?.id ?? '', true).at(0) ??
-			pp.relays?.filter((relay) => relay.startsWith('wss://')).at(0);
+		const recommendedRelayForPubkey: string | undefined = getRelayHintAuhor(p, pp.relays);
 		if (recommendedRelayForPubkey !== undefined) {
 			pTag.push(recommendedRelayForPubkey);
 		}
