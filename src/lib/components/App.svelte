@@ -290,6 +290,7 @@
 		eventsReaction = [];
 		eventsWebReaction = [];
 		eventsComment = [];
+		eventFollowList = undefined;
 		eventMuteList = undefined;
 		eventsEmojiSet = [];
 		eventsQuoted = [];
