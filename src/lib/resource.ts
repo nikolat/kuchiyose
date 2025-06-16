@@ -996,6 +996,11 @@ export class RelayConnector {
 				kinds: [1111],
 				'#K': ['39701'],
 				since
+			},
+			{
+				kinds: [5],
+				'#k': ['7', '17', '1111', '39701'],
+				since
 			}
 		);
 		if (loginPubkey !== undefined) {
