@@ -744,7 +744,10 @@ const getRequiredRelays = (relayUserMap: Map<string, Set<string>>): string[] => 
 		const users: Set<string> = relayUserMapCloned.get(relay) ?? new Set<string>();
 		if (Array.from(users).some((p) => allPubkeySet.has(p))) {
 			relaySet.add(relay);
-			relayUserMapCloned.set(relay, new Set<string>(Array.from(users).filter(allPubkeySet.has)));
+			relayUserMapCloned.set(
+				relay,
+				new Set<string>(Array.from(users).filter((p) => allPubkeySet.has(p)))
+			);
 			for (const p of users) {
 				allPubkeySet.delete(p);
 			}
