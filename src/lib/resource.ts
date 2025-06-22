@@ -1093,9 +1093,9 @@ export class RelayConnector {
 		if (excludeWs) {
 			return Array.from(s)
 				.filter((relay) => relay.startsWith('wss://'))
-				.map((url) => normalizeURL(url));
+				.map(normalizeURL);
 		}
-		return Array.from(s).map((url) => normalizeURL(url));
+		return Array.from(s).map(normalizeURL);
 	};
 
 	getRelayHintEvent = (targetEvent: NostrEvent, relays?: string[]): string | undefined => {
@@ -1111,9 +1111,7 @@ export class RelayConnector {
 		}
 		//エンコードに含まれるかつwriteリレーに含まれる
 		if (relayHintEvent === undefined && relays !== undefined) {
-			const relaysFiltered: string[] = relays
-				.map((relay) => normalizeURL(relay))
-				.filter(this.#relayFilter);
+			const relaysFiltered: string[] = relays.map(normalizeURL).filter(this.#relayFilter);
 			relayHintEvent = relaysFiltered.filter((relay) => outboxRelays.includes(relay)).at(0);
 			//エンコードに含まれる
 			if (relayHintEvent === undefined) {
@@ -1137,9 +1135,7 @@ export class RelayConnector {
 		}
 		//エンコードに含まれるかつwriteリレーに含まれる
 		if (relayHintAuthor === undefined && relays !== undefined) {
-			const relaysFiltered: string[] = relays
-				.map((relay) => normalizeURL(relay))
-				.filter(this.#relayFilter);
+			const relaysFiltered: string[] = relays.map(normalizeURL).filter(this.#relayFilter);
 			relayHintAuthor = relaysFiltered.filter((relay) => outboxRelays.includes(relay)).at(0);
 		}
 		return relayHintAuthor;
