@@ -79,6 +79,7 @@ type ReqB = RxReq<'backward'> &
 type ReqF = RxReq<'forward'> & RxReqEmittable & RxReqPipeable;
 
 export class RelayConnector {
+	#since: number;
 	#rxNostr: RxNostr;
 	#eventStore: EventStore;
 	#relayRecord: RelayRecord | undefined;
@@ -120,6 +121,7 @@ export class RelayConnector {
 		callbackConnectionState: (packet: ConnectionStatePacket) => void,
 		callbackQuote: (event: NostrEvent) => void
 	) {
+		this.#since = unixNow();
 		const retry: RetryConfig = {
 			strategy: 'exponential',
 			maxCount: 3,
@@ -402,6 +404,7 @@ export class RelayConnector {
 
 	subscribeEventStore = (callback: (kind: number, event?: NostrEvent) => void): Subscription => {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
+			const isForwardReq: boolean = this.#since < event.created_at;
 			switch (event.kind) {
 				case 5: {
 					this.#eventsDeletion = sortEvents(
@@ -415,7 +418,9 @@ export class RelayConnector {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 							this.fetchProfile(event.pubkey);
 						}
-						this.fetchDeletion(event);
+						if (!isForwardReq) {
+							this.fetchDeletion(event);
+						}
 					};
 					this.setFetchListAfter10002(event.pubkey, fetchAfter10002);
 					break;
@@ -425,8 +430,10 @@ export class RelayConnector {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 							this.fetchProfile(event.pubkey);
 						}
-						this.fetchDeletion(event);
-						this.fetchReaction(event);
+						if (!isForwardReq) {
+							this.fetchDeletion(event);
+							this.fetchReaction(event);
+						}
 						this.#fetchEventsByATags(event, 'A');
 						this.fetchEventsQuoted(event);
 					};
@@ -442,6 +449,12 @@ export class RelayConnector {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
 							this.fetchProfile(event.pubkey);
 						}
+						if (!isForwardReq) {
+							this.fetchDeletion(event);
+							this.fetchReaction(event);
+							this.#fetchComment(event);
+						}
+						this.fetchEventsQuoted(event);
 						const d = getTagValue(event, 'd') ?? '';
 						const filter = { kinds: [39701], '#d': [d], until: unixNow() };
 						//どこのリレーを指定するべきか…
@@ -450,11 +463,7 @@ export class RelayConnector {
 							.slice(0, this.#limitRelay);
 						const options = relays.length > 0 ? { relays } : undefined;
 						this.#rxReqB39701Url.emit(filter, options);
-						this.fetchDeletion(event);
-						this.fetchReaction(event);
 						this.#fetchWebReaction(`https://${d}`, options);
-						this.#fetchComment(event);
-						this.fetchEventsQuoted(event);
 					};
 					this.setFetchListAfter10002(event.pubkey, fetchAfter10002);
 					break;
