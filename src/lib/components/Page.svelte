@@ -9,7 +9,6 @@
 	} from '$lib/config';
 	import type { RelayConnector, UrlParams } from '$lib/resource';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import { isReplaceableKind } from 'nostr-tools/kinds';
 	import * as nip19 from 'nostr-tools/nip19';
 	import {
 		getContentWarning,
@@ -40,7 +39,7 @@
 		saveLocalStorage,
 		profileMap,
 		eventsProfile,
-		eventsWebBookmark,
+		eventsTimeline,
 		eventsReaction,
 		eventsWebReaction,
 		eventsComment,
@@ -60,7 +59,7 @@
 		saveLocalStorage: () => void;
 		profileMap: Map<string, ProfileContent>;
 		eventsProfile: NostrEvent[];
-		eventsWebBookmark: NostrEvent[];
+		eventsTimeline: NostrEvent[];
 		eventsReaction: NostrEvent[];
 		eventsWebReaction: NostrEvent[];
 		eventsComment: NostrEvent[];
@@ -75,7 +74,7 @@
 	const isSingleEntryPage: boolean = $derived(
 		up.currentAddressPointer !== undefined || up.currentEventPointer !== undefined
 	);
-	const webBookmarkMap: Map<string, NostrEvent[]> = $derived(getWebBookmarkMap(eventsWebBookmark));
+	const webBookmarkMap: Map<string, NostrEvent[]> = $derived(getWebBookmarkMap(eventsTimeline));
 
 	let isOpenEdit: boolean = $state(false);
 	let editDTag: string = $state('');
@@ -357,7 +356,7 @@
 			unfollowPubkey={() => unfollowPubkey(pubkey)}
 			mutePubkey={() => mutePubkey(pubkey)}
 			unmutePubkey={() => unmutePubkey(pubkey)}
-			{eventsWebBookmark}
+			{eventsTimeline}
 			{eventsComment}
 			{idReferenced}
 			{getSeenOn}
@@ -383,11 +382,11 @@
 		/>
 	{/if}
 	{#if up.currentEventPointer !== undefined && up.currentEventPointer.kind !== 1111}
-		{@const event = eventsQuoted.find((ev) => ev.id === up.currentEventPointer?.id)}
+		{@const event = eventsTimeline.at(0)}
 		{#if event !== undefined}
 			<Entry
 				{event}
-				{eventsWebBookmark}
+				{eventsTimeline}
 				{eventsComment}
 				level={0}
 				{idReferenced}
@@ -409,17 +408,11 @@
 			<a href={`/${enc}`}>{`nostr:${enc}`}</a>
 		{/if}
 	{:else if up.currentAddressPointer !== undefined && up.currentAddressPointer.kind !== 39701}
-		{@const event = eventsQuoted.find(
-			(ev) =>
-				ev.kind === up.currentAddressPointer?.kind &&
-				ev.pubkey === up.currentAddressPointer.pubkey &&
-				(isReplaceableKind(up.currentAddressPointer.kind) ||
-					getTagValue(ev, 'd') === up.currentAddressPointer.identifier)
-		)}
+		{@const event = eventsTimeline.at(0)}
 		{#if event !== undefined}
 			<Entry
 				{event}
-				{eventsWebBookmark}
+				{eventsTimeline}
 				{eventsComment}
 				level={0}
 				{idReferenced}
@@ -457,7 +450,7 @@
 			{sendWebBookmark}
 		/>
 		<section class="tag-cloud">
-			{#each getAllTagsMap(eventsWebBookmark) as [t, n] (t)}
+			{#each getAllTagsMap(eventsTimeline) as [t, n] (t)}
 				<span><a href="/t/{encodeURI(t)}" class="hashtag">#{t}</a><span>({n})</span></span>
 			{/each}
 		</section>
@@ -490,7 +483,7 @@
 					{#each webbookmarks as webbookmark (webbookmark.pubkey)}
 						<Entry
 							event={webbookmark}
-							{eventsWebBookmark}
+							{eventsTimeline}
 							{eventsComment}
 							level={0}
 							{idReferenced}

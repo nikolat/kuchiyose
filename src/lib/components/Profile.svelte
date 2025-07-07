@@ -17,7 +17,7 @@
 		unfollowPubkey,
 		mutePubkey,
 		unmutePubkey,
-		eventsWebBookmark,
+		eventsTimeline,
 		eventsComment,
 		idReferenced,
 		getSeenOn,
@@ -41,7 +41,7 @@
 		unfollowPubkey: () => Promise<void>;
 		mutePubkey: () => Promise<void>;
 		unmutePubkey: () => Promise<void>;
-		eventsWebBookmark: NostrEvent[];
+		eventsTimeline: NostrEvent[];
 		eventsComment: NostrEvent[];
 		idReferenced: string | undefined;
 		getSeenOn: (id: string, excludeWs: boolean) => string[];
@@ -180,7 +180,7 @@
 		<Content
 			content={about ?? ''}
 			{tags}
-			{eventsWebBookmark}
+			{eventsTimeline}
 			{eventsComment}
 			level={0}
 			{idReferenced}

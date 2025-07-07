@@ -20,7 +20,7 @@
 
 	const {
 		event,
-		eventsWebBookmark,
+		eventsTimeline,
 		eventsComment,
 		level,
 		idReferenced,
@@ -39,7 +39,7 @@
 		isQuote
 	}: {
 		event: NostrEvent;
-		eventsWebBookmark: NostrEvent[];
+		eventsTimeline: NostrEvent[];
 		eventsComment: NostrEvent[];
 		level: number;
 		idReferenced: string | undefined;
@@ -155,7 +155,7 @@
 						<Content
 							content={event.content}
 							tags={event.tags}
-							{eventsWebBookmark}
+							{eventsTimeline}
 							{eventsComment}
 							{level}
 							{idReferenced}
@@ -320,7 +320,7 @@
 		{#each commentsToTheEvent as comment (comment.id)}
 			<Entry
 				event={comment}
-				{eventsWebBookmark}
+				{eventsTimeline}
 				{eventsComment}
 				level={level + 1}
 				{idReferenced}

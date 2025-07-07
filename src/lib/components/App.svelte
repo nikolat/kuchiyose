@@ -52,6 +52,7 @@
 	let deadRelays: string[] = $derived(getDeadRelays());
 	let rc: RelayConnector | undefined = $derived(getRelayConnector());
 	let sub: Subscription | undefined;
+	let eventsTimeline: NostrEvent[] = $state([]);
 	let eventsWebBookmark: NostrEvent[] = $state([]);
 	let eventsProfile: NostrEvent[] = $state([]);
 	const profileMap: Map<string, ProfileContent> = $derived(
@@ -234,6 +235,18 @@
 				break;
 			}
 		}
+		if (up.currentEventPointer !== undefined && up.currentEventPointer.kind !== 1111) {
+			eventsTimeline = rc.getEventsByFilter({ ids: [up.currentEventPointer.id] });
+		} else if (up.currentAddressPointer !== undefined && up.currentAddressPointer.kind !== 39701) {
+			const ap = up.currentAddressPointer;
+			const filter: Filter = { kinds: [ap.kind], authors: [ap.pubkey] };
+			if (ap.identifier.length > 0) {
+				filter['#d'] = [ap.identifier];
+			}
+			eventsTimeline = rc.getEventsByFilter(filter);
+		} else {
+			eventsTimeline = eventsWebBookmark;
+		}
 	};
 
 	const callbackConnectionState = (packet: ConnectionStatePacket) => {
@@ -254,6 +267,7 @@
 	};
 
 	const clearCache = () => {
+		eventsTimeline = [];
 		eventsWebBookmark = [];
 		eventsProfile = [];
 		eventsReaction = [];
@@ -359,7 +373,13 @@
 	};
 
 	let countToShow: number = $state(10);
-	const timelineSliced = $derived(eventsWebBookmark.slice(0, countToShow));
+	const maxCountToShow: number = 30;
+	const timelineSliced = $derived(
+		eventsTimeline.slice(
+			countToShow - maxCountToShow > 0 ? countToShow - maxCountToShow : 0,
+			countToShow
+		)
+	);
 	const eventsQuoted: NostrEvent[] = $derived(
 		rc === undefined ? [] : getQuotedEvents(rc, timelineSliced, 5)
 	);
@@ -390,6 +410,7 @@
 			document.documentElement.clientHeight
 		);
 		const pageMostBottom = scrollHeight - window.innerHeight;
+		const pageMostTop = 0;
 		const scrollTop = window.scrollY || document.documentElement.scrollTop;
 		if (scrollTop > pageMostBottom - scrollThreshold) {
 			if (!isScrolledBottom && !isLoading) {
@@ -405,6 +426,14 @@
 			}
 		} else if (isScrolledBottom && scrollTop < pageMostBottom + scrollThreshold) {
 			isScrolledBottom = false;
+		}
+		if (scrollTop === pageMostTop) {
+			countToShow = countToShow - 10 < 10 ? 10 : countToShow - 10;
+			if (countToShow > 10) {
+				setTimeout(() => {
+					window.scrollBy({ top: 10, behavior: 'smooth' });
+				}, 100);
+			}
 		}
 	};
 
@@ -495,7 +524,7 @@
 	};
 	const isRoot: boolean = $derived(Object.values(up).every((v) => v === undefined));
 	const filteredTimeline = $derived(getEventsFiltered(timelineSliced));
-	const eventsWebBookmarkToShow = $derived(
+	const eventsTimelineToShow = $derived(
 		isRoot
 			? getAllBookmarksEachUrl(filteredTimeline)
 			: up.hashtag !== undefined
@@ -529,7 +558,7 @@
 	{saveLocalStorage}
 	{profileMap}
 	{eventsProfile}
-	eventsWebBookmark={eventsWebBookmarkToShow}
+	eventsTimeline={eventsTimelineToShow}
 	eventsReaction={getEventsFiltered(eventsReaction)}
 	eventsWebReaction={getEventsFiltered(eventsWebReaction)}
 	eventsComment={getEventsFiltered(eventsComment)}

@@ -9,7 +9,7 @@
 	const {
 		content,
 		tags,
-		eventsWebBookmark,
+		eventsTimeline,
 		eventsComment,
 		level,
 		idReferenced,
@@ -28,7 +28,7 @@
 	}: {
 		content: string;
 		tags: string[][];
-		eventsWebBookmark: NostrEvent[];
+		eventsTimeline: NostrEvent[];
 		eventsComment: NostrEvent[];
 		level: number;
 		idReferenced: string | undefined;
@@ -148,7 +148,7 @@
 
 	const eventsAll: NostrEvent[] = $derived.by(() => {
 		const eventMap = new Map<string, NostrEvent>();
-		for (const ev of [...eventsWebBookmark, ...eventsComment, ...eventsQuoted]) {
+		for (const ev of [...eventsTimeline, ...eventsComment, ...eventsQuoted]) {
 			eventMap.set(ev.id, ev);
 		}
 		return Array.from(eventMap.values());
@@ -199,7 +199,7 @@
 			{#if event !== undefined && level < limitDepth}
 				<Entry
 					{event}
-					{eventsWebBookmark}
+					{eventsTimeline}
 					{eventsComment}
 					level={level + 1}
 					{idReferenced}
