@@ -89,16 +89,13 @@ export class RelayConnector {
 	#rxReqB17: ReqB;
 	#rxReqB1111: ReqB;
 	#rxReqB39701Url: ReqB;
-	#rxReqBIdQ: ReqB;
+	#rxReqBId: ReqB;
 	#rxReqBRp: ReqB;
-	#rxReqBRpQ: ReqB;
 	#rxReqBAd: ReqB;
-	#rxReqBAdQ: ReqB;
 	#rxReqF: ReqF;
 	#deadRelays: string[];
 	#blockedRelays: string[];
 	#eventsDeletion: NostrEvent[];
-	#callbackQuote: (event: NostrEvent) => void;
 	#tie: OperatorFunction<
 		EventPacket,
 		EventPacket & {
@@ -116,11 +113,7 @@ export class RelayConnector {
 	#limitComment = 100;
 	#limitRelay = 5;
 
-	constructor(
-		useAuth: boolean,
-		callbackConnectionState: (packet: ConnectionStatePacket) => void,
-		callbackQuote: (event: NostrEvent) => void
-	) {
+	constructor(useAuth: boolean, callbackConnectionState: (packet: ConnectionStatePacket) => void) {
 		this.#since = unixNow();
 		const retry: RetryConfig = {
 			strategy: 'exponential',
@@ -140,16 +133,13 @@ export class RelayConnector {
 		this.#rxReqB17 = createRxBackwardReq();
 		this.#rxReqB1111 = createRxBackwardReq();
 		this.#rxReqB39701Url = createRxBackwardReq();
-		this.#rxReqBIdQ = createRxBackwardReq();
+		this.#rxReqBId = createRxBackwardReq();
 		this.#rxReqBRp = createRxBackwardReq();
-		this.#rxReqBRpQ = createRxBackwardReq();
 		this.#rxReqBAd = createRxBackwardReq();
-		this.#rxReqBAdQ = createRxBackwardReq();
 		this.#rxReqF = createRxForwardReq();
 		this.#deadRelays = [];
 		this.#blockedRelays = [];
 		this.#eventsDeletion = [];
-		this.#callbackQuote = callbackQuote;
 		[this.#tie, this.#seenOn] = createTie();
 		[this.#uniq, this.#eventIds] = createUniq((packet: EventPacket): string => packet.event.id);
 
@@ -193,7 +183,7 @@ export class RelayConnector {
 		const batchedReq17 = this.#rxReqB17.pipe(bt, batch(this.#mergeFilter17));
 		const batchedReq1111 = this.#rxReqB1111.pipe(bt, batch(this.#mergeFilter1111));
 		const batchedReq39701Url = this.#rxReqB39701Url.pipe(bt, batch(this.#mergeFilter39701Url));
-		const batchedReqIdQ = this.#rxReqBIdQ.pipe(bt, batch(this.#mergeFilterId));
+		const batchedReqId = this.#rxReqBId.pipe(bt, batch(this.#mergeFilterId));
 		this.#rxNostr.use(batchedReq0).pipe(this.#tie, latestEach(getRpId)).subscribe({
 			next,
 			complete
@@ -218,24 +208,16 @@ export class RelayConnector {
 			next,
 			complete
 		});
-		this.#rxNostr.use(batchedReqIdQ).pipe(this.#tie, this.#uniq).subscribe({
-			next: this.#nextCallbackQuote,
+		this.#rxNostr.use(batchedReqId).pipe(this.#tie, this.#uniq).subscribe({
+			next,
 			complete
 		});
 		this.#rxNostr.use(this.#rxReqBRp).pipe(this.#tie, latestEach(getRpId)).subscribe({
 			next,
 			complete
 		});
-		this.#rxNostr.use(this.#rxReqBRpQ).pipe(this.#tie, latestEach(getRpId)).subscribe({
-			next: this.#nextCallbackQuote,
-			complete
-		});
 		this.#rxNostr.use(this.#rxReqBAd).pipe(this.#tie, latestEach(getAdId)).subscribe({
 			next,
-			complete
-		});
-		this.#rxNostr.use(this.#rxReqBAdQ).pipe(this.#tie, latestEach(getAdId)).subscribe({
-			next: this.#nextCallbackQuote,
 			complete
 		});
 		this.#rxNostr.use(this.#rxReqF).pipe(this.#tie, this.#uniq).subscribe({
@@ -366,11 +348,6 @@ export class RelayConnector {
 		this.#eventStore.add(event);
 	};
 
-	#nextCallbackQuote = (packet: EventPacket): void => {
-		this.#callbackQuote(packet.event);
-		this.#next(packet);
-	};
-
 	#complete = () => {};
 
 	#getDeletedEventIdSet = (eventsDeletion: NostrEvent[]): Set<string> => {
@@ -388,13 +365,13 @@ export class RelayConnector {
 
 	setFetchListAfter0 = (pubkey: string, fetchAfter0: () => void): void => {
 		if (!this.#eventStore.hasReplaceable(0, pubkey)) {
-			this.fetchProfile(pubkey, fetchAfter0);
+			this.#fetchProfile(pubkey, fetchAfter0);
 		} else {
 			fetchAfter0();
 		}
 	};
 
-	setFetchListAfter10002 = (pubkey: string, fetchAfter10002: () => void): void => {
+	#setFetchListAfter10002 = (pubkey: string, fetchAfter10002: () => void): void => {
 		if (!this.#eventStore.hasReplaceable(10002, pubkey)) {
 			this.fetchKind10002([pubkey], fetchAfter10002);
 		} else {
@@ -406,6 +383,22 @@ export class RelayConnector {
 		return this.#eventStore.filters({ since: 0 }).subscribe((event: NostrEvent) => {
 			const isForwardReq: boolean = this.#since < event.created_at;
 			switch (event.kind) {
+				case 1:
+				case 42:
+				case 30023: {
+					const fetchAfter10002 = () => {
+						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
+							this.#fetchProfile(event.pubkey);
+						}
+						if (!isForwardReq) {
+							this.#fetchDeletion(event);
+						}
+						this.#fetchReaction(event);
+						this.#fetchEventsQuoted(event);
+					};
+					this.#setFetchListAfter10002(event.pubkey, fetchAfter10002);
+					break;
+				}
 				case 5: {
 					this.#eventsDeletion = sortEvents(
 						Array.from(this.#eventStore.getByFilters([{ kinds: [5] }]))
@@ -416,28 +409,28 @@ export class RelayConnector {
 				case 17: {
 					const fetchAfter10002 = () => {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
-							this.fetchProfile(event.pubkey);
+							this.#fetchProfile(event.pubkey);
 						}
 						if (!isForwardReq) {
-							this.fetchDeletion(event);
+							this.#fetchDeletion(event);
 						}
 					};
-					this.setFetchListAfter10002(event.pubkey, fetchAfter10002);
+					this.#setFetchListAfter10002(event.pubkey, fetchAfter10002);
 					break;
 				}
 				case 1111: {
 					const fetchAfter10002 = () => {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
-							this.fetchProfile(event.pubkey);
+							this.#fetchProfile(event.pubkey);
 						}
 						if (!isForwardReq) {
-							this.fetchDeletion(event);
-							this.fetchReaction(event);
+							this.#fetchDeletion(event);
+							this.#fetchReaction(event);
 						}
 						this.#fetchEventsByATags(event, 'A');
-						this.fetchEventsQuoted(event);
+						this.#fetchEventsQuoted(event);
 					};
-					this.setFetchListAfter10002(event.pubkey, fetchAfter10002);
+					this.#setFetchListAfter10002(event.pubkey, fetchAfter10002);
 					break;
 				}
 				case 10030: {
@@ -447,14 +440,14 @@ export class RelayConnector {
 				case 39701: {
 					const fetchAfter10002 = () => {
 						if (!this.#eventStore.hasReplaceable(0, event.pubkey)) {
-							this.fetchProfile(event.pubkey);
+							this.#fetchProfile(event.pubkey);
 						}
 						if (!isForwardReq) {
-							this.fetchDeletion(event);
-							this.fetchReaction(event);
+							this.#fetchDeletion(event);
+							this.#fetchReaction(event);
 							this.#fetchComment(event);
 						}
-						this.fetchEventsQuoted(event);
+						this.#fetchEventsQuoted(event);
 						const d = getTagValue(event, 'd') ?? '';
 						const filter = { kinds: [39701], '#d': [d], until: unixNow() };
 						//どこのリレーを指定するべきか…
@@ -465,7 +458,7 @@ export class RelayConnector {
 						this.#rxReqB39701Url.emit(filter, options);
 						this.#fetchWebReaction(`https://${d}`, options);
 					};
-					this.setFetchListAfter10002(event.pubkey, fetchAfter10002);
+					this.#setFetchListAfter10002(event.pubkey, fetchAfter10002);
 					break;
 				}
 				default:
@@ -522,7 +515,7 @@ export class RelayConnector {
 		}
 	};
 
-	fetchProfile = (pubkey: string, completeCustom?: () => void, relayHints?: string[]) => {
+	#fetchProfile = (pubkey: string, completeCustom?: () => void, relayHints?: string[]) => {
 		const filter: LazyFilter = {
 			kinds: [0],
 			authors: [pubkey],
@@ -550,7 +543,7 @@ export class RelayConnector {
 		}
 	};
 
-	fetchDeletion = (event: NostrEvent) => {
+	#fetchDeletion = (event: NostrEvent) => {
 		const filter: LazyFilter = { kinds: [5], '#e': [event.id], until: unixNow() };
 		let options: { relays: string[] } | undefined;
 		const event10002: NostrEvent | undefined = this.getReplaceableEvent(10002, event.pubkey);
@@ -561,7 +554,7 @@ export class RelayConnector {
 		this.#rxReqB5.emit(filter, options);
 	};
 
-	fetchReaction = (event: NostrEvent) => {
+	#fetchReaction = (event: NostrEvent) => {
 		let filter: LazyFilter;
 		const until = unixNow();
 		if (isReplaceableKind(event.kind) || isAddressableKind(event.kind)) {
@@ -670,7 +663,7 @@ export class RelayConnector {
 				const options: { relays: string[] } = {
 					relays: [relay]
 				};
-				this.#rxReqBIdQ.emit({ ids: [id], until }, options);
+				this.#rxReqBId.emit({ ids: [id], until }, options);
 			}
 		}
 		if (['a', 'q'].includes(tagNameToGet)) {
@@ -720,26 +713,14 @@ export class RelayConnector {
 				const options: { relays: string[] } = {
 					relays: [relay]
 				};
-				this.#rxReqBAdQ.emit(filter, options);
+				this.#rxReqBAd.emit(filter, options);
 			}
 		}
 	};
 
-	fetchEventsQuoted = (event: NostrEvent) => {
+	#fetchEventsQuoted = (event: NostrEvent) => {
 		const oId = getIdsForFilter([event]);
 		const { ids, aps } = oId;
-		for (const id of ids) {
-			const event = this.#eventStore.getEvent(id);
-			if (event !== undefined) {
-				this.#callbackQuote(event);
-			}
-		}
-		for (const ap of aps) {
-			const event = this.#eventStore.getReplaceable(ap.kind, ap.pubkey, ap.identifier);
-			if (event !== undefined) {
-				this.#callbackQuote(event);
-			}
-		}
 		const idsFiltered = ids.filter((id) => !this.#eventStore.hasEvent(id));
 		const apsFiltered = aps.filter(
 			(ap) =>
@@ -764,7 +745,7 @@ export class RelayConnector {
 		const options = relays.length > 0 ? { relays } : undefined;
 		const until = unixNow();
 		if (idsFiltered.length > 0) {
-			this.#rxReqBIdQ.emit({ ids: idsFiltered, until }, options);
+			this.#rxReqBId.emit({ ids: idsFiltered, until }, options);
 		}
 		if (apsFiltered.length > 0) {
 			for (const ap of apsFiltered) {
@@ -776,7 +757,7 @@ export class RelayConnector {
 				if (isAddressableKind(ap.kind)) {
 					f['#d'] = [ap.identifier];
 				}
-				this.#rxReqBAdQ.emit(f, options);
+				this.#rxReqBAd.emit(f, options);
 			}
 		}
 		const pubkeysFilterd = pubkeys.filter((pubkey) => !this.#eventStore.hasReplaceable(0, pubkey));
@@ -784,10 +765,10 @@ export class RelayConnector {
 			for (const pubkey of pubkeysFilterd) {
 				const fetchAfter10002 = () => {
 					if (!this.#eventStore.hasReplaceable(0, pubkey)) {
-						this.fetchProfile(pubkey, undefined, oPk.relays);
+						this.#fetchProfile(pubkey, undefined, oPk.relays);
 					}
 				};
-				this.setFetchListAfter10002(pubkey, fetchAfter10002);
+				this.#setFetchListAfter10002(pubkey, fetchAfter10002);
 			}
 		}
 		//リレーヒント付き引用による取得
@@ -952,31 +933,31 @@ export class RelayConnector {
 						this.setFetchListAfter0(currentProfilePointer.pubkey, () => {
 							const event = this.getReplaceableEvent(0, currentProfilePointer.pubkey);
 							if (event !== undefined) {
-								this.fetchEventsQuoted(event);
+								this.#fetchEventsQuoted(event);
 							}
 						});
 					}
 				} else {
-					this.#rxReqBAdQ.emit(filterB, options);
+					this.#rxReqBAd.emit(filterB, options);
 					if (!this.#eventStore.hasReplaceable(0, currentAddressPointer.pubkey)) {
-						this.fetchProfile(currentAddressPointer.pubkey);
+						this.#fetchProfile(currentAddressPointer.pubkey);
 					}
 				}
 			} else if (filterB.kinds?.every((kind) => isReplaceableKind(kind))) {
-				this.#rxReqBRpQ.emit(filterB, options);
+				this.#rxReqBRp.emit(filterB, options);
 				if (
 					currentAddressPointer !== undefined &&
 					!this.#eventStore.hasReplaceable(0, currentAddressPointer.pubkey)
 				) {
-					this.fetchProfile(currentAddressPointer.pubkey);
+					this.#fetchProfile(currentAddressPointer.pubkey);
 				}
 			} else if (filterB.ids !== undefined) {
-				this.#rxReqBIdQ.emit(filterB, options);
+				this.#rxReqBId.emit(filterB, options);
 				if (
 					currentEventPointer?.author !== undefined &&
 					!this.#eventStore.hasReplaceable(0, currentEventPointer.author)
 				) {
-					this.fetchProfile(currentEventPointer.author);
+					this.#fetchProfile(currentEventPointer.author);
 				}
 			} else {
 				console.warn(filterB);

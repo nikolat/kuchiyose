@@ -6,10 +6,8 @@
 	import { RelayConnector, type UrlParams } from '$lib/resource';
 	import {
 		getDeadRelays,
-		getEventsQuoted,
 		getRelayConnector,
 		setDeadRelays,
-		setEventsQuoted,
 		setRelayConnector
 	} from '$lib/resource.svelte';
 	import { preferences } from '$lib/store';
@@ -33,6 +31,7 @@
 		getEventsFilteredByMute,
 		getMuteList,
 		getName,
+		getQuotedEvents,
 		getTitleFromWebbookmarks,
 		getWebBookmarkMap,
 		isValidWebBookmark,
@@ -80,7 +79,6 @@
 		});
 	});
 	let eventsEmojiSet: NostrEvent[] = $state([]);
-	let eventsQuoted: NostrEvent[] = $derived(getEventsQuoted());
 	const getEventsFiltered = (events: NostrEvent[]) => {
 		return getEventsFilteredByMute(
 			events,
@@ -231,40 +229,11 @@
 				eventsWebBookmark = getEventsAddressableLatest(rc.getEventsByFilter(filter));
 				break;
 			}
-			default:
+			default: {
+				callback(39701);
 				break;
-		}
-	};
-
-	const callbackQuote = (event: NostrEvent): void => {
-		if (!eventsQuoted.map((ev) => ev.id).includes(event.id)) {
-			switch (event.kind) {
-				case 0:
-					if (!isValidProfile(event)) {
-						return;
-					}
-					break;
-				default:
-					break;
-			}
-			eventsQuoted.push(event);
-			setEventsQuoted(eventsQuoted);
-			if (rc !== undefined) {
-				fetchQuotedUserData(rc, event);
 			}
 		}
-	};
-	const fetchQuotedUserData = (rc: RelayConnector, event: NostrEvent): void => {
-		rc.setFetchListAfter10002(event.pubkey, () => {
-			if (rc.getReplaceableEvent(0, event.pubkey) === undefined) {
-				rc.fetchProfile(event.pubkey);
-			}
-			rc.fetchDeletion(event);
-			rc.fetchReaction(event);
-			if (event.kind === 1) {
-				rc.fetchEventsQuoted(event);
-			}
-		});
 	};
 
 	const callbackConnectionState = (packet: ConnectionStatePacket) => {
@@ -293,7 +262,6 @@
 		eventFollowList = undefined;
 		eventMuteList = undefined;
 		eventsEmojiSet = [];
-		eventsQuoted = [];
 	};
 
 	const initStatus = () => {
@@ -309,7 +277,7 @@
 		const pubkeySet = new Set<string>();
 		if (rc === undefined) {
 			clearCache();
-			rc = new RelayConnector(loginPubkey !== undefined, callbackConnectionState, callbackQuote);
+			rc = new RelayConnector(loginPubkey !== undefined, callbackConnectionState);
 			setRelayConnector(rc);
 			sub = rc.subscribeEventStore(callback);
 			if (loginPubkey !== undefined) {
@@ -392,6 +360,9 @@
 
 	let countToShow: number = $state(10);
 	const timelineSliced = $derived(eventsWebBookmark.slice(0, countToShow));
+	const eventsQuoted: NostrEvent[] = $derived(
+		rc === undefined ? [] : getQuotedEvents(rc, timelineSliced, 5)
+	);
 	const isFullDisplayMode: boolean = $derived(
 		up.currentAddressPointer !== undefined || up.path !== undefined
 	);
