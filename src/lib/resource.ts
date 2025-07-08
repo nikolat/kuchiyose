@@ -820,6 +820,7 @@ export class RelayConnector {
 
 	fetchWebBookmark = (
 		params: UrlParams,
+		limit: number,
 		loginPubkey?: string,
 		unitl?: number,
 		completeCustom?: () => void
@@ -830,7 +831,7 @@ export class RelayConnector {
 		const filterB: LazyFilter = {
 			kinds: [39701],
 			until: unitl ?? now,
-			limit: unitl === undefined ? 10 : 11
+			limit: unitl === undefined ? limit : limit + 1
 		};
 		const relaySet: Set<string> = new Set<string>();
 		if (currentAddressPointer !== undefined) {

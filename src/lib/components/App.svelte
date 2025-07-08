@@ -279,7 +279,7 @@
 	};
 
 	const initStatus = () => {
-		countToShow = 10;
+		countToShow = limit;
 		isScrolledBottom = false;
 		isLoading = false;
 		lastUntil = undefined;
@@ -329,18 +329,18 @@
 								.map((tag) => tag[1]) ?? [];
 						if (pubkeysSecond.length > 0) {
 							rc.fetchKind10002(pubkeysSecond, () => {
-								rc.fetchWebBookmark(up, loginPubkey);
+								rc.fetchWebBookmark(up, limit, loginPubkey);
 							});
 						} else {
-							rc.fetchWebBookmark(up, loginPubkey);
+							rc.fetchWebBookmark(up, limit, loginPubkey);
 						}
 					});
 				} else {
-					rc.fetchWebBookmark(up, loginPubkey);
+					rc.fetchWebBookmark(up, limit, loginPubkey);
 				}
 			});
 		} else {
-			rc.fetchWebBookmark(up, loginPubkey);
+			rc.fetchWebBookmark(up, limit, loginPubkey);
 		}
 	};
 
@@ -372,8 +372,9 @@
 		initFetch();
 	};
 
-	let countToShow: number = $state(10);
-	const maxCountToShow: number = 30;
+	const limit = 10;
+	let countToShow: number = $state(limit);
+	const maxCountToShow: number = 3 * limit;
 	const timelineSliced = $derived(
 		eventsTimeline.slice(
 			countToShow - maxCountToShow > 0 ? countToShow - maxCountToShow : 0,
@@ -386,14 +387,15 @@
 	const isFullDisplayMode: boolean = $derived(
 		up.currentAddressPointer !== undefined || up.path !== undefined
 	);
-	const scrollThreshold: number = 300;
+	const scrollThreshold: number = 500;
+	let isScrolledTop: boolean = false;
 	let isScrolledBottom: boolean = false;
 	let isLoading: boolean = false;
 	let lastUntil: number | undefined = undefined;
 	const completeCustom = (): void => {
 		console.info('[Loading Complete]');
 		const correctionCount = timelineSliced.filter((ev) => ev.created_at === lastUntil).length;
-		countToShow += 11 - correctionCount; //unitlと同時刻のイベントは被って取得されるので補正
+		countToShow += limit + 1 - correctionCount; //unitlと同時刻のイベントは被って取得されるので補正
 		isLoading = false;
 	};
 
@@ -422,18 +424,22 @@
 				}
 				lastUntil = lastUntilNext;
 				console.info('[Loading Start]');
-				rc.fetchWebBookmark(up, loginPubkey, lastUntil, completeCustom);
+				rc.fetchWebBookmark(up, limit, loginPubkey, lastUntil, completeCustom);
 			}
-		} else if (isScrolledBottom && scrollTop < pageMostBottom + scrollThreshold) {
+		} else if (isScrolledBottom && scrollTop < pageMostBottom - scrollThreshold) {
 			isScrolledBottom = false;
 		}
-		if (scrollTop === pageMostTop) {
-			countToShow = countToShow - 10 < 10 ? 10 : countToShow - 10;
-			if (countToShow > 10) {
-				setTimeout(() => {
-					window.scrollBy({ top: 10, behavior: 'smooth' });
-				}, 100);
+		if (scrollTop < pageMostTop + scrollThreshold && countToShow > maxCountToShow) {
+			if (!isScrolledTop && !isLoading) {
+				isScrolledTop = true;
+				if (countToShow > maxCountToShow) {
+					countToShow = Math.max(countToShow - limit, maxCountToShow);
+				} else {
+					countToShow = Math.max(countToShow - limit, limit);
+				}
 			}
+		} else if (isScrolledTop && scrollTop > pageMostTop + scrollThreshold) {
+			isScrolledTop = false;
 		}
 	};
 
