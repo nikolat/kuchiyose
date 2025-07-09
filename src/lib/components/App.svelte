@@ -372,12 +372,12 @@
 		initFetch();
 	};
 
-	const limit = 10;
+	const limit: number = 10;
 	let countToShow: number = $state(limit);
-	const maxCountToShow: number = 3 * limit;
-	const timelineSliced = $derived(
+	const scopeCountToShow: number = 3 * limit;
+	const timelineSliced: NostrEvent[] = $derived(
 		eventsTimeline.slice(
-			countToShow - maxCountToShow > 0 ? countToShow - maxCountToShow : 0,
+			countToShow - scopeCountToShow > 0 ? countToShow - scopeCountToShow : 0,
 			countToShow
 		)
 	);
@@ -429,11 +429,11 @@
 		} else if (isScrolledBottom && scrollTop < pageMostBottom - scrollThreshold) {
 			isScrolledBottom = false;
 		}
-		if (scrollTop < pageMostTop + scrollThreshold && countToShow > maxCountToShow) {
+		if (scrollTop < pageMostTop + scrollThreshold && countToShow > scopeCountToShow) {
 			if (!isScrolledTop && !isLoading) {
 				isScrolledTop = true;
-				if (countToShow > maxCountToShow) {
-					countToShow = Math.max(countToShow - limit, maxCountToShow);
+				if (countToShow > scopeCountToShow) {
+					countToShow = Math.max(countToShow - limit, scopeCountToShow);
 				} else {
 					countToShow = Math.max(countToShow - limit, limit);
 				}
