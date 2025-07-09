@@ -395,7 +395,10 @@
 	let lastUntil: number | undefined = undefined;
 	const completeCustom = (): void => {
 		console.info('[Loading Complete]');
-		const correctionCount = timelineSliced.filter((ev) => ev.created_at === lastUntil).length;
+		const correctionCount = Math.max(
+			1,
+			timelineSliced.filter((ev) => ev.created_at === lastUntil).length
+		);
 		countToShow += limit + 1 - correctionCount; //unitlと同時刻のイベントは被って取得されるので補正
 		countToShowMax = Math.max(countToShowMax, countToShow);
 		isLoading = false;
@@ -420,17 +423,17 @@
 			if (!isScrolledBottom && !isLoading) {
 				isScrolledBottom = true;
 				isLoading = true;
-				const lastUntilNext: number | undefined = timelineSliced.at(-1)?.created_at;
-				if (lastUntilNext === undefined || lastUntil === lastUntilNext) {
-					return;
-				}
-				lastUntil = lastUntilNext;
 				//取得済のイベントは再取得しない
 				if (countToShow + limit <= countToShowMax) {
 					console.info('[Loading Start(not fetching)]');
 					completeCustom();
 					return;
 				}
+				const lastUntilNext: number | undefined = timelineSliced.at(-1)?.created_at;
+				if (lastUntilNext === undefined || lastUntil === lastUntilNext) {
+					return;
+				}
+				lastUntil = lastUntilNext;
 				console.info('[Loading Start]');
 				rc.fetchWebBookmark(up, limit, loginPubkey, lastUntil, completeCustom);
 			}
