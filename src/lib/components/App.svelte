@@ -374,6 +374,7 @@
 
 	const limit: number = 10;
 	let countToShow: number = $state(limit);
+	let countToShowMax: number = limit;
 	const scopeCountToShow: number = 3 * limit;
 	const timelineSliced: NostrEvent[] = $derived(
 		eventsTimeline.slice(
@@ -396,6 +397,7 @@
 		console.info('[Loading Complete]');
 		const correctionCount = timelineSliced.filter((ev) => ev.created_at === lastUntil).length;
 		countToShow += limit + 1 - correctionCount; //unitlと同時刻のイベントは被って取得されるので補正
+		countToShowMax = Math.max(countToShowMax, countToShow);
 		isLoading = false;
 	};
 
@@ -423,6 +425,12 @@
 					return;
 				}
 				lastUntil = lastUntilNext;
+				//取得済のイベントは再取得しない
+				if (countToShow + limit <= countToShowMax) {
+					console.info('[Loading Start(not fetching)]');
+					completeCustom();
+					return;
+				}
 				console.info('[Loading Start]');
 				rc.fetchWebBookmark(up, limit, loginPubkey, lastUntil, completeCustom);
 			}
@@ -434,8 +442,6 @@
 				isScrolledTop = true;
 				if (countToShow > scopeCountToShow) {
 					countToShow = Math.max(countToShow - limit, scopeCountToShow);
-				} else {
-					countToShow = Math.max(countToShow - limit, limit);
 				}
 			}
 		} else if (isScrolledTop && scrollTop > pageMostTop + scrollThreshold) {
