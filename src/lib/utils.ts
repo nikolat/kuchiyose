@@ -73,17 +73,29 @@ export const getQuotedEvents = (
 			.filter((ev) => isReplaceableKind(ev.kind) || isAddressableKind(ev.kind))
 			.map((ev) => `${ev.kind}:${ev.pubkey}:${getTagValue(ev, 'd') ?? ''}`)
 	});
-	const eventMap = new Map<string, NostrEvent>();
-	for (const event of [...eventsFromId, ...eventsFromAId, ...eventsRepliedE, ...eventsRepliedA]) {
-		eventMap.set(event.id, event);
-	}
-	const res: NostrEvent[] = Array.from(eventMap.values());
-	const depthNext = depth - 1;
+	const eventsDuplicated: NostrEvent[] = [
+		...eventsFromId,
+		...eventsFromAId,
+		...eventsRepliedE,
+		...eventsRepliedA
+	];
+	const eventsUniq: NostrEvent[] = Array.from(
+		new Map<string, NostrEvent>(eventsDuplicated.map((ev) => [ev.id, ev])).values()
+	);
+	const depthNext: number = depth - 1;
+	let res: NostrEvent[];
 	if (depthNext > 0) {
-		return [...res, ...getQuotedEvents(rc, res, depthNext)];
+		const eventsDuplicatedNext: NostrEvent[] = [
+			...eventsUniq,
+			...getQuotedEvents(rc, eventsUniq, depthNext)
+		];
+		res = Array.from(
+			new Map<string, NostrEvent>(eventsDuplicatedNext.map((ev) => [ev.id, ev])).values()
+		);
 	} else {
-		return res;
+		res = eventsUniq;
 	}
+	return res;
 };
 
 export const getEventsAddressableLatest = (events: NostrEvent[]): NostrEvent[] => {
