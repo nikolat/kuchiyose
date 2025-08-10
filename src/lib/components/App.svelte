@@ -382,9 +382,6 @@
 			countToShow
 		)
 	);
-	const eventsQuoted: NostrEvent[] = $derived(
-		rc === undefined ? [] : getQuotedEvents(rc, timelineSliced, 5)
-	);
 	const isFullDisplayMode: boolean = $derived(
 		up.currentAddressPointer !== undefined || up.path !== undefined
 	);
@@ -539,12 +536,15 @@
 	};
 	const isRoot: boolean = $derived(Object.values(up).every((v) => v === undefined));
 	const filteredTimeline = $derived(getEventsFiltered(timelineSliced));
-	const eventsTimelineToShow = $derived(
+	const eventsTimelineToShow: NostrEvent[] = $derived(
 		isRoot
 			? getAllBookmarksEachUrl(filteredTimeline)
 			: up.hashtag !== undefined
 				? getAllBookmarksEachUrl(filteredTimeline, up.hashtag)
 				: filteredTimeline
+	);
+	const eventsQuoted: NostrEvent[] = $derived(
+		rc === undefined ? [] : getQuotedEvents(rc, eventsTimelineToShow, 5)
 	);
 	const cssUrl: string = $derived(
 		`https://cdn.jsdelivr.net/npm/water.css@2/out/${isEnabledUseDarkMode ? 'dark' : 'light'}.css`
