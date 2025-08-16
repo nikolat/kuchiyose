@@ -7,8 +7,10 @@
 	import {
 		getDeadRelays,
 		getRelayConnector,
+		getSubscription,
 		setDeadRelays,
-		setRelayConnector
+		setRelayConnector,
+		setSubscription
 	} from '$lib/resource.svelte';
 	import { preferences } from '$lib/store';
 	import { sitename } from '$lib/config';
@@ -51,7 +53,7 @@
 	let isEnabledUseDarkMode: boolean = $state(false);
 	let deadRelays: string[] = $derived(getDeadRelays());
 	let rc: RelayConnector | undefined = $derived(getRelayConnector());
-	let sub: Subscription | undefined;
+	let sub: Subscription | undefined = $derived(getSubscription());
 	let eventsTimeline: NostrEvent[] = $state([]);
 	let eventsWebBookmark: NostrEvent[] = $state([]);
 	let eventsProfile: NostrEvent[] = $state([]);
@@ -294,11 +296,13 @@
 			rc = new RelayConnector(loginPubkey !== undefined, callbackConnectionState);
 			setRelayConnector(rc);
 			sub = rc.subscribeEventStore(callback);
+			setSubscription(sub);
 			if (loginPubkey !== undefined) {
 				pubkeySet.add(loginPubkey);
 			}
 		} else {
 			sub = rc.subscribeEventStore(callback);
+			setSubscription(sub);
 			for (const k of [0, 7, 17, 10000, 10006, 10030, 30030, 39701]) {
 				callback(k);
 			}
