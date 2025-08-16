@@ -1,3 +1,5 @@
+import { NostrTypeGuard } from 'nostr-tools/nip19';
+
 export function match(param: string) {
-	return /^nprofile1\w+$/.test(param);
+	return NostrTypeGuard.isNProfile(param);
 }
