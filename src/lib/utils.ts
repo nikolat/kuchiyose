@@ -61,7 +61,7 @@ export const getQuotedEvents = (
 	).filter((aid) => aid !== undefined);
 	const aps: nip19.AddressPointer[] = aids
 		.map((aid) => getAddressPointerFromAId(aid))
-		.filter((aid) => aid !== null);
+		.filter((aid) => aid !== null) as nip19.AddressPointer[];
 	const eventsFromAId: NostrEvent[] = aps
 		.map((ap) => rc.getReplaceableEvent(ap.kind, ap.pubkey, ap.identifier))
 		.filter((ev) => ev !== undefined) as NostrEvent[];
