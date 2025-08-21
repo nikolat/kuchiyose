@@ -267,7 +267,7 @@ const getEventsReactionToTheEvent = (
 };
 
 const getEventsReactionToTheUrl = (url: string, eventsReaction: NostrEvent[]): NostrEvent[] => {
-	return eventsReaction.filter((ev) => getTagValue(ev, 'r') === url);
+	return eventsReaction.filter((ev) => getTagValue(ev, 'i') === url);
 };
 
 export const getEncrypt = (): ((pubkey: string, plaintext: string) => Promise<string>) | null => {

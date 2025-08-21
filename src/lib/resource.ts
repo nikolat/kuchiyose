@@ -255,9 +255,9 @@ export class RelayConnector {
 
 	#mergeFilter17: MergeFilter = (a: LazyFilter[], b: LazyFilter[]) => {
 		const margedFilters = [...a, ...b];
-		const rtags = Array.from(new Set<string>(margedFilters.map((f) => f['#r'] ?? []).flat()));
+		const itags = Array.from(new Set<string>(margedFilters.map((f) => f['#i'] ?? []).flat()));
 		const f = margedFilters.at(0);
-		return [{ kinds: [17], '#r': rtags, limit: f?.limit, until: f?.until }];
+		return [{ kinds: [17], '#i': itags, '#k': ['web'], limit: f?.limit, until: f?.until }];
 	};
 
 	#mergeFilter1111: MergeFilter = (a: LazyFilter[], b: LazyFilter[]) => {
@@ -591,7 +591,8 @@ export class RelayConnector {
 	) => {
 		const filter: LazyFilter = {
 			kinds: [17],
-			'#r': [url],
+			'#i': [url],
+			'#k': ['web'],
 			limit: this.#limitReaction,
 			until: unixNow()
 		};
@@ -977,6 +978,7 @@ export class RelayConnector {
 		filtersF.push(
 			{
 				kinds: [17],
+				'#k': ['web'],
 				since
 			},
 			{
@@ -1475,7 +1477,8 @@ export class RelayConnector {
 		} else {
 			targetUrl = target;
 			kind = 17;
-			tags.push(['r', targetUrl]);
+			tags.push(['i', targetUrl]);
+			tags.push(['k', 'web']);
 		}
 		if (emojiurl !== undefined && URL.canParse(emojiurl)) {
 			tags.push(['emoji', content.replaceAll(':', ''), emojiurl]);
