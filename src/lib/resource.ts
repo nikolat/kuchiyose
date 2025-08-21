@@ -51,6 +51,7 @@ import { normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
 import { defaultRelays, indexerRelays, profileRelays } from '$lib/config';
 import {
+	getEncrypt,
 	getIdsForFilter,
 	getPubkeysForFilter,
 	getReadRelaysWithOutboxModel,
@@ -1225,22 +1226,20 @@ export class RelayConnector {
 		loginPubkey: string,
 		eventMuteList: NostrEvent | undefined
 	): Promise<Observable<OkPacketAgainstEvent>> => {
-		if (window.nostr?.nip04 === undefined) {
-			throw new Error('window.nostr is undefined');
+		const encrypt = getEncrypt();
+		if (window.nostr === undefined || encrypt === null) {
+			throw new Error('window.nostr.nipXX.encrypt is undefined');
 		}
 		const kind = 10000;
 		let tags: string[][];
 		let content: string;
 		if (eventMuteList === undefined) {
 			tags = [];
-			content = await window.nostr.nip04.encrypt(loginPubkey, JSON.stringify([['p', pubkey]]));
+			content = await encrypt(loginPubkey, JSON.stringify([['p', pubkey]]));
 		} else {
 			const { tagList, contentList } = await splitNip51List(eventMuteList, loginPubkey);
 			tags = tagList;
-			content = await window.nostr.nip04.encrypt(
-				loginPubkey,
-				JSON.stringify([...contentList, ['p', pubkey]])
-			);
+			content = await encrypt(loginPubkey, JSON.stringify([...contentList, ['p', pubkey]]));
 		}
 		const eventTemplate: EventTemplate = {
 			kind,
@@ -1257,8 +1256,9 @@ export class RelayConnector {
 		loginPubkey: string,
 		eventMuteList: NostrEvent | undefined
 	): Promise<Observable<OkPacketAgainstEvent>> => {
-		if (window.nostr?.nip04 === undefined) {
-			throw new Error('window.nostr is undefined');
+		const encrypt = getEncrypt();
+		if (window.nostr === undefined || encrypt === null) {
+			throw new Error('window.nostr.nipXX.encrypt is undefined');
 		}
 		if (eventMuteList === undefined) {
 			throw new Error('kind:10000 event does not exist');
@@ -1271,7 +1271,7 @@ export class RelayConnector {
 			(tag) => tag.length >= 2 && tag[0] === 'p' && tag[1] === pubkey
 		)
 			? eventMuteList.content
-			: await window.nostr.nip04.encrypt(
+			: await encrypt(
 					loginPubkey,
 					JSON.stringify(
 						contentList.filter((tag) => !(tag.length >= 2 && tag[0] === 'p' && tag[1] === pubkey))
@@ -1292,22 +1292,20 @@ export class RelayConnector {
 		loginPubkey: string,
 		eventMuteList: NostrEvent | undefined
 	): Promise<Observable<OkPacketAgainstEvent>> => {
-		if (window.nostr?.nip04 === undefined) {
-			throw new Error('window.nostr is undefined');
+		const encrypt = getEncrypt();
+		if (window.nostr === undefined || encrypt === null) {
+			throw new Error('window.nostr.nipXX.encrypt is undefined');
 		}
 		const kind = 10000;
 		let tags: string[][];
 		let content: string;
 		if (eventMuteList === undefined) {
 			tags = [];
-			content = await window.nostr.nip04.encrypt(loginPubkey, JSON.stringify([['t', hashtag]]));
+			content = await encrypt(loginPubkey, JSON.stringify([['t', hashtag]]));
 		} else {
 			const { tagList, contentList } = await splitNip51List(eventMuteList, loginPubkey);
 			tags = tagList;
-			content = await window.nostr.nip04.encrypt(
-				loginPubkey,
-				JSON.stringify([...contentList, ['t', hashtag]])
-			);
+			content = await encrypt(loginPubkey, JSON.stringify([...contentList, ['t', hashtag]]));
 		}
 		const eventTemplate: EventTemplate = {
 			kind,
@@ -1324,8 +1322,9 @@ export class RelayConnector {
 		loginPubkey: string,
 		eventMuteList: NostrEvent | undefined
 	): Promise<Observable<OkPacketAgainstEvent>> => {
-		if (window.nostr?.nip04 === undefined) {
-			throw new Error('window.nostr is undefined');
+		const encrypt = getEncrypt();
+		if (window.nostr === undefined || encrypt === null) {
+			throw new Error('window.nostr.nipXX.encrypt is undefined');
 		}
 		if (eventMuteList === undefined) {
 			throw new Error('kind:10000 event does not exist');
@@ -1338,7 +1337,7 @@ export class RelayConnector {
 			(tag) => tag.length >= 2 && tag[0] === 't' && tag[1].toLowerCase() === hashtag
 		)
 			? eventMuteList.content
-			: await window.nostr.nip04.encrypt(
+			: await encrypt(
 					loginPubkey,
 					JSON.stringify(
 						contentList.filter(
