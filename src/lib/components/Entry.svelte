@@ -75,7 +75,7 @@
 	);
 	const prof = $derived(profileMap.get(event.pubkey));
 	const contentWarning: string | boolean = $derived(getContentWarning(event));
-	const commentsToTheEvent = $derived.by(() => {
+	const getCommentsToTheEvent = (event: NostrEvent, eventsComment: NostrEvent[]): NostrEvent[] => {
 		let filter: (ev: NostrEvent) => boolean;
 		if (isRegularKind(event.kind)) {
 			filter = (ev: NostrEvent) => getTagValue(ev, 'e') === event.id;
@@ -89,7 +89,8 @@
 			return [];
 		}
 		return eventsComment.filter(filter);
-	});
+	};
+	const commentsToTheEvent = $state(getCommentsToTheEvent(event, eventsComment));
 	const classNames: string[] = $derived.by(() => {
 		const classNames: string[] = ['tree'];
 		if (level > 0) {
