@@ -127,7 +127,7 @@
 				break;
 			}
 			case 17: {
-				eventsWebReaction = rc.getEventsByFilter({ kinds: [kind] });
+				eventsWebReaction = rc.getEventsByFilter({ kinds: [kind], '#k': ['web'] });
 				break;
 			}
 			case 1111: {
