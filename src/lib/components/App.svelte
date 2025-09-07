@@ -98,9 +98,7 @@
 		}
 		switch (kind) {
 			case 0: {
-				eventsProfile = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [kind] })).filter(
-					(ev) => isValidProfile(ev)
-				);
+				setNewEventsProfile();
 				break;
 			}
 			case 3: {
@@ -123,7 +121,7 @@
 				break;
 			}
 			case 7: {
-				eventsReaction = rc.getEventsByFilter({ kinds: [kind] });
+				setNewEventsReaction();
 				break;
 			}
 			case 17: {
@@ -249,6 +247,29 @@
 		} else {
 			eventsTimeline = eventsWebBookmark;
 		}
+	};
+
+	let timerEventsProfile: number | undefined;
+	const setNewEventsProfile = () => {
+		clearTimeout(timerEventsProfile);
+		timerEventsProfile = setTimeout(() => {
+			if (rc === undefined) {
+				return;
+			}
+			eventsProfile = getEventsAddressableLatest(rc.getEventsByFilter({ kinds: [0] })).filter(
+				(ev) => isValidProfile(ev)
+			);
+		}, 100);
+	};
+	let timerEventsReaction: number | undefined;
+	const setNewEventsReaction = () => {
+		clearTimeout(timerEventsReaction);
+		timerEventsReaction = setTimeout(() => {
+			if (rc === undefined) {
+				return;
+			}
+			eventsReaction = sortEvents(rc.getEventsByFilter({ kinds: [7] }));
+		}, 100);
 	};
 
 	const callbackConnectionState = (packet: ConnectionStatePacket) => {

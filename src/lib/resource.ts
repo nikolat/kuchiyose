@@ -110,7 +110,7 @@ export class RelayConnector {
 
 	#secOnCompleteTimeout = 1000;
 	#secBufferTime = 1000;
-	#limitReaction = 100;
+	#limitReaction = 500;
 	#limitComment = 100;
 	#limitRelay = 5;
 
