@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { getRoboHashURL } from '$lib/config';
 	import { getDateTimeString, getEventsReactionToTheTarget, getName } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
@@ -120,18 +121,18 @@
 <div class={classNames.join(' ')}>
 	<div class="entry">
 		<div class="avatar">
-			<a href="/{nip19.npubEncode(event.pubkey)}">
+			<a href={resolve(`/${nip19.npubEncode(event.pubkey)}`)}>
 				<img src={prof?.picture ?? getRoboHashURL(event.pubkey)} alt="" class="avatar" />
 			</a>
 		</div>
 		<div class="contents">
 			<div class="note">
 				<div class="name">
-					<a class="name" href="/{nip19.npubEncode(event.pubkey)}"
+					<a class="name" href={resolve(`/${nip19.npubEncode(event.pubkey)}`)}
 						>{getName(event.pubkey, profileMap, eventFollowList)}</a
 					><span class="hashtags">
 						{#each hashtags as hashtag (hashtag)}
-							<a href="/t/{encodeURI(hashtag)}" class="hashtag">#{hashtag}</a>
+							<a href={resolve(`/t/${encodeURI(hashtag)}`)} class="hashtag">#{hashtag}</a>
 						{/each}
 					</span>
 				</div>
@@ -188,7 +189,7 @@
 				</div>
 			</div>
 			<div class="menu">
-				<a href="/{getEncode(event, getSeenOn(event.id, true))}">
+				<a href={resolve(`/${getEncode(event, getSeenOn(event.id, true))}`)}>
 					<time datetime={new Date(1000 * event.created_at).toISOString()} class="created_at"
 						>{getDateTimeString(event.created_at)}</time
 					>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import {
 		clientTag,
 		defaultReactionToAdd,
@@ -272,7 +273,7 @@
 </script>
 
 <header>
-	<h1><a href="/">{sitename}</a></h1>
+	<h1><a href={resolve('/')}>{sitename}</a></h1>
 	{#if !up.isError}
 		<details class="settings">
 			<summary>
@@ -329,7 +330,7 @@
 					<img src="/apple-touch-icon.png" alt="KUCHIYOSE's favicon" class="login-user" />
 				</button>
 			{:else}
-				<a href="/{nip19.npubEncode(loginPubkey)}">
+				<a href={resolve(`/${nip19.npubEncode(loginPubkey)}`)}>
 					<img
 						src={profileMap.get(loginPubkey)?.picture ?? getRoboHashURL(loginPubkey)}
 						alt="your avatar"
@@ -405,7 +406,7 @@
 			/>
 		{:else}
 			{@const enc = nip19.neventEncode(up.currentEventPointer)}
-			<a href={`/${enc}`}>{`nostr:${enc}`}</a>
+			<a href={resolve(`/${enc}`)}>{`nostr:${enc}`}</a>
 		{/if}
 	{:else if up.currentAddressPointer !== undefined && up.currentAddressPointer.kind !== 39701}
 		{@const event = eventsTimeline.at(0)}
@@ -431,7 +432,7 @@
 			/>
 		{:else}
 			{@const enc = nip19.naddrEncode(up.currentAddressPointer)}
-			<a href={`/${enc}`}>{`nostr:${enc}`}</a>
+			<a href={resolve(`/${enc}`)}>{`nostr:${enc}`}</a>
 		{/if}
 	{:else if !up.isError}
 		<CreateEntry
@@ -451,7 +452,9 @@
 		/>
 		<section class="tag-cloud">
 			{#each getAllTagsMap(eventsTimeline) as [t, n] (t)}
-				<span><a href="/t/{encodeURI(t)}" class="hashtag">#{t}</a><span>({n})</span></span>
+				<span
+					><a href={resolve(`/t/${encodeURI(t)}`)} class="hashtag">#{t}</a><span>({n})</span></span
+				>
 			{/each}
 		</section>
 		<dl class="url">
@@ -469,7 +472,9 @@
 					<br />
 					<span class="url">{url}</span>
 					<br />
-					<a href="/entry/{path}" class="bookmark-count">{n > 1 ? `${n}users` : `${n}user`}</a>
+					<a href={resolve(`/entry/${path}`)} class="bookmark-count"
+						>{n > 1 ? `${n}users` : `${n}user`}</a
+					>
 					<AddStar
 						sendReaction={sendReactionToUrl(url)}
 						{sendDeletion}

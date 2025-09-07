@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { getRoboHashURL, limitDepth } from '$lib/config';
 	import { getName, urlLinkString } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
@@ -176,7 +177,7 @@
 			{@const enc = ct.encoded}
 			{@const prof = profileMap.get(hex)}
 			{@const nameToShow = getName(hex, profileMap, eventFollowList, false, true)}
-			<a href="/{enc}"
+			<a href={resolve(`/${enc}`)}
 				><img
 					src={prof?.picture ?? getRoboHashURL(hex)}
 					alt={nameToShow}
@@ -219,7 +220,7 @@
 				/>
 			{:else}
 				{@const enc = ct.encoded}
-				<a href={`/${enc}`}>{`nostr:${enc}`}</a>
+				<a href={resolve(`/${enc}`)}>{`nostr:${enc}`}</a>
 			{/if}
 		{/if}
 	{:else if ct.type === 'emoji'}
