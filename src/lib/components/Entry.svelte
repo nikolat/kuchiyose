@@ -91,7 +91,7 @@
 		}
 		return eventsComment.filter(filter);
 	};
-	const commentsToTheEvent = $state(getCommentsToTheEvent(event, eventsComment));
+	const commentsToTheEvent = $derived(getCommentsToTheEvent(event, eventsComment));
 	const classNames: string[] = $derived.by(() => {
 		const classNames: string[] = ['tree'];
 		if (level > 0) {
