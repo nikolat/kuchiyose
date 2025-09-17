@@ -581,6 +581,17 @@
 		margin-right: 0.5em;
 		white-space: nowrap;
 	}
+	/* Google Chrome 以外ではちゃんと折り返してくれないので仕方なく強制折り返し */
+	@supports (paint-order: fill) and (-webkit-marquee-speed: 0) {
+		.tag-cloud > span {
+			white-space: normal;
+		}
+	}
+	@-moz-document url-prefix() {
+		.tag-cloud > span {
+			white-space: normal;
+		}
+	}
 	.bookmark-count {
 		display: inline-block;
 		color: var(--highlight);
