@@ -582,10 +582,10 @@
 		white-space: nowrap;
 	}
 	/* Google Chrome 以外ではちゃんと折り返してくれないので仕方なく強制折り返し */
-	@supports (paint-order: fill) and (-webkit-marquee-speed: 0) {
-		.tag-cloud > span {
-			white-space: normal;
-		}
+	:global(_::-webkit-full-page-media),
+	:global(_:future),
+	:global(:root .tag-cloud > span) {
+		white-space: normal;
 	}
 	@-moz-document url-prefix() {
 		.tag-cloud > span {
