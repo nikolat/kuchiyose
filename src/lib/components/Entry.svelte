@@ -76,7 +76,11 @@
 	);
 	const prof = $derived(profileMap.get(event.pubkey));
 	const contentWarning: string | boolean = $derived(getContentWarning(event));
-	const getCommentsToTheEvent = (event: NostrEvent, eventsComment: NostrEvent[]): NostrEvent[] => {
+	const getCommentsToTheEvent = (
+		eventWithState: NostrEvent,
+		eventsComment: NostrEvent[]
+	): NostrEvent[] => {
+		const event: NostrEvent = $state.snapshot(eventWithState);
 		let filter: (ev: NostrEvent) => boolean;
 		if (isRegularKind(event.kind)) {
 			filter = (ev: NostrEvent) => getTagValue(ev, 'e') === event.id;
@@ -115,7 +119,7 @@
 	});
 
 	const getEncode = (event: NostrEvent, relays?: string[]) =>
-		encodeDecodeResult(getPointerForEvent(event, relays));
+		encodeDecodeResult(getPointerForEvent($state.snapshot(event), relays));
 </script>
 
 <div class={classNames.join(' ')}>
