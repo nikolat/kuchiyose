@@ -29,6 +29,7 @@
 	import { normalizeURL } from 'nostr-tools/utils';
 	import * as nip19 from 'nostr-tools/nip19';
 	import {
+		getBlockedRelaysList,
 		getEventsAddressableLatest,
 		getEventsFilteredByMute,
 		getMuteList,
@@ -69,6 +70,7 @@
 			[]
 	);
 	let eventMuteList: NostrEvent | undefined = $state();
+	let eventBlockedRelaysList: NostrEvent | undefined = $state();
 	let mutedPubkeys: string[] = $state([]);
 	let mutedIds: string[] = $state([]);
 	let mutedWords: string[] = $state([]);
@@ -79,6 +81,16 @@
 	$effect(() => {
 		getMuteListPromise.then((v: [string[], string[], string[], string[]]) => {
 			[mutedPubkeys, mutedIds, mutedWords, mutedHashtags] = v;
+		});
+	});
+	let blockedRelays: string[] = $state([]);
+	const getBlockedRelaysListPromise: Promise<string[]> = $derived(
+		getBlockedRelaysList(eventBlockedRelaysList, loginPubkey)
+	);
+	$effect(() => {
+		getBlockedRelaysListPromise.then((v: string[]) => {
+			blockedRelays = v;
+			rc?.setBlockedRelays(blockedRelays);
 		});
 	});
 	let eventsEmojiSet: NostrEvent[] = $state([]);
@@ -146,12 +158,7 @@
 			}
 			case 10006: {
 				if (loginPubkey !== undefined && event?.pubkey === loginPubkey) {
-					const eventBlockedRelay = rc.getReplaceableEvent(kind, loginPubkey);
-					const blockedRelays: string[] =
-						eventBlockedRelay?.tags
-							.filter((tag) => tag.length >= 2 && tag[0] === 'relay' && URL.canParse(tag[1]))
-							.map((tag) => normalizeURL(tag[1])) ?? [];
-					rc.setBlockedRelays(blockedRelays);
+					eventBlockedRelaysList = rc.getReplaceableEvent(kind, loginPubkey);
 				}
 				break;
 			}
@@ -298,6 +305,7 @@
 		eventsComment = [];
 		eventFollowList = undefined;
 		eventMuteList = undefined;
+		eventBlockedRelaysList = undefined;
 		eventsEmojiSet = [];
 	};
 
