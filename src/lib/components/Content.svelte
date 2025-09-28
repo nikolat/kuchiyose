@@ -73,7 +73,14 @@
 				url: string;
 		  };
 
-	const getExpandTagsList = (content: string, tags: string[][]) => {
+	const getExpandTagsList = (
+		content: string,
+		tags: string[][]
+	): {
+		type: string;
+		event: undefined;
+		children: [Token];
+	} => {
 		const regMatchArray = [
 			'https?://[\\w!?/=+\\-_~:;.,*&@#$%()[\\]]+',
 			'nostr:npub1[a-z\\d]{58}',
@@ -109,12 +116,23 @@
 			const shortcode = m.at(7);
 			const mMentionDecoded: nip19.DecodedResult | null =
 				mMention === undefined ? null : nip19decode(mMention.replace(/nostr:/, ''));
-			if (mLink !== undefined && /^https?:\/\/\S+/.test(mLink) && URL.canParse(mLink)) {
-				children.push({
-					type: 'link',
-					href: new URL(mLink).toString(),
-					value: mLink
-				});
+			if (mLink !== undefined && /^https?:\/\/\S+/.test(mLink)) {
+				const [url, rest] = urlLinkString(mLink);
+				if (URL.canParse(url)) {
+					children.push({
+						type: 'link',
+						href: new URL(url).toString(),
+						value: url
+					});
+				} else {
+					children.push({
+						type: 'text',
+						value: url
+					});
+				}
+				for (const child of getExpandTagsList(rest, tags).children) {
+					children.push(child);
+				}
 			} else if (mMention !== undefined && mMentionDecoded !== null) {
 				children.push({
 					type: 'mention',
@@ -168,8 +186,8 @@
 
 {#each ats.children as ct, i (i)}
 	{#if ct.type === 'link'}
-		{@const [url, rest] = urlLinkString(ct.value)}
-		<a href={url} target="_blank" rel="noopener noreferrer">{url}</a>{rest}
+		{@const url = ct.value}
+		<a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
 	{:else if ct.type === 'mention'}
 		{@const d = ct.decoded}
 		{#if ['npub', 'nprofile'].includes(d.type)}
