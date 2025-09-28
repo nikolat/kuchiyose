@@ -65,10 +65,22 @@
 	let eventsWebReaction: NostrEvent[] = $state([]);
 	let eventsComment: NostrEvent[] = $state([]);
 	let eventFollowList: NostrEvent | undefined = $state();
-	const followingPubkeys: string[] = $derived(
-		eventFollowList?.tags.filter((tag) => tag.length >= 2 && tag[0] === 'p').map((tag) => tag[1]) ??
-			[]
-	);
+	const followingPubkeys: string[] = $derived.by(() => {
+		const followingPubkeysFromEvent =
+			eventFollowList?.tags
+				.filter((tag) => tag.length >= 2 && tag[0] === 'p')
+				.map((tag) => tag[1]) ?? [];
+		const followingPubkeySet = new Set<string>();
+		for (const pubkey of followingPubkeysFromEvent) {
+			try {
+				nip19.npubEncode(pubkey);
+			} catch (_error) {
+				continue;
+			}
+			followingPubkeySet.add(pubkey);
+		}
+		return Array.from(followingPubkeySet);
+	});
 	let eventMuteList: NostrEvent | undefined = $state();
 	let eventBlockedRelaysList: NostrEvent | undefined = $state();
 	let mutedPubkeys: string[] = $state([]);
@@ -355,11 +367,23 @@
 			rc.fetchKind10002(pubkeys, () => {
 				if (loginPubkey !== undefined && rc.getReplaceableEvent(3, loginPubkey) === undefined) {
 					rc.fetchUserSettings(loginPubkey, () => {
-						const pubkeysSecond =
+						const followingPubkeysFromEvent =
 							rc
 								.getReplaceableEvent(3, loginPubkey)
 								?.tags.filter((tag) => tag.length >= 2 && tag[0] === 'p')
 								.map((tag) => tag[1]) ?? [];
+						const followingPubkeySet = new Set<string>();
+						for (const pubkey of followingPubkeysFromEvent) {
+							try {
+								nip19.npubEncode(pubkey);
+							} catch (error) {
+								console.info(`pubkey: ${pubkey}`);
+								console.warn(error);
+								continue;
+							}
+							followingPubkeySet.add(pubkey);
+						}
+						const pubkeysSecond: string[] = Array.from(followingPubkeySet);
 						if (pubkeysSecond.length > 0) {
 							rc.fetchKind10002(pubkeysSecond, () => {
 								rc.fetchWebBookmark(up, limit, loginPubkey);
