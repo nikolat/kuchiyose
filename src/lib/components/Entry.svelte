@@ -126,7 +126,11 @@
 	<div class="entry">
 		<div class="avatar">
 			<a href={resolve(`/${nip19.npubEncode(event.pubkey)}`)}>
-				<img src={prof?.picture ?? getRoboHashURL(event.pubkey)} alt="" class="avatar" />
+				<img
+					src={URL.canParse(prof?.picture ?? '') ? prof?.picture : getRoboHashURL(event.pubkey)}
+					alt=""
+					class="avatar"
+				/>
 			</a>
 		</div>
 		<div class="contents">
