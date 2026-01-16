@@ -19,9 +19,9 @@
 		isCommentFormVisible: boolean;
 	} = $props();
 
-	const cwInit: string | boolean = getContentWarning(event);
-	let isContentWarningEnabled: boolean = $state(!!cwInit);
-	let contentWarningReason: string = $state(typeof cwInit === 'string' ? cwInit : '');
+	const cwInit: string | boolean = $derived(getContentWarning(event));
+	let isContentWarningEnabled: boolean = $derived(!!cwInit);
+	let contentWarningReason: string = $derived(typeof cwInit === 'string' ? cwInit : '');
 	let emojiPickerContainer: HTMLElement | undefined = $state();
 	let editCommentValue: string = $state('');
 	let editCommentElement: HTMLTextAreaElement | undefined = $state();
