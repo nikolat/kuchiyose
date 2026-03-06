@@ -11,14 +11,10 @@
 	import type { RelayConnector, UrlParams } from '$lib/resource';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import * as nip19 from 'nostr-tools/nip19';
-	import {
-		getContentWarning,
-		getTagValue,
-		unixNow,
-		type ProfileContent
-	} from 'applesauce-core/helpers';
+	import { getTagValue, unixNow, type ProfileContent } from 'applesauce-core/helpers';
 	import {
 		getAllTagsMap,
+		getContentWarning,
 		getEventsReactionToTheTarget,
 		getTagsForContent,
 		getTitleFromWebbookmarks,

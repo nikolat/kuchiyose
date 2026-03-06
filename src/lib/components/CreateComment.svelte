@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { getEmoji, getEmojiMap } from '$lib/utils';
+	import { getContentWarning, getEmoji, getEmojiMap } from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import { getContentWarning } from 'applesauce-core/helpers';
 
 	let {
 		event,

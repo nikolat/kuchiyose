@@ -58,9 +58,16 @@
 	let eventsTimeline: NostrEvent[] = $state([]);
 	let eventsWebBookmark: NostrEvent[] = $state([]);
 	let eventsProfile: NostrEvent[] = $state([]);
-	const profileMap: Map<string, ProfileContent> = $derived(
-		new Map<string, ProfileContent>(eventsProfile.map((ev) => [ev.pubkey, getProfileContent(ev)]))
-	);
+	const profileMap: Map<string, ProfileContent> = $derived.by(() => {
+		const r = new Map<string, ProfileContent>();
+		for (const ev of eventsProfile) {
+			const pc = getProfileContent(ev);
+			if (pc !== undefined) {
+				r.set(ev.pubkey, pc);
+			}
+		}
+		return r;
+	});
 	let eventsReaction: NostrEvent[] = $state([]);
 	let eventsWebReaction: NostrEvent[] = $state([]);
 	let eventsComment: NostrEvent[] = $state([]);
@@ -182,9 +189,9 @@
 						const aTags: string[][] = ev10030.tags.filter(
 							(tag) => tag.length >= 2 && tag[0] === 'a'
 						);
-						const aps: nip19.AddressPointer[] = aTags.map((aTag) =>
-							getAddressPointerFromATag(aTag)
-						);
+						const aps: nip19.AddressPointer[] = aTags
+							.map((aTag) => getAddressPointerFromATag(aTag))
+							.filter((ap) => ap !== null);
 						const filters: Filter[] = mergeFilterForAddressableEvents(
 							aps
 								.filter((ap) => isAddressableKind(ap.kind))
@@ -220,11 +227,14 @@
 					if (ATag === undefined) {
 						break;
 					}
-					let ap: nip19.AddressPointer;
+					let ap: nip19.AddressPointer | null;
 					try {
 						ap = getAddressPointerFromATag(ATag);
 					} catch (error) {
 						console.warn(error);
+						break;
+					}
+					if (ap === null) {
 						break;
 					}
 					filter.kinds = [ap.kind];

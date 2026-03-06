@@ -1,15 +1,19 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { getRoboHashURL } from '$lib/config';
-	import { getDateTimeString, getEventsReactionToTheTarget, getName } from '$lib/utils';
+	import {
+		getContentWarning,
+		getDateTimeString,
+		getEventsReactionToTheTarget,
+		getName
+	} from '$lib/utils';
 	import type { NostrEvent } from 'nostr-tools/pure';
 	import { isAddressableKind, isRegularKind, isReplaceableKind } from 'nostr-tools/kinds';
 	import * as nip19 from 'nostr-tools/nip19';
 	import {
 		encodeDecodeResult,
 		getAddressPointerForEvent,
-		getContentWarning,
-		getCoordinateFromAddressPointer,
+		getReplaceableAddressFromPointer,
 		getPointerForEvent,
 		getTagValue,
 		type ProfileContent
@@ -86,10 +90,16 @@
 			filter = (ev: NostrEvent) => getTagValue(ev, 'e') === event.id;
 		} else if (isReplaceableKind(event.kind)) {
 			const ap: nip19.AddressPointer = { identifier: '', ...event };
-			filter = (ev: NostrEvent) => getTagValue(ev, 'a') === getCoordinateFromAddressPointer(ap);
+			filter = (ev: NostrEvent) => getTagValue(ev, 'a') === getReplaceableAddressFromPointer(ap);
 		} else if (isAddressableKind(event.kind)) {
-			const ap: nip19.AddressPointer = getAddressPointerForEvent(event);
-			filter = (ev: NostrEvent) => getTagValue(ev, 'a') === getCoordinateFromAddressPointer(ap);
+			const ap: nip19.AddressPointer | null = getAddressPointerForEvent(event);
+			filter = (ev: NostrEvent) => {
+				if (ap === null) {
+					return false;
+				} else {
+					return getTagValue(ev, 'a') === getReplaceableAddressFromPointer(ap);
+				}
+			};
 		} else {
 			return [];
 		}

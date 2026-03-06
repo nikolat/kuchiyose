@@ -34,13 +34,12 @@ import { EventStore } from 'applesauce-core';
 import {
 	getAddressPointerForEvent,
 	getAddressPointerFromATag,
-	getCoordinateFromAddressPointer,
-	getDeleteCoordinates,
+	getReplaceableAddressFromPointer,
+	getDeleteAddressPointers,
 	getDeleteIds,
 	getInboxes,
 	getOutboxes,
 	getTagValue,
-	parseCoordinate,
 	unixNow
 } from 'applesauce-core/helpers';
 import { sortEvents, type EventTemplate, type NostrEvent } from 'nostr-tools/pure';
@@ -173,8 +172,14 @@ export class RelayConnector {
 
 	#defineSubscription = () => {
 		const getRpId = ({ event }: { event: NostrEvent }) => `${event.kind}:${event.pubkey}`;
-		const getAdId = ({ event }: { event: NostrEvent }) =>
-			getCoordinateFromAddressPointer(getAddressPointerForEvent(event));
+		const getAdId = ({ event }: { event: NostrEvent }) => {
+			const ap = getAddressPointerForEvent(event);
+			if (ap === null) {
+				return '';
+			} else {
+				return getReplaceableAddressFromPointer(ap);
+			}
+		};
 		const next = this.#next;
 		const complete = this.#complete;
 		const bt: OperatorFunction<ReqPacket, ReqPacket[]> = bufferTime(this.#secBufferTime);
@@ -304,7 +309,7 @@ export class RelayConnector {
 		console.info('kind', event.kind);
 		if (event.kind === 5) {
 			const ids: string[] = getDeleteIds(event);
-			const aids: string[] = getDeleteCoordinates(event);
+			const aps: nip19.AddressPointer[] = getDeleteAddressPointers(event);
 			const relaysSeenOnSet = new Set<string>();
 			for (const id of ids) {
 				if (this.#eventStore.hasEvent(id)) {
@@ -314,11 +319,7 @@ export class RelayConnector {
 					this.#eventStore.database.remove(id);
 				}
 			}
-			for (const aid of aids) {
-				const ap: nip19.AddressPointer | null = parseCoordinate(aid, true, true);
-				if (ap === null) {
-					continue;
-				}
+			for (const ap of aps) {
 				const filter: Filter = {
 					kinds: [ap.kind],
 					authors: [ap.pubkey],
@@ -327,7 +328,7 @@ export class RelayConnector {
 				if (ap.identifier.length > 0) {
 					filter['#d'] = [ap.identifier];
 				}
-				const evs: Set<NostrEvent> = this.#eventStore.getByFilters(filter);
+				const evs: NostrEvent[] = this.#eventStore.getByFilters(filter);
 				for (const ev of evs) {
 					for (const relay of this.getSeenOn(ev.id, true)) {
 						relaysSeenOnSet.add(relay);
@@ -565,7 +566,7 @@ export class RelayConnector {
 			};
 			filter = {
 				kinds: [7],
-				'#a': [getCoordinateFromAddressPointer(ap)],
+				'#a': [getReplaceableAddressFromPointer(ap)],
 				limit: this.#limitReaction,
 				until
 			};
@@ -609,7 +610,7 @@ export class RelayConnector {
 			};
 			filter = {
 				kinds: [1111],
-				'#A': [getCoordinateFromAddressPointer(ap)],
+				'#A': [getReplaceableAddressFromPointer(ap)],
 				limit: this.#limitComment,
 				until
 			};
@@ -675,10 +676,12 @@ export class RelayConnector {
 				aTags = [aTagLast];
 			}
 			for (const aTag of aTags) {
-				let ap: nip19.AddressPointer;
+				let ap: nip19.AddressPointer | null;
 				try {
 					ap = getAddressPointerFromATag(aTag);
-					nip19.naddrEncode(ap);
+					if (ap !== null) {
+						nip19.naddrEncode(ap);
+					}
 				} catch (_error) {
 					continue;
 				}
@@ -938,9 +941,14 @@ export class RelayConnector {
 				.use(rxReqBAdCustom)
 				.pipe(
 					this.#tie,
-					latestEach(({ event }) =>
-						getCoordinateFromAddressPointer(getAddressPointerForEvent(event))
-					),
+					latestEach(({ event }) => {
+						const ap = getAddressPointerForEvent(event);
+						if (ap === null) {
+							return '';
+						} else {
+							return getReplaceableAddressFromPointer(ap);
+						}
+					}),
 					completeOnTimeout(this.#secOnCompleteTimeout)
 				)
 				.subscribe({
@@ -1037,15 +1045,18 @@ export class RelayConnector {
 		const filters: LazyFilter[] = [];
 		const until = unixNow();
 		for (const aTag of aTags) {
-			let ap: nip19.AddressPointer;
+			let ap: nip19.AddressPointer | null;
 			try {
 				ap = getAddressPointerFromATag(aTag);
-				nip19.naddrEncode(ap);
+				if (ap !== null) {
+					nip19.naddrEncode(ap);
+				}
 			} catch (error) {
 				console.warn(error);
 				continue;
 			}
 			if (
+				ap !== null &&
 				!this.#eventStore.hasReplaceable(
 					ap.kind,
 					ap.pubkey,
@@ -1417,7 +1428,7 @@ export class RelayConnector {
 				...targetEvent,
 				identifier: isAddressableKind(targetEvent.kind) ? (getTagValue(targetEvent, 'd') ?? '') : ''
 			};
-			const a: string = getCoordinateFromAddressPointer(ap);
+			const a: string = getReplaceableAddressFromPointer(ap);
 			const aTag: string[] = ['a', a];
 			const ATag: string[] = ['A', a];
 			if (relayHintEvent !== undefined) {
@@ -1482,7 +1493,7 @@ export class RelayConnector {
 						? (getTagValue(targetEvent, 'd') ?? '')
 						: ''
 				};
-				const a: string = getCoordinateFromAddressPointer(ap);
+				const a: string = getReplaceableAddressFromPointer(ap);
 				const aTag: string[] = ['a', a];
 				if (relayHintEvent !== undefined) {
 					aTag.push(relayHintEvent);
