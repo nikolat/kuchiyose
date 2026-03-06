@@ -17,10 +17,10 @@
 	},
 	"dependencies": {
 		"@emoji-mart/data": "^1.2.1",
+		"@konemono/nostr-login": "^1.14.1",
 		"@rx-nostr/crypto": "^0.0.0",
 		"applesauce-core": "^5.1.0",
 		"emoji-mart": "^5.6.0",
-		"nostr-login": "^1.7.12",
 		"nostr-tools": "^2.23.3",
 		"rx-nostr": "^3.6.2",
 		"svelte-persisted-store": "^0.12.0"

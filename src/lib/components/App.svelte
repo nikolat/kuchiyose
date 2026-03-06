@@ -522,7 +522,7 @@
 			return;
 		}
 		if (document.querySelector('body > nl-banner') === null) {
-			const { init } = await import('nostr-login');
+			const { init } = await import('@konemono/nostr-login');
 			init({});
 		}
 	});
