@@ -421,7 +421,7 @@ export const getEventsFilteredByMute = (
 		if (
 			mutedHashTags.some((hashTag) =>
 				event.tags
-					.filter((tag) => tag.length >= 2 && tag[0] === 't' && /^[^\s#]+$/)
+					.filter((tag) => tag.length >= 2 && tag[0] === 't' && /^[^\s#]+$/.test(tag[1]))
 					.map((tag) => tag[1].toLowerCase())
 					.includes(hashTag)
 			)
