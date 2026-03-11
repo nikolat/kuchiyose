@@ -215,7 +215,7 @@ export const getAllTagsMap = (eventsWebBookmark: NostrEvent[]): Map<string, numb
 	const map = new Map<string, number>();
 	for (const ev of eventsWebBookmark) {
 		const tTags = ev.tags
-			.filter((tag) => tag.length >= 2 && tag[0] === 't')
+			.filter((tag) => tag.length >= 2 && tag[0] === 't' && /^[^\s#]+$/.test(tag[1]))
 			.map((tag) => tag[1].toLowerCase());
 		for (const t of tTags) {
 			const n = map.get(t);
@@ -421,7 +421,7 @@ export const getEventsFilteredByMute = (
 		if (
 			mutedHashTags.some((hashTag) =>
 				event.tags
-					.filter((tag) => tag.length >= 2 && tag[0] === 't')
+					.filter((tag) => tag.length >= 2 && tag[0] === 't' && /^[^\s#]+$/)
 					.map((tag) => tag[1].toLowerCase())
 					.includes(hashTag)
 			)

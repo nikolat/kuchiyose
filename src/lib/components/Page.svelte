@@ -246,7 +246,7 @@
 		const hashtags: string[] = Array.from(
 			new Set<string>(
 				webbookmark.tags
-					.filter((tag) => tag.length >= 2 && tag[0] === 't')
+					.filter((tag) => tag.length >= 2 && tag[0] === 't' && /^[^\s#]+$/.test(tag[1]))
 					.map((tag) => tag[1].toLowerCase())
 			)
 		);

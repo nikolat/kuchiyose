@@ -74,7 +74,7 @@
 	const hashtags = $derived(
 		new Set<string>(
 			event.tags
-				.filter((tag) => tag.length >= 2 && tag[0] === 't')
+				.filter((tag) => tag.length >= 2 && tag[0] === 't' && /^[^\s#]+$/.test(tag[1]))
 				.map((tag) => tag[1].toLowerCase())
 		)
 	);

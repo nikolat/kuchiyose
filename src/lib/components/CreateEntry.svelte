@@ -46,7 +46,7 @@
 					editTitleTag = v;
 					break;
 				case 't':
-					if (/[^\s#]+/.test(v)) {
+					if (/^[^\s#]+$/.test(v)) {
 						editTagsSet.add(v.toLowerCase());
 					}
 					break;
