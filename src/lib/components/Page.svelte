@@ -212,7 +212,8 @@
 	const sendReaction = async (
 		target: NostrEvent | string,
 		content?: string,
-		emojiurl?: string
+		emojiurl?: string,
+		emojiaddress?: string
 	): Promise<void> => {
 		if (rc === undefined) {
 			return;
@@ -221,6 +222,7 @@
 			target,
 			content ?? defaultReactionToAdd,
 			emojiurl,
+			emojiaddress,
 			isEnabledUseClientTag ? clientTag : undefined
 		);
 	};

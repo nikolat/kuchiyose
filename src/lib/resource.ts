@@ -1472,6 +1472,7 @@ export class RelayConnector {
 		target: NostrEvent | string,
 		content: string,
 		emojiurl: string | undefined,
+		emojiaddress: string | undefined,
 		clientTag: string[] | undefined
 	): Promise<Observable<OkPacketAgainstEvent>> => {
 		if (window.nostr === undefined) {
@@ -1514,7 +1515,11 @@ export class RelayConnector {
 			tags.push(['k', 'web']);
 		}
 		if (emojiurl !== undefined && URL.canParse(emojiurl)) {
-			tags.push(['emoji', content.replaceAll(':', ''), emojiurl]);
+			const emojiTag: string[] = ['emoji', content.replaceAll(':', ''), emojiurl];
+			if (emojiaddress !== undefined) {
+				emojiTag.push(emojiaddress);
+			}
+			tags.push(emojiTag);
 		}
 		if (clientTag !== undefined) {
 			tags.push(clientTag);

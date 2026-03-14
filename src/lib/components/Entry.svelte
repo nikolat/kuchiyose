@@ -55,7 +55,12 @@
 			targetEventToReply: NostrEvent,
 			contentWarning: string | boolean
 		) => Promise<void>;
-		sendReaction: (event: NostrEvent, content?: string, emojiurl?: string) => Promise<void>;
+		sendReaction: (
+			event: NostrEvent,
+			content?: string,
+			emojiurl?: string,
+			emojiaddress?: string
+		) => Promise<void>;
 		sendDeletion: (event: NostrEvent) => Promise<void>;
 		loginPubkey: string | undefined;
 		profileMap: Map<string, ProfileContent>;
@@ -213,8 +218,8 @@
 					>
 				</a>
 				<AddStar
-					sendReaction={(content?: string, emojiurl?: string) =>
-						sendReaction(event, content, emojiurl)}
+					sendReaction={(content?: string, emojiurl?: string, emojiaddress?: string) =>
+						sendReaction(event, content, emojiurl, emojiaddress)}
 					{sendDeletion}
 					{loginPubkey}
 					{profileMap}

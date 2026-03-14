@@ -13,7 +13,7 @@
 		eventsReaction,
 		eventsEmojiSet
 	}: {
-		sendReaction: (content?: string, emojiurl?: string) => Promise<void>;
+		sendReaction: (content?: string, emojiurl?: string, emojiaddress?: string) => Promise<void>;
 		sendDeletion: (targetEvent: NostrEvent) => Promise<void>;
 		loginPubkey: string | undefined;
 		profileMap: Map<string, ProfileContent>;
@@ -29,6 +29,8 @@
 
 	let isAllowedExpand: boolean = $state(false);
 
+	const emojiMap: Map<string, [string, string]> = $derived(getEmojiMap(eventsEmojiSet));
+
 	let emojiPickerContainer: HTMLElement | undefined = $state();
 	const callSendEmoji = async (): Promise<void> => {
 		if (emojiPickerContainer === undefined) {
@@ -37,13 +39,18 @@
 		if (emojiPickerContainer.children.length > 0) {
 			return;
 		}
-		const callbackEmojiSelect = async (
-			emojiStr: string,
-			emojiUrl: string | undefined
-		): Promise<void> => {
-			await sendReaction(emojiStr, emojiUrl);
+		const callbackEmojiSelect = async ({
+			emojiStr,
+			emojiUrl,
+			emojiAddress
+		}: {
+			emojiStr: string;
+			emojiUrl: string | undefined;
+			emojiAddress: string | undefined;
+		}): Promise<void> => {
+			await sendReaction(emojiStr, emojiUrl, emojiAddress);
 		};
-		await getEmoji(emojiPickerContainer, getEmojiMap(eventsEmojiSet), true, callbackEmojiSelect);
+		await getEmoji(emojiPickerContainer, emojiMap, true, callbackEmojiSelect);
 	};
 </script>
 

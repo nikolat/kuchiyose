@@ -10,7 +10,8 @@ import {
 	getOutboxes,
 	getProfileContent,
 	getTagValue,
-	type ProfileContent
+	type ProfileContent,
+	getAddressPointerForEvent
 } from 'applesauce-core/helpers';
 import data from '@emoji-mart/data';
 // @ts-expect-error なんもわからんかも
@@ -610,15 +611,15 @@ export const getTagsForContent = (
 		return links;
 	};
 	const links: Set<string> = getUrlsFromContent(content);
-	const emojiMapToAdd: Map<string, string> = new Map<string, string>();
-	const emojiMap: Map<string, string> = getEmojiMap(eventsEmojiSet);
+	const emojiMapToAdd: Map<string, [string, string]> = new Map<string, [string, string]>();
+	const emojiMap: Map<string, [string, string]> = getEmojiMap(eventsEmojiSet);
 	const matchesIteratorEmojiTag = content.matchAll(
 		new RegExp(`:(${Array.from(emojiMap.keys()).join('|')}):`, 'g')
 	);
 	for (const match of matchesIteratorEmojiTag) {
-		const url = emojiMap.get(match[1]);
-		if (url !== undefined) {
-			emojiMapToAdd.set(match[1], url);
+		const v = emojiMap.get(match[1]);
+		if (v !== undefined) {
+			emojiMapToAdd.set(match[1], v);
 		}
 	}
 	for (const [id, ep] of epMap) {
@@ -662,8 +663,8 @@ export const getTagsForContent = (
 	for (const r of links) {
 		tags.push(['r', r]);
 	}
-	for (const [shortcode, url] of emojiMapToAdd) {
-		tags.push(['emoji', shortcode, url]);
+	for (const [shortcode, [url, address]] of emojiMapToAdd) {
+		tags.push(['emoji', shortcode, url, address]);
 	}
 	return tags;
 };
@@ -717,25 +718,30 @@ export const isValidEmoji = (event: NostrEvent): boolean => {
 	return isCustomEmoji(event) || inputCount(event.content) <= 1;
 };
 
-export const getEmojiMap = (eventsEmojiSet: NostrEvent[]): Map<string, string> => {
-	const r = new Map<string, string>();
+export const getEmojiMap = (eventsEmojiSet: NostrEvent[]): Map<string, [string, string]> => {
+	const r = new Map<string, [string, string]>();
 	for (const ev of eventsEmojiSet) {
+		const ap: nip19.AddressPointer | null = getAddressPointerForEvent(ev);
+		if (ap === null) {
+			continue;
+		}
+		const address: string = getReplaceableAddressFromPointer(ap);
 		const emojiTags: string[][] = ev.tags.filter(
 			(tag) => tag.length >= 3 && tag[0] === 'emoji' && /^\w+$/.test(tag[1]) && URL.canParse(tag[2])
 		);
 		for (const emojiTag of emojiTags) {
 			const shortcode = emojiTag[1];
 			const url = emojiTag[2];
-			const urlStored = r.get(shortcode);
+			const urlStored = r.get(shortcode)?.at(0);
 			if (urlStored === undefined) {
-				r.set(shortcode, url);
+				r.set(shortcode, [url, address]);
 			} else if (urlStored !== url) {
 				let i = 2;
 				while (true) {
 					const shortcodeAnother = `${shortcode}_${i}`;
-					const urlStored2 = r.get(shortcodeAnother);
+					const urlStored2 = r.get(shortcodeAnother)?.at(0);
 					if (urlStored2 === undefined) {
-						r.set(shortcodeAnother, url);
+						r.set(shortcodeAnother, [url, address]);
 						break;
 					}
 					if (urlStored2 === url) {
@@ -751,9 +757,17 @@ export const getEmojiMap = (eventsEmojiSet: NostrEvent[]): Map<string, string> =
 
 export const getEmoji = async (
 	emojiPickerContainer: HTMLElement,
-	emojiMap: Map<string, string>,
+	emojiMap: Map<string, [string, string]>,
 	autoClose: boolean,
-	callbackEmojiSelect: (emojiStr: string, emojiUrl: string | undefined) => Promise<void>
+	onCallbackEmojiSelect: ({
+		emojiStr,
+		emojiUrl,
+		emojiAddress
+	}: {
+		emojiStr: string;
+		emojiUrl: string | undefined;
+		emojiAddress: string | undefined;
+	}) => void
 ): Promise<void> => {
 	const { Picker } = await import('emoji-mart');
 	return new Promise((resolve) => {
@@ -768,7 +782,8 @@ export const getEmoji = async (
 		const onEmojiSelect = (emoji: MyBaseEmoji) => {
 			const emojiStr = emoji.native ?? emoji.shortcodes;
 			const emojiUrl = emoji.src;
-			callbackEmojiSelect(emojiStr, emojiUrl);
+			const emojiAddress = emojiMap.get(emojiStr.replaceAll(':', ''))?.at(1);
+			onCallbackEmojiSelect({ emojiStr, emojiUrl, emojiAddress });
 			if (autoClose) {
 				close();
 			}
@@ -782,7 +797,7 @@ export const getEmoji = async (
 				{
 					id: 'custom-emoji',
 					name: 'Custom Emojis',
-					emojis: Array.from(emojiMap.entries()).map(([shortcode, url]) => {
+					emojis: Array.from(emojiMap.entries()).map(([shortcode, [url, _address]]) => {
 						return {
 							id: shortcode,
 							name: shortcode,

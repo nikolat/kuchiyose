@@ -55,7 +55,13 @@
 			emojiPickerContainer,
 			getEmojiMap(eventsEmojiSet),
 			false,
-			async (emojiStr: string, _emojiUrl: string | undefined): Promise<void> => {
+			async ({
+				emojiStr
+			}: {
+				emojiStr: string;
+				emojiUrl: string | undefined;
+				emojiAddress: string | undefined;
+			}): Promise<void> => {
 				insertText(emojiStr, false);
 			}
 		);
