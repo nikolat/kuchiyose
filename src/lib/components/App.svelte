@@ -439,7 +439,7 @@
 		initFetch();
 	};
 
-	const limit: number = 10;
+	const limit: number = 20;
 	let countToShow: number = $state(limit);
 	let countToShowMax: number = limit;
 	const scopeCountToShow: number = 3 * limit;
