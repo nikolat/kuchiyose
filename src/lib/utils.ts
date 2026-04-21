@@ -25,17 +25,11 @@ interface MyBaseEmoji extends BaseEmoji {
 export const kindsForParse: number[] = [1, 42, 1111, 30023, 39701];
 
 const getAddressPointerFromAId = (aId: string): nip19.AddressPointer | null => {
-	const sp = aId.split(':');
-	if (sp.length < 3) {
+	const m: RegExpMatchArray | null = aId.match(/^(\d+):([0-9a-f]{64}):(.*)$/u);
+	if (m === null) {
 		return null;
 	}
-	try {
-		const ap: nip19.AddressPointer = { identifier: sp[2], pubkey: sp[1], kind: parseInt(sp[0]) };
-		return ap;
-	} catch (error) {
-		console.warn(error);
-		return null;
-	}
+	return { identifier: m[3], pubkey: m[2], kind: parseInt(m[1]) };
 };
 
 export const getQuotedEvents = (
