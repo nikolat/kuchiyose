@@ -278,7 +278,7 @@
 		}
 	};
 
-	let timerEventsProfile: number | undefined;
+	let timerEventsProfile: NodeJS.Timeout | undefined;
 	const setNewEventsProfile = () => {
 		clearTimeout(timerEventsProfile);
 		timerEventsProfile = setTimeout(() => {
@@ -290,7 +290,7 @@
 			);
 		}, 100);
 	};
-	let timerEventsReaction: number | undefined;
+	let timerEventsReaction: NodeJS.Timeout | undefined;
 	const setNewEventsReaction = () => {
 		clearTimeout(timerEventsReaction);
 		timerEventsReaction = setTimeout(() => {
