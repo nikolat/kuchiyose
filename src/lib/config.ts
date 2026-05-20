@@ -2,17 +2,17 @@ import { npubEncode } from 'nostr-tools/nip19';
 import type { WindowNostr } from 'nostr-tools/nip07';
 
 export const sitename = 'KUCHIYOSE';
-export const defaultRelays = [
-	'wss://relay-jp.nostr.wirednet.jp/',
-	'wss://yabu.me/',
-	'wss://nrelay.c-stellar.net/'
+export const defaultRelays: string[] = [
+	'wss://nrelay.c-stellar.net/',
+	'wss://nostr.compile-error.net/'
 ];
 export const indexerRelays = [
 	'wss://directory.yabu.me/',
 	'wss://purplepag.es/',
+	'wss://user.kindpag.es/',
 	'wss://indexer.coracle.social/'
 ];
-export const profileRelays = ['wss://directory.yabu.me/'];
+export const profileRelays = ['wss://directory.yabu.me/', 'wss://user.kindpag.es/'];
 export const limitDepth = 5;
 export const expansionThreshold = 5;
 export const defaultReactionToShow = '⭐';
