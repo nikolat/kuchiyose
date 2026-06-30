@@ -3,7 +3,7 @@ import type { WindowNostr } from 'nostr-tools/nip07';
 
 export const sitename = 'KUCHIYOSE';
 export const defaultRelays: string[] = [
-	'wss://nrelay.c-stellar.net/',
+	'wss://r.ydg.works/',
 	'wss://nostr.compile-error.net/'
 ];
 export const indexerRelays = [
