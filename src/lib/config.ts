@@ -22,7 +22,7 @@ export const clientTag = [
 	'client',
 	'KUCHIYOSE',
 	'31990:6b0a60cff3eca5a2b2505ccb3f7133d8422045cbef40f3d2c6189fb0b952e7d4:1748755611571',
-	'wss://nrelay.c-stellar.net/'
+	'wss://yabu.me/'
 ];
 export const getRoboHashURL = (pubkey: string) => {
 	return `https://robohash.org/${npubEncode(pubkey)}?set=set4`;
